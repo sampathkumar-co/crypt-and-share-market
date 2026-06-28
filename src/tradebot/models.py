@@ -93,6 +93,21 @@ class ScanResult:
     liquidity_safety: float
     net_profit_possibility: float
     rank_score: float
+    rank: int = 0
+    opportunity_score: float = 0.0
+    risk_score: float = 0.0
+    confidence: float = 0.0
+    expected_move_percent: float = 0.0
+    estimated_net_profit_after_cost_tax: float = 0.0
+    rejected: bool = False
+    rejection_reason: str = ""
+    explanation: str = ""
+    breakout_quality: float = 0.0
+    pullback_quality: float = 0.0
+    ml_probability: float | None = None
+    ml_score: float | None = None
+    combined_opportunity_score: float | None = None
+    ml_explanation: str = ""
 
 @dataclass(frozen=True)
 class WalkForwardResult:

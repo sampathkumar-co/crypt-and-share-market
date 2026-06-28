@@ -47,10 +47,70 @@ PYTHONPATH=src python -m tradebot.cli fetch-crypto --symbols BTCUSDT,ETHUSDT,SOL
 `fetch-crypto` uses public/read-only market data only. It does not connect wallets, place orders, store API keys, or add exchange trading APIs. Binance public klines are tried first, with a CoinGecko public-data fallback for supported symbols when Binance is inaccessible. Saved files use the project CSV format: `timestamp,open,high,low,close,volume`, so fetched data can be scanned or walk-forward tested immediately.
 
 ## Run scanner
+The scanner ranks symbols by trend strength, volume strength, breakout/pullback quality, liquidity safety, volatility risk, and estimated after-cost/tax net-profit feasibility. Rejected symbols include a `rejection_reason` in console and JSON reports.
+
 ```bash
-PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto
-PYTHONPATH=src python -m tradebot.cli scan --market equity --folder data/equity
+PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto --top 20 --json-out reports/crypto_scan.json
+PYTHONPATH=src python -m tradebot.cli scan --market equity --folder data/equity --top 20
 ```
+
+
+## Crypto portfolio rotation mode
+```bash
+PYTHONPATH=src python -m tradebot.cli portfolio-crypto --folder data/crypto --cash 100000 --top 20 --json-out reports/crypto_portfolio.json
+```
+
+Portfolio rotation mode simulates the repeated paper-only business idea: scan many crypto CSVs, pick the best accepted opportunity, enter one paper position at a time, exit on target, stop-loss, scanner-risk, or max holding period, then rotate into the next best accepted opportunity. It tracks full portfolio equity, fees, estimated taxes, rejected opportunities, hold time, and trade entry/exit reasons. It does **not** place real trades, connect wallets, use leverage/futures, or call exchange order APIs.
+
+
+
+
+
+
+## Investor/demo report
+```bash
+PYTHONPATH=src python -m tradebot.cli demo-report --out reports/investor_demo_report.md --json-out reports/investor_demo_summary.json
+```
+
+The demo report creates an investor-friendly Markdown summary covering the project, problem statement, current modules, paper-only safety rules, latest available reports, risks, risk minimization, roadmap, product potential, and clear no-guarantee disclaimers. It is designed for honest paper-testing communication, not fundraising hype or proof of profit.
+
+## Local dashboard/API
+```bash
+PYTHONPATH=src python -m tradebot.cli serve-dashboard --host 127.0.0.1 --port 8000
+```
+Then open `http://127.0.0.1:8000`. The local dashboard shows a big PAPER MODE ONLY warning, scanner reports, portfolio reports, robustness status, ML comparison, paper-live state, trade history, warnings, and errors. API endpoints include `GET /health`, `/reports/scanner`, `/reports/portfolio`, `/reports/robustness`, `/reports/ml-comparison`, `/paper-live/state`, `/paper-live/trades`, plus safe paper-only POST actions `/run/scan`, `/run/portfolio`, and `/run/robustness`. Requests containing `api_key`, `secret`, `wallet`, `private_key`, or `order` fields are rejected. This lightweight server is for local research only and exposes no live trading endpoint.
+
+## Paper-live crypto simulation
+```bash
+PYTHONPATH=src python -m tradebot.cli paper-live-crypto --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1m --cash 100000 --model models/crypto_signal_model.json --state paper_state/crypto_live.json --max-loops 5 --sleep-seconds 60
+```
+
+Paper-live mode is the safest live simulation step: it repeatedly fetches public/read-only candles, keeps recent in-memory history, scans current opportunities, manages one fake paper position, and writes a resumable JSON state file after every loop. It prints **PAPER MODE ONLY**, never calls exchange order endpoints, needs no API keys, uses no wallets/leverage/futures, and is still not evidence of guaranteed profit. Use `--max-loops` and `--sleep-seconds` for controlled tests.
+
+## Crypto ML scoring layer
+```bash
+PYTHONPATH=src python -m tradebot.cli train-crypto-ml --folder data/crypto --model-out models/crypto_signal_model.json
+PYTHONPATH=src python -m tradebot.cli evaluate-crypto-ml --folder data/crypto --model models/crypto_signal_model.json --json-out reports/crypto_ml_eval.json
+PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto --top 20 --model models/crypto_signal_model.json --json-out reports/crypto_scan_ml.json
+```
+
+The ML layer is a paper-research scoring add-on. It trains a dependency-light supervised model from historical candles to estimate whether a setup may hit a target before a stop within a future holding window. Evaluation uses a chronological train/test split to reduce leakage. Accuracy, precision, recall, false-positive rate, per-symbol metrics, and low-sample warnings are reported. ML scores can support or weaken scanner opportunity scores, but they are **not proof of profit** and never trigger live trading.
+
+
+## Compare portfolio rotation with and without ML
+```bash
+PYTHONPATH=src python -m tradebot.cli portfolio-crypto --folder data/crypto --cash 100000 --top 20 --model models/crypto_signal_model.json --json-out reports/crypto_portfolio_ml.json
+PYTHONPATH=src python -m tradebot.cli compare-crypto-ml --folder data/crypto --cash 100000 --model models/crypto_signal_model.json --json-out reports/crypto_ml_comparison.json
+```
+
+`compare-crypto-ml` runs the baseline portfolio and the ML-enhanced portfolio on the same CSV folder, then reports `ML_HELPED`, `ML_NEUTRAL`, or `ML_HURT`. `ML_HELPED` requires meaningful net-return improvement without worse drawdown, weak trade count, or excessive fee/tax drag. `ML_HURT` means return, risk, overtrading, or drag became worse. Even if ML helps in paper, it does not guarantee live profit and is not permission to trade live.
+
+## Crypto robustness testing
+```bash
+PYTHONPATH=src python -m tradebot.cli robustness-crypto --folder data/crypto --cash 100000 --json-out reports/crypto_robustness.json
+```
+
+Robustness mode runs the crypto portfolio rotation strategy across the full history and rolling 30/90/180-day windows where enough data exists. It classifies each window as bull/trending up, bear/trending down, sideways, or high-volatility/crash-like, then reports PASS/WATCH/FAIL. **PASS** means suitable only for continued paper testing, **WATCH** means mixed evidence, and **FAIL** means the strategy is not stable enough even for confident paper assumptions. The report highlights best/worst windows, failing regimes, profitable-window percentage, drawdown, consistency, crash survival, overtrading, low-trade, and tax-drag warnings. It never approves live trading.
 
 ## Walk-forward testing
 ```bash
