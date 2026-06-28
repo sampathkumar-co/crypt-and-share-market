@@ -47,10 +47,38 @@ PYTHONPATH=src python -m tradebot.cli fetch-crypto --symbols BTCUSDT,ETHUSDT,SOL
 `fetch-crypto` uses public/read-only market data only. It does not connect wallets, place orders, store API keys, or add exchange trading APIs. Binance public klines are tried first, with a CoinGecko public-data fallback for supported symbols when Binance is inaccessible. Saved files use the project CSV format: `timestamp,open,high,low,close,volume`, so fetched data can be scanned or walk-forward tested immediately.
 
 ## Run scanner
+The scanner ranks symbols by trend strength, volume strength, breakout/pullback quality, liquidity safety, volatility risk, and estimated after-cost/tax net-profit feasibility. Rejected symbols include a `rejection_reason` in console and JSON reports.
+
 ```bash
-PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto
-PYTHONPATH=src python -m tradebot.cli scan --market equity --folder data/equity
+PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto --top 20 --json-out reports/crypto_scan.json
+PYTHONPATH=src python -m tradebot.cli scan --market equity --folder data/equity --top 20
 ```
+
+
+## Crypto portfolio rotation mode
+```bash
+PYTHONPATH=src python -m tradebot.cli portfolio-crypto --folder data/crypto --cash 100000 --top 20 --json-out reports/crypto_portfolio.json
+```
+
+Portfolio rotation mode simulates the repeated paper-only business idea: scan many crypto CSVs, pick the best accepted opportunity, enter one paper position at a time, exit on target, stop-loss, scanner-risk, or max holding period, then rotate into the next best accepted opportunity. It tracks full portfolio equity, fees, estimated taxes, rejected opportunities, hold time, and trade entry/exit reasons. It does **not** place real trades, connect wallets, use leverage/futures, or call exchange order APIs.
+
+
+
+## Crypto ML scoring layer
+```bash
+PYTHONPATH=src python -m tradebot.cli train-crypto-ml --folder data/crypto --model-out models/crypto_signal_model.json
+PYTHONPATH=src python -m tradebot.cli evaluate-crypto-ml --folder data/crypto --model models/crypto_signal_model.json --json-out reports/crypto_ml_eval.json
+PYTHONPATH=src python -m tradebot.cli scan --market crypto --folder data/crypto --top 20 --model models/crypto_signal_model.json --json-out reports/crypto_scan_ml.json
+```
+
+The ML layer is a paper-research scoring add-on. It trains a dependency-light supervised model from historical candles to estimate whether a setup may hit a target before a stop within a future holding window. Evaluation uses a chronological train/test split to reduce leakage. Accuracy, precision, recall, false-positive rate, per-symbol metrics, and low-sample warnings are reported. ML scores can support or weaken scanner opportunity scores, but they are **not proof of profit** and never trigger live trading.
+
+## Crypto robustness testing
+```bash
+PYTHONPATH=src python -m tradebot.cli robustness-crypto --folder data/crypto --cash 100000 --json-out reports/crypto_robustness.json
+```
+
+Robustness mode runs the crypto portfolio rotation strategy across the full history and rolling 30/90/180-day windows where enough data exists. It classifies each window as bull/trending up, bear/trending down, sideways, or high-volatility/crash-like, then reports PASS/WATCH/FAIL. **PASS** means suitable only for continued paper testing, **WATCH** means mixed evidence, and **FAIL** means the strategy is not stable enough even for confident paper assumptions. The report highlights best/worst windows, failing regimes, profitable-window percentage, drawdown, consistency, crash survival, overtrading, low-trade, and tax-drag warnings. It never approves live trading.
 
 ## Walk-forward testing
 ```bash

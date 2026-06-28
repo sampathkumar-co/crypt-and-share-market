@@ -4,11 +4,14 @@ import argparse
 from pathlib import Path
 
 from tradebot.backtest.paper_trader import PaperTrader
+from tradebot.backtest.portfolio_trader import CryptoPortfolioPaperTrader, PortfolioConfig
+from tradebot.backtest.robustness import evaluate_robustness
 from tradebot.backtest.walk_forward import walk_forward
 from tradebot.data.csv_loader import load_candles
 from tradebot.data.crypto_provider import PublicCryptoHistoricalClient
+from tradebot.ml.crypto_signal_model import CryptoSignalModel, evaluate_folder, train_from_folder
 from tradebot.models import Market
-from tradebot.reports.report_generator import backtest_console, scan_console, to_json, walk_forward_console
+from tradebot.reports.report_generator import backtest_console, portfolio_console, robustness_console, scan_console, to_json, walk_forward_console
 from tradebot.scanner.crypto_scanner import scan_crypto_folder
 from tradebot.scanner.equity_scanner import scan_equity_folder
 from tradebot.strategies.momentum import MomentumVolumeStrategy
@@ -41,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     scan_parser.add_argument("--market", required=True)
     scan_parser.add_argument("--folder", required=True)
     scan_parser.add_argument("--json-out")
+    scan_parser.add_argument("--top", type=int, default=None)
+    scan_parser.add_argument("--model")
 
     walk_parser = sub.add_parser("walk-forward")
     walk_parser.add_argument("--market", required=True)
@@ -55,7 +60,54 @@ def main(argv: list[str] | None = None) -> int:
     fetch_parser.add_argument("--days", type=int, default=365)
     fetch_parser.add_argument("--out", default="data/crypto")
 
+    portfolio_parser = sub.add_parser("portfolio-crypto")
+    portfolio_parser.add_argument("--folder", required=True)
+    portfolio_parser.add_argument("--cash", type=float, default=100000.0)
+    portfolio_parser.add_argument("--top", type=int, default=20)
+    portfolio_parser.add_argument("--json-out")
+
+    robustness_parser = sub.add_parser("robustness-crypto")
+    robustness_parser.add_argument("--folder", required=True)
+    robustness_parser.add_argument("--cash", type=float, default=100000.0)
+    robustness_parser.add_argument("--json-out")
+
+    train_ml_parser = sub.add_parser("train-crypto-ml")
+    train_ml_parser.add_argument("--folder", required=True)
+    train_ml_parser.add_argument("--model-out", required=True)
+
+    eval_ml_parser = sub.add_parser("evaluate-crypto-ml")
+    eval_ml_parser.add_argument("--folder", required=True)
+    eval_ml_parser.add_argument("--model", required=True)
+    eval_ml_parser.add_argument("--json-out")
+
     args = parser.parse_args(argv)
+    if args.cmd == "train-crypto-ml":
+        model = train_from_folder(args.folder, args.model_out)
+        print(f"Saved crypto ML model with {model.samples} training samples -> {args.model_out}")
+        print("WARNING: ML score is paper-research only and does not prove profit.")
+        return 0
+
+    if args.cmd == "evaluate-crypto-ml":
+        metrics = evaluate_folder(args.folder, args.model)
+        print(to_json(metrics))
+        if args.json_out:
+            write_json(args.json_out, to_json(metrics))
+        return 0
+
+    if args.cmd == "robustness-crypto":
+        result = evaluate_robustness(args.folder, cash=args.cash)
+        print(robustness_console(result))
+        if args.json_out:
+            write_json(args.json_out, to_json(result))
+        return 0
+
+    if args.cmd == "portfolio-crypto":
+        result = CryptoPortfolioPaperTrader(cash=args.cash, config=PortfolioConfig(scanner_top=args.top)).run_folder(args.folder)
+        print(portfolio_console(result))
+        if args.json_out:
+            write_json(args.json_out, to_json(result))
+        return 0
+
     if args.cmd == "fetch-crypto":
         symbols = [symbol.strip().upper() for symbol in args.symbols.split(",") if symbol.strip()]
         client = PublicCryptoHistoricalClient()
@@ -78,7 +130,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "scan":
-        results = scan_crypto_folder(args.folder) if market == Market.CRYPTO else scan_equity_folder(args.folder)
+        model = CryptoSignalModel.load(args.model) if getattr(args, "model", None) and market == Market.CRYPTO else None
+        results = scan_crypto_folder(args.folder, top=args.top, model=model) if market == Market.CRYPTO else scan_equity_folder(args.folder, top=args.top)
         print(scan_console(results))
         if args.json_out:
             write_json(args.json_out, to_json(results))
