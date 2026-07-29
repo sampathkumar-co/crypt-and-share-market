@@ -1,0 +1,170 @@
+name: Cross Sectional Trend v0.8
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/cross-sectional-trend-v08.yml"
+      - "src/tradebot/backtest/cross_sectional_trend.py"
+      - "tests/test_cross_sectional_trend.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: cross-sectional-trend-v08-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen v0.5 boundaries
+        shell: bash
+        run: |
+          git fetch origin research/profit-quality-v0.5
+          git diff --exit-code origin/research/profit-quality-v0.5 -- \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py \
+            src/tradebot/backtest/portfolio_trader.py \
+            src/tradebot/strategies
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/cross-sectional-trend reports/cross-sectional-trend
+
+      - name: Fetch exactly 1800 paginated daily candles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
+
+          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"]
+          out = Path("data/cross-sectional-trend")
+          out.mkdir(parents=True, exist_ok=True)
+          client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
+          for symbol in symbols:
+              candles = client.fetch_symbol(symbol, interval="1d", days=1800)
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} returned {len(candles)} candles; exactly 1800 required")
+              path = save_candles_csv(symbol, candles, out)
+              print(f"{symbol}: {len(candles)} candles -> {path}")
+          PY
+
+      - name: Require aligned frozen histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/cross-sectional-trend").glob("*.csv")}
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing required histories: {', '.join(missing)}")
+          timestamps = []
+          for symbol in sorted(expected):
+              candles = load_candles(files[symbol])
+              print(f"{symbol}: {len(candles)} candles, {candles[0].timestamp} to {candles[-1].timestamp}")
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} does not contain exactly 1800 candles")
+              timestamps.append(set(candle.timestamp for candle in candles))
+          common = set.intersection(*timestamps)
+          if len(common) != 1800:
+              raise SystemExit(f"Only {len(common)} timestamps align across all five assets")
+          PY
+
+      - name: Run frozen older-history validation
+        id: trend
+        shell: bash
+        run: |
+          set +e
+          tradebot-cross-sectional-trend \
+            --folder data/cross-sectional-trend \
+            --market crypto \
+            --json-out reports/cross-sectional-trend/cross_sectional_trend.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "v0.8 validation failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/cross-sectional-trend/cross_sectional_trend.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["schema_version"] == "1.0"
+          assert len(payload["variants"]) == 3
+          assert all(len(item["periods"]) == 10 for item in payload["variants"])
+          assert payload["validation_end"] < payload["observed_holdout_start"]
+
+          lines = [
+              "# Cross-Sectional Trend v0.8",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Forward-paper eligible: **{payload['eligible_for_forward_paper']}**",
+              f"- Validation interval: `{payload['validation_start']}` to `{payload['validation_end']}`",
+              f"- Embargo: `{payload['embargo_start']}` to `{payload['embargo_end']}`",
+              f"- Barred observed interval: `{payload['observed_holdout_start']}` to `{payload['observed_holdout_end']}`",
+              "",
+              "| Variant | Active | Average | Median | Compounded | Positive | Stressed | Buy & hold | Excess | Beat B&H | Worst DD | Turnover |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/10 | "
+                  f"{item['average_return']:.3%} | {item['median_return']:.3%} | "
+                  f"{item['compounded_return']:.3%} | {item['positive_fraction']:.0%} | "
+                  f"{item['average_stressed_return']:.3%} | "
+                  f"{item['average_buy_and_hold_return']:.3%} | "
+                  f"{item['average_excess_vs_buy_and_hold']:.3%} | "
+                  f"{item['beat_buy_and_hold_fraction']:.0%} | "
+                  f"{item['worst_drawdown']:.3%} | {item['average_turnover']:.2f}x |"
+              )
+          lines.extend([
+              "",
+              f"Leave-one-asset-out positive fraction: **{payload['leave_one_out_positive_fraction']:.0%}**",
+              "",
+              "A rejected result is valid evidence. It does not authorize forward or real-money trading.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/cross-sectional-trend/cross_sectional_trend.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+          cat reports/cross-sectional-trend/cross_sectional_trend.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete v0.8 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-sectional-trend-v08
+          path: |
+            reports/cross-sectional-trend/
+            data/cross-sectional-trend/
+          retention-days: 30
