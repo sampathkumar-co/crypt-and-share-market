@@ -1,0 +1,160 @@
+name: Meta Allocation v0.6
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/meta-allocation-v06.yml"
+      - "src/tradebot/backtest/meta_allocation.py"
+      - "tests/test_meta_allocation.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: meta-allocation-v06-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen v0.5 boundaries
+        shell: bash
+        run: |
+          git fetch origin research/profit-quality-v0.5
+          git diff --exit-code origin/research/profit-quality-v0.5 -- \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py \
+            src/tradebot/backtest/portfolio_trader.py \
+            src/tradebot/strategies
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/meta-allocation reports/meta-allocation
+
+      - name: Fetch fresh independent histories
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/meta-allocation
+
+      - name: Require complete research windows
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/meta-allocation").glob("*.csv")}
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing required histories: {', '.join(missing)}")
+          for symbol in sorted(expected):
+              count = len(load_candles(files[symbol]))
+              print(f"{symbol}: {count} candles")
+              if count < 300:
+                  raise SystemExit(f"{symbol} has only {count} candles; at least 300 are required")
+          PY
+
+      - name: Evaluate plateau consensus and risk allocation
+        id: meta
+        shell: bash
+        run: |
+          set +e
+          tradebot-meta-allocation \
+            --folder data/meta-allocation \
+            --market crypto \
+            --train-size 180 \
+            --test-size 60 \
+            --max-candidates 27 \
+            --screen-candidates 9 \
+            --json-out reports/meta-allocation/meta_allocation.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Meta-allocation evaluation failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/meta-allocation/meta_allocation.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["schema_version"] == "1.0"
+          assert len(payload["strategies"]) == 3
+          counts = [len(item["periods"]) for item in payload["strategies"]]
+          if not all(count >= 15 for count in counts):
+              raise AssertionError(f"Incomplete asset-period evidence: {counts}")
+
+          lines = [
+              "# Meta Allocation v0.6",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Champion: **{payload.get('champion_strategy') or '-'}**",
+              f"- Dataset fingerprint: `{payload['dataset_fingerprint']}`",
+              "",
+              "| Strategy | Approved | Deployed | Meta avg | v0.5 avg | Improvement | Positive deployed | Portfolio avg | Portfolio improvement | Portfolio worst DD |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["strategies"]:
+              lines.append(
+                  f"| {item['strategy']} | {item['approved']} | "
+                  f"{item['deployed_periods']} | "
+                  f"{item['average_meta_return']:.3%} | "
+                  f"{item['average_v05_return']:.3%} | "
+                  f"{item['average_improvement_vs_v05']:.3%} | "
+                  f"{item['positive_deployed_fraction']:.0%} | "
+                  f"{item['portfolio_average_return']:.3%} | "
+                  f"{item['portfolio_average_improvement_vs_v05']:.3%} | "
+                  f"{item['portfolio_worst_drawdown']:.3%} |"
+              )
+          lines.extend([
+              "",
+              "A rejected result is valid evidence. It means the allocation layer did not prove positive unseen profit.",
+              "This workflow is paper-only and cannot authorize real-money trading.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/meta-allocation/meta_allocation.md").write_text(
+              summary,
+              encoding="utf-8",
+          )
+          print(summary)
+          PY
+          cat reports/meta-allocation/meta_allocation.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: meta-allocation-v06
+          path: |
+            reports/meta-allocation/
+            data/meta-allocation/
+          retention-days: 30
