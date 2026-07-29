@@ -86,8 +86,15 @@ jobs:
           path = Path("reports/gate/research_gate.json")
           payload = json.loads(path.read_text(encoding="utf-8"))
           assert payload["paper_only"] is True
-          assert payload["schema_version"] == "1.0"
+          assert payload["schema_version"] == "1.1"
+          assert payload["implementation_version"]
+          assert len(payload["implementation_fingerprint"]) == 64
           assert len(payload["strategies"]) == 3
+          if payload["accepted"]:
+              assert payload["forward_configurations"]
+              assert set(payload["passed_strategies"]) == set(payload["forward_configurations"])
+          else:
+              assert payload["forward_configurations"] == {}
 
           lines = [
               "# Current Historical Research Gate",
@@ -96,6 +103,7 @@ jobs:
               f"- Eligible for continuous forward paper: **{payload['eligible_for_continuous_paper']}**",
               f"- Champion: **{payload.get('champion_strategy') or '-'}**",
               f"- Dataset fingerprint: `{payload['dataset_fingerprint']}`",
+              f"- Implementation: `{payload['implementation_version']}` / `{payload['implementation_fingerprint']}`",
               "",
               "| Strategy | Passed | Periods | Positive unseen | Beat buy & hold | Avg unseen | Worst unseen | Worst drawdown | Trades/100 | Cost drag |",
               "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -110,7 +118,7 @@ jobs:
               )
           lines.extend([
               "",
-              "A rejection is a valid research result. Continuous forward paper remains blocked unless the report is accepted for the selected strategy.",
+              "A rejection is a valid research result. Continuous forward paper remains blocked unless the report is accepted for the selected strategy and exact implementation.",
           ])
           summary = "\n".join(lines) + "\n"
           Path("reports/gate/research_gate.md").write_text(summary, encoding="utf-8")

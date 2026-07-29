@@ -40,6 +40,16 @@ class LivePaperTrade:
     exit_reason: str
     tds_cashflow: float = 0.0
     holding_loops: int = 0
+    holding_bars: int = 0
+
+
+@dataclass
+class PaperCandidate:
+    symbol: str
+    signal: Signal
+    candle: Candle
+    score: float
+    explanation: str
 
 
 @dataclass
@@ -56,10 +66,12 @@ class LivePaperState:
     errors: list[str] = field(default_factory=list)
     loops_completed: int = 0
     last_exit_loop: int = -1_000_000
+    last_exit_timestamp: str | None = None
+    gate_authorization: dict | None = None
 
 
 class PaperLiveCryptoBot:
-    """Public-data paper simulation. Continuous mode requires a passing gate report."""
+    """Public-data paper simulation. Continuous mode requires a fresh exact gate."""
 
     def __init__(
         self,
@@ -114,6 +126,7 @@ class PaperLiveCryptoBot:
         self.strategy_name = strategy_name
         self.strategy = build_strategy(strategy_name)
         self.regime_filter = regime_filter or RegimeFilterConfig()
+        self.use_regime_filter = True
         self.continuous_authorized = False
         self.histories: dict[str, list[Candle]] = {symbol: [] for symbol in self.symbols}
         self.risk = RiskManager()
@@ -133,6 +146,67 @@ class PaperLiveCryptoBot:
                 time.sleep(sleep_seconds)
         return self.state
 
+    def authorize_continuous(
+        self,
+        gate_report_path: str | Path,
+        *,
+        gate_max_age_days: int = 90,
+    ) -> dict:
+        gate = validate_forward_gate(
+            gate_report_path,
+            strategy_name=self.strategy_name,
+            market=Market.CRYPTO,
+            max_age_days=gate_max_age_days,
+        )
+        if not set(self.symbols).issubset(set(gate.get("symbols", []))):
+            raise ValueError("Continuous symbols must be covered by the passing gate dataset")
+        frozen = gate["forward_configurations"][self.strategy_name]
+        authorization = {
+            "schema_version": gate["schema_version"],
+            "dataset_fingerprint": gate["dataset_fingerprint"],
+            "implementation_version": gate["implementation_version"],
+            "implementation_fingerprint": gate["implementation_fingerprint"],
+            "strategy": self.strategy_name,
+            "forward_configuration": frozen,
+        }
+        if (self.state.open_position or self.state.pending_entry) and self.state.gate_authorization != authorization:
+            raise ValueError("Existing paper position or pending entry was not created by this exact gate configuration")
+
+        strategy_parameters = dict(frozen.get("strategy_parameters", {}))
+        execution = dict(frozen.get("execution_parameters", {}))
+        required = {
+            "min_holding_bars",
+            "max_holding_bars",
+            "cooldown_bars",
+            "exit_confirmation_bars",
+            "trailing_stop_pct",
+            "breakeven_trigger_pct",
+            "use_regime_filter",
+        }
+        missing = sorted(required - set(execution))
+        if missing:
+            raise ValueError(f"Frozen forward configuration is missing: {', '.join(missing)}")
+
+        self.strategy = build_strategy(self.strategy_name, strategy_parameters)
+        self.min_holding_loops = int(execution["min_holding_bars"])
+        self.max_holding_loops = int(execution["max_holding_bars"])
+        self.cooldown_loops = int(execution["cooldown_bars"])
+        self.exit_confirmation_loops = int(execution["exit_confirmation_bars"])
+        self.trailing_stop_pct = float(execution["trailing_stop_pct"])
+        self.breakeven_trigger_pct = float(execution["breakeven_trigger_pct"])
+        self.use_regime_filter = bool(execution["use_regime_filter"])
+        self.continuous_authorized = True
+        self.state.gate_authorization = authorization
+        warning = (
+            f"Continuous forward paper authorized by exact gate "
+            f"{gate['dataset_fingerprint'][:12]} / {gate['implementation_fingerprint'][:12]} "
+            f"for {self.strategy_name}."
+        )
+        if warning not in self.state.warnings:
+            self.state.warnings.append(warning)
+        self._save_state()
+        return gate
+
     def run_continuous(
         self,
         *,
@@ -142,19 +216,11 @@ class PaperLiveCryptoBot:
     ) -> LivePaperState:
         if sleep_seconds <= 0:
             raise ValueError("continuous mode requires positive sleep_seconds")
-        gate = validate_forward_gate(
+        self.authorize_continuous(
             gate_report_path,
-            strategy_name=self.strategy_name,
-            market=Market.CRYPTO,
-            max_age_days=gate_max_age_days,
+            gate_max_age_days=gate_max_age_days,
         )
-        self.continuous_authorized = True
-        self.state.warnings.append(
-            f"Continuous forward paper authorized by gate "
-            f"{str(gate.get('dataset_fingerprint', ''))[:12]} for {self.strategy_name}."
-        )
-        self._save_state()
-        print("CONTINUOUS PAPER MODE ONLY - historical gates passed; no real orders are possible.")
+        print("CONTINUOUS PAPER MODE ONLY - exact historical gate configuration loaded; no real orders are possible.")
         while True:
             print(self.run_once())
             time.sleep(sleep_seconds)
@@ -183,25 +249,28 @@ class PaperLiveCryptoBot:
                 action = "enter"
             reason = pending_reason or reason
 
-        cooldown_complete = (
-            self.state.loops_completed - self.state.last_exit_loop > self.cooldown_loops
-        )
-        if not self.state.open_position and not self.state.pending_entry and cooldown_complete:
+        if not self.state.open_position and not self.state.pending_entry and self._cooldown_complete():
             candidates = self._candidates()
             if candidates:
                 top = candidates[0]
-                score = top.combined_opportunity_score if top.combined_opportunity_score is not None else top.opportunity_score
-                top_candidate = f"{top.symbol} score={score:.1f}"
-                candle = self.histories[top.symbol][-1]
+                top_candidate = f"{top.symbol} score={top.score:.3f}"
                 if self.continuous_authorized:
                     self.state.pending_entry = {
                         "symbol": top.symbol,
-                        "signal_time": candle.timestamp.isoformat(),
-                        "entry_reason": self._entry_reason(top),
+                        "signal_time": top.candle.timestamp.isoformat(),
+                        "signal": {
+                            "action": top.signal.action.value,
+                            "score": top.signal.score,
+                            "reason": top.signal.reason,
+                            "confidence": top.signal.confidence,
+                            "risk_score": top.signal.risk_score,
+                        },
+                        "entry_reason": top.explanation,
+                        "implementation_fingerprint": self.state.gate_authorization["implementation_fingerprint"],
                     }
-                    action, reason = "queue", "Signal queued until a newly observed candle exists."
+                    action, reason = "queue", "Signal queued for exactly the next newly observed candle."
                 else:
-                    entered, reason = self._enter(top, candle, candle.close)
+                    entered, reason = self._enter(top, top.candle, top.candle.close)
                     if entered:
                         action = "enter"
 
@@ -216,31 +285,61 @@ class PaperLiveCryptoBot:
             f"warnings={'; '.join(self.state.warnings) or '-'}"
         )
 
-    def _candidates(self):
-        candidates = []
+    def _candidates(self) -> list[PaperCandidate]:
+        candidates: list[PaperCandidate] = []
         for symbol, history in self.histories.items():
             if len(history) < self.scanner_config.min_candles:
                 continue
+            candle = history[-1]
             if self.continuous_authorized:
-                snapshot = classify_regime(history, self.regime_filter)
-                if not regime_allows_strategy(self.strategy_name, snapshot):
-                    self.state.regime_filtered_count += 1
+                if self.use_regime_filter:
+                    snapshot = classify_regime(history, self.regime_filter)
+                    if not regime_allows_strategy(self.strategy_name, snapshot):
+                        self.state.regime_filtered_count += 1
+                        continue
+                signal = self.strategy.generate_signal(history)
+                if signal.action != Action.BUY:
                     continue
-                if self.strategy.generate_signal(history).action != Action.BUY:
-                    continue
+                candidates.append(
+                    PaperCandidate(
+                        symbol=symbol,
+                        signal=signal,
+                        candle=candle,
+                        score=signal.score * signal.confidence,
+                        explanation=f"{signal.reason} strategy={self.strategy_name}",
+                    )
+                )
+                continue
+
             scan = evaluate_symbol(symbol, Market.CRYPTO, history, self.scanner_config, model=self.model)
             if scan.rejected:
                 self.state.rejected_opportunities_count += 1
                 continue
-            candidates.append(scan)
-        candidates.sort(
-            key=lambda result: (
-                result.combined_opportunity_score
-                if result.combined_opportunity_score is not None
-                else result.opportunity_score
-            ),
-            reverse=True,
-        )
+            signal = Signal(
+                Action.BUY,
+                scan.rank_score / 100.0,
+                scan.explanation,
+                scan.confidence,
+                scan.risk_score / 100.0,
+            )
+            score = (
+                scan.combined_opportunity_score
+                if scan.combined_opportunity_score is not None
+                else scan.opportunity_score
+            )
+            candidates.append(
+                PaperCandidate(
+                    symbol=symbol,
+                    signal=signal,
+                    candle=candle,
+                    score=score,
+                    explanation=(
+                        f"{scan.explanation} strategy={self.strategy_name} "
+                        f"ml_probability={scan.ml_probability} ml_score={scan.ml_score}"
+                    ),
+                )
+            )
+        candidates.sort(key=lambda candidate: candidate.score, reverse=True)
         return candidates
 
     def _execute_pending_entry(self) -> tuple[bool, str]:
@@ -251,43 +350,67 @@ class PaperLiveCryptoBot:
         history = self.histories.get(symbol, [])
         if not history:
             return False, "Waiting for a candle for the queued entry."
+        if self.continuous_authorized and pending.get("implementation_fingerprint") != self.state.gate_authorization.get("implementation_fingerprint"):
+            self.state.pending_entry = None
+            return False, "Queued signal expired because the authorized implementation changed."
+
         signal_time = datetime.fromisoformat(str(pending["signal_time"]))
         newer = [candle for candle in history if candle.timestamp > signal_time]
         if not newer:
             return False, "Waiting for the next newly observed candle before entry."
-        signal_history = [candle for candle in history if candle.timestamp <= signal_time]
-        scan = evaluate_symbol(symbol, Market.CRYPTO, signal_history, self.scanner_config, model=self.model)
-        candle = newer[-1]
-        entered, reason = self._enter(scan, candle, candle.close)
-        self.state.pending_entry = None
-        return entered, (f"Deferred signal executed on a newly observed candle. {reason}" if entered else reason)
+        if len(newer) != 1:
+            self.state.pending_entry = None
+            self.state.rejected_opportunities_count += 1
+            return False, "Queued signal expired because one or more forward candles were missed."
 
-    def _enter(self, scan, candle: Candle, price: float) -> tuple[bool, str]:
-        signal = Signal(Action.BUY, scan.rank_score / 100.0, scan.explanation, scan.confidence, scan.risk_score / 100.0)
-        decision = self.risk.evaluate(Market.CRYPTO, self.state.cash, scan.symbol, signal, candle, entry_price=price)
+        payload = pending.get("signal") or {}
+        signal = Signal(
+            Action(str(payload.get("action", "BUY"))),
+            float(payload.get("score", 0.0)),
+            str(payload.get("reason", pending.get("entry_reason", "queued signal"))),
+            float(payload.get("confidence", 0.0)),
+            float(payload.get("risk_score", 1.0)),
+        )
+        candle = newer[0]
+        candidate = PaperCandidate(
+            symbol=symbol,
+            signal=signal,
+            candle=candle,
+            score=signal.score * signal.confidence,
+            explanation=str(pending.get("entry_reason", signal.reason)),
+        )
+        entered, reason = self._enter(candidate, candle, candle.close)
+        self.state.pending_entry = None
+        return entered, (f"Queued signal executed on the next observed candle. {reason}" if entered else reason)
+
+    def _enter(self, candidate: PaperCandidate, candle: Candle, price: float) -> tuple[bool, str]:
+        decision = self.risk.evaluate(
+            Market.CRYPTO,
+            self.state.cash,
+            candidate.symbol,
+            candidate.signal,
+            candle,
+            entry_price=price,
+        )
         if not decision.approved:
             self.state.rejected_opportunities_count += 1
             return False, decision.reason
         self.state.cash -= price * decision.quantity
         self.state.open_position = {
-            "symbol": scan.symbol,
+            "symbol": candidate.symbol,
             "quantity": decision.quantity,
             "entry_price": price,
             "stop_loss": decision.stop_loss,
             "target": decision.target,
             "entry_time": candle.timestamp.isoformat(),
             "entry_loop": self.state.loops_completed,
-            "entry_reason": self._entry_reason(scan),
+            "entry_reason": candidate.explanation,
             "highest_completed_high": price,
             "exit_streak": 0,
+            "last_evaluated_candle": candle.timestamp.isoformat(),
+            "gate_authorization": self.state.gate_authorization,
         }
-        return True, self.state.open_position["entry_reason"]
-
-    def _entry_reason(self, scan) -> str:
-        return (
-            f"{scan.explanation} strategy={self.strategy_name} "
-            f"ml_probability={scan.ml_probability} ml_score={scan.ml_score}"
-        )
+        return True, candidate.explanation
 
     def _update_histories(self) -> None:
         for symbol in self.symbols:
@@ -300,10 +423,30 @@ class PaperLiveCryptoBot:
             except Exception as exc:
                 self.state.errors.append(f"{symbol}: {exc}")
 
+    def _holding_bars(self, position: dict, history: list[Candle]) -> int:
+        entry_time = datetime.fromisoformat(str(position["entry_time"]))
+        return sum(candle.timestamp > entry_time for candle in history)
+
+    def _cooldown_complete(self) -> bool:
+        if not self.continuous_authorized:
+            return self.state.loops_completed - self.state.last_exit_loop > self.cooldown_loops
+        if self.state.last_exit_timestamp is None:
+            return True
+        last_exit = datetime.fromisoformat(self.state.last_exit_timestamp)
+        later = {
+            candle.timestamp
+            for history in self.histories.values()
+            for candle in history
+            if candle.timestamp > last_exit
+        }
+        return len(later) > self.cooldown_loops
+
     def _exit_decision(self) -> tuple[float, str]:
         position = self.state.open_position
         if not position:
             return 0.0, ""
+        if self.continuous_authorized and position.get("gate_authorization") != self.state.gate_authorization:
+            raise ValueError("Open position does not match the exact authorized gate configuration")
         symbol = str(position["symbol"])
         history = self.histories.get(symbol, [])
         if not history:
@@ -322,24 +465,32 @@ class PaperLiveCryptoBot:
         if candle.high >= float(position["target"]):
             return float(position["target"]), "Target hit"
 
-        held = self.state.loops_completed - int(position.get("entry_loop", 0))
+        held = (
+            self._holding_bars(position, history)
+            if self.continuous_authorized
+            else self.state.loops_completed - int(position.get("entry_loop", 0))
+        )
         if held >= self.max_holding_loops:
-            return candle.close, "Max holding loops reached"
+            return candle.close, "Max holding period reached"
+
+        is_new_candle = candle.timestamp.isoformat() != position.get("last_evaluated_candle")
+        if not is_new_candle:
+            return 0.0, ""
+        position["last_evaluated_candle"] = candle.timestamp.isoformat()
+        position["highest_completed_high"] = max(highest, candle.high)
+
         exit_condition = False
         exit_reason = ""
         if self.continuous_authorized and held >= self.min_holding_loops:
-            snapshot = classify_regime(history, self.regime_filter)
-            if not regime_allows_strategy(self.strategy_name, snapshot):
-                exit_condition, exit_reason = True, f"Confirmed regime exit: {snapshot.name}"
+            if self.use_regime_filter:
+                snapshot = classify_regime(history, self.regime_filter)
+                if not regime_allows_strategy(self.strategy_name, snapshot):
+                    exit_condition, exit_reason = True, f"Confirmed regime exit: {snapshot.name}"
             if self.strategy.generate_signal(history).action == Action.SELL:
                 exit_condition, exit_reason = True, "Confirmed strategy sell"
-            scan = evaluate_symbol(symbol, Market.CRYPTO, history, self.scanner_config, model=self.model)
-            if scan.rejected or scan.risk_score >= 85.0:
-                exit_condition = True
-                exit_reason = f"Confirmed scanner-risk exit: {scan.rejection_reason or 'dangerous risk score'}"
+
         streak = int(position.get("exit_streak", 0))
         position["exit_streak"] = streak + 1 if exit_condition else 0
-        position["highest_completed_high"] = max(highest, candle.high)
         if int(position["exit_streak"]) >= self.exit_confirmation_loops:
             return candle.close, exit_reason or "Confirmed exit condition"
         return 0.0, ""
@@ -356,7 +507,9 @@ class PaperLiveCryptoBot:
         tax = float(tax_result["tax"])
         tds = float(tax_result["tds_cashflow"])
         net = gross - costs["fees"] - costs["slippage"] - tax
-        held = self.state.loops_completed - int(position.get("entry_loop", 0))
+        history = self.histories.get(str(position["symbol"]), [])
+        holding_bars = self._holding_bars(position, history)
+        holding_loops = self.state.loops_completed - int(position.get("entry_loop", 0))
         self.state.cash += entry_price * quantity + net
         self.state.trade_history.append(
             asdict(
@@ -375,12 +528,14 @@ class PaperLiveCryptoBot:
                     position.get("entry_reason", ""),
                     exit_reason,
                     tds,
-                    held,
+                    holding_loops,
+                    holding_bars,
                 )
             )
         )
         self.state.open_position = None
         self.state.last_exit_loop = self.state.loops_completed
+        self.state.last_exit_timestamp = timestamp
 
     def _equity(self) -> float:
         if not self.state.open_position:
