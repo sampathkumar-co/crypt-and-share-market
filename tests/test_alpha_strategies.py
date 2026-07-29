@@ -81,8 +81,8 @@ def compression_history() -> list[Candle]:
     return candles
 
 
-def test_compression_breakout_waits_for_completed_retest():
-    strategy = CompressionBreakoutRetestStrategy(
+def compression_strategy(*, allow_continuation: bool) -> CompressionBreakoutRetestStrategy:
+    return CompressionBreakoutRetestStrategy(
         compression_window=6,
         atr_short_window=2,
         atr_long_window=6,
@@ -92,9 +92,13 @@ def test_compression_breakout_waits_for_completed_retest():
         retest_bars=2,
         retest_tolerance=0.02,
         volume_multiplier=0.8,
-        allow_continuation=False,
+        allow_continuation=allow_continuation,
         max_extension=0.08,
     )
+
+
+def test_compression_breakout_waits_for_completed_retest():
+    strategy = compression_strategy(allow_continuation=False)
     candles = compression_history()
 
     breakout_only = strategy.generate_signal(candles[:-1])
@@ -103,6 +107,26 @@ def test_compression_breakout_waits_for_completed_retest():
     assert breakout_only.action != Action.BUY
     assert retested.action == Action.BUY
     assert "retest" in retested.reason.lower()
+
+
+def test_compression_continuation_requires_post_breakout_candle():
+    strategy = compression_strategy(allow_continuation=True)
+    candles = compression_history()[:-1]
+    post_breakout = candle(
+        16,
+        103.5,
+        open_price=103.0,
+        high=104.0,
+        low=102.5,
+        volume=12_000,
+    )
+
+    breakout_only = strategy.generate_signal(candles)
+    continued = strategy.generate_signal([*candles, post_breakout])
+
+    assert breakout_only.action != Action.BUY
+    assert continued.action == Action.BUY
+    assert "continuation" in continued.reason.lower()
 
 
 def test_relative_strength_ignores_peer_candles_after_signal_time():
