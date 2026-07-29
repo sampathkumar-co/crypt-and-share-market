@@ -1,0 +1,191 @@
+name: Track A Alpha Discovery v0.6
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v0.6-alpha-discovery
+    paths:
+      - ".github/workflows/alpha-discovery-v06.yml"
+      - "src/tradebot/strategies/**"
+      - "src/tradebot/backtest/alpha_discovery.py"
+      - "tests/test_alpha_*.py"
+      - "pyproject.toml"
+  pull_request:
+    branches:
+      - research/profit-quality-v0.5
+    paths:
+      - ".github/workflows/alpha-discovery-v06.yml"
+      - "src/tradebot/strategies/**"
+      - "src/tradebot/backtest/alpha_discovery.py"
+      - "tests/test_alpha_*.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: alpha-discovery-v06-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen v0.5 boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          frozen=1027a771f5dbc1bbbdff277b4a0175eb25d81c89
+          git cat-file -e "$frozen^{commit}"
+          git diff --exit-code "$frozen" HEAD -- \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py \
+            src/tradebot/backtest/portfolio_trader.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+          mkdir -p data/alpha-v06 reports/alpha-v06
+
+      - name: Run focused strategy tests
+        run: python -m pytest tests/test_alpha_strategies.py tests/test_alpha_discovery.py
+
+      - name: Fetch fixed public daily histories
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/alpha-v06
+
+      - name: Require complete five-asset dataset
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/alpha-v06").glob("*.csv")}
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing required histories: {', '.join(missing)}")
+          for symbol in sorted(expected):
+              count = len(load_candles(files[symbol]))
+              print(f"{symbol}: {count} candles")
+              if count < 365:
+                  raise SystemExit(f"{symbol} has {count} candles; Track A requires 365")
+          PY
+
+      - name: Run training-only Track A discovery
+        id: discovery
+        shell: bash
+        run: |
+          set +e
+          python -m tradebot.backtest.alpha_discovery \
+            --market crypto \
+            --folder data/alpha-v06 \
+            --train-size 180 \
+            --test-size 60 \
+            --max-candidates 120 \
+            --screen-candidates 24 \
+            --json-out reports/alpha-v06/alpha_discovery.json \
+            --diagnostics-out reports/alpha-v06/alpha_candidate_diagnostics.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Track A discovery failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path("reports/alpha-v06/alpha_discovery.json")
+          diagnostics_path = Path("reports/alpha-v06/alpha_candidate_diagnostics.json")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          diagnostics = json.loads(diagnostics_path.read_text(encoding="utf-8"))
+
+          expected_symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"]
+          expected_families = {
+              "multi_timeframe_trend",
+              "compression_breakout_retest",
+              "cross_asset_relative_strength",
+          }
+          assert report["schema_version"] == "1.0"
+          assert report["paper_only"] is True
+          assert report["long_or_cash_only"] is True
+          assert report["authorizes_real_trading"] is False
+          assert report["history_bars"] == 365
+          assert report["symbols"] == expected_symbols
+          assert report["config"]["train_size"] == 180
+          assert report["config"]["test_size"] == 60
+          assert {item["family"] for item in report["families"]} == expected_families
+          assert report["experiment_count"] == len(diagnostics)
+          assert diagnostics
+
+          lines = [
+              "# Track A Alpha Discovery v0.6",
+              "",
+              f"- Accepted: **{report['accepted']}**",
+              f"- Promising families: **{', '.join(report['promising_families']) or '-'}**",
+              f"- Preserved training candidates: **{report['experiment_count']}**",
+              f"- Dataset fingerprint: `{report['dataset_fingerprint']}`",
+              "",
+              "| Family | Promising | Deployed | Positive deployed | Avg unseen | Avg v0.5 reference | Improvement | Avg buy & hold | Worst DD | Profitable assets |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+          ]
+          for family in report["families"]:
+              assert len(family["periods"]) == 15
+              for period in family["periods"]:
+                  assert set(period["existing_strategy_metrics"]) == {"momentum", "breakout", "mean_reversion"}
+                  assert period["cash_return"] == 0.0
+              lines.append(
+                  f"| {family['family']} | {family['promising']} | {family['deployed_periods']} | "
+                  f"{family['positive_deployed_fraction']:.0%} | {family['average_unseen_net_return']:.3%} | "
+                  f"{family['average_v05_reference_return']:.3%} | {family['average_improvement_over_v05']:.3%} | "
+                  f"{family['average_buy_and_hold_return']:.3%} | {family['worst_drawdown']:.3%} | "
+                  f"{', '.join(family['profitable_assets']) or '-'} |"
+              )
+              lines.append("")
+              lines.append(f"**{family['family']} failures:** {', '.join(family['reasons'])}")
+
+          lines.extend([
+              "",
+              "A rejected family is retained as an honest failed experiment. Unseen windows were not used for parameter selection.",
+              "This report is paper-only and cannot authorize real-money trading.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/alpha-v06/alpha_discovery.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+          cat reports/alpha-v06/alpha_discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete Track A evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: track-a-alpha-discovery-v06
+          path: |
+            reports/alpha-v06/
+            data/alpha-v06/
+          retention-days: 30
