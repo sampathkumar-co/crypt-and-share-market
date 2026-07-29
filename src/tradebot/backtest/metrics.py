@@ -45,7 +45,9 @@ def profit_factor(pnls: list[float]) -> float:
     gross_profit = sum(value for value in pnls if value > 0)
     gross_loss = abs(sum(value for value in pnls if value < 0))
     if gross_loss == 0:
-        return float("inf") if gross_profit > 0 else 0.0
+        # Mathematically infinite, but a finite sentinel keeps JSON reports valid
+        # and avoids pretending that a tiny all-win sample has unlimited quality.
+        return 999.0 if gross_profit > 0 else 0.0
     return gross_profit / gross_loss
 
 
