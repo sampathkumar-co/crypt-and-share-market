@@ -1,0 +1,240 @@
+name: Current Paper Profit Evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - profitability/current-paper-eval-v1
+  pull_request:
+    paths:
+      - ".github/workflows/paper-profit-evaluation.yml"
+      - "src/**"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p reports/current data/current
+
+      - name: Fetch fresh public daily crypto data
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/current
+
+      - name: Validate downloaded data
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in data/current/*.csv; do
+            symbol="$(basename "$file" .csv)"
+            tradebot validate-data \
+              --data "$file" \
+              --json-out "reports/current/${symbol}_data_audit.json"
+          done
+
+      - name: Run conservative strategy backtests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in data/current/*.csv; do
+            symbol="$(basename "$file" .csv)"
+            for strategy in momentum breakout mean_reversion; do
+              tradebot backtest \
+                --market crypto \
+                --symbol "$symbol" \
+                --data "$file" \
+                --strategy "$strategy" \
+                --cash 100000 \
+                --intrabar-policy worst_case \
+                --json-out "reports/current/${symbol}_${strategy}_backtest.json"
+            done
+          done
+
+      - name: Run unseen-window walk-forward checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in data/current/*.csv; do
+            symbol="$(basename "$file" .csv)"
+            for strategy in momentum breakout mean_reversion; do
+              tradebot walk-forward \
+                --market crypto \
+                --symbol "$symbol" \
+                --data "$file" \
+                --strategy "$strategy" \
+                --train-size 180 \
+                --test-size 60 \
+                --json-out "reports/current/${symbol}_${strategy}_walk_forward.json"
+            done
+          done
+
+      - name: Run portfolio and robustness evaluation
+        run: |
+          tradebot portfolio-crypto \
+            --folder data/current \
+            --cash 100000 \
+            --top 5 \
+            --json-out reports/current/portfolio.json
+          tradebot robustness-crypto \
+            --folder data/current \
+            --cash 100000 \
+            --json-out reports/current/robustness.json
+
+      - name: Build honest profitability summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("reports/current")
+          backtests = []
+          for path in sorted(root.glob("*_backtest.json")):
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              stem = path.name.removesuffix("_backtest.json")
+              symbol, strategy = stem.split("_", 1)
+              backtests.append({
+                  "symbol": symbol,
+                  "strategy": strategy,
+                  "net_return": float(payload.get("net_return", 0.0)),
+                  "buy_and_hold_return": float(payload.get("buy_and_hold_return", 0.0)),
+                  "excess_return": float(payload.get("excess_return", 0.0)),
+                  "max_drawdown": float(payload.get("max_drawdown", 0.0)),
+                  "sharpe_ratio": float(payload.get("sharpe_ratio", 0.0)),
+                  "trade_count": len(payload.get("trades", [])),
+                  "ending_cash": float(payload.get("ending_cash", 0.0)),
+              })
+
+          walk_forward = []
+          for path in sorted(root.glob("*_walk_forward.json")):
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              stem = path.name.removesuffix("_walk_forward.json")
+              symbol, strategy = stem.split("_", 1)
+              walk_forward.append({
+                  "symbol": symbol,
+                  "strategy": strategy,
+                  "accepted": bool(payload.get("accepted", False)),
+                  "stability_score": float(payload.get("stability_score", 0.0)),
+                  "reason": str(payload.get("reason", "")),
+                  "windows": len(payload.get("windows", [])),
+              })
+
+          portfolio = json.loads((root / "portfolio.json").read_text(encoding="utf-8"))
+          robustness = json.loads((root / "robustness.json").read_text(encoding="utf-8"))
+
+          positive = sum(item["net_return"] > 0 for item in backtests)
+          beat_hold = sum(item["excess_return"] > 0 for item in backtests)
+          accepted = sum(item["accepted"] for item in walk_forward)
+          total = len(backtests)
+          wf_total = len(walk_forward)
+          portfolio_net = float(portfolio.get("net_return", 0.0))
+          portfolio_drawdown = float(portfolio.get("max_drawdown", 0.0))
+          portfolio_trades = len(portfolio.get("trades", []))
+
+          enough_activity = portfolio_trades >= 5 and any(item["trade_count"] >= 5 for item in backtests)
+          promising = (
+              total > 0
+              and positive / total >= 0.60
+              and beat_hold / total >= 0.40
+              and wf_total > 0
+              and accepted / wf_total >= 0.40
+              and portfolio_net > 0
+              and portfolio_drawdown <= 0.20
+              and enough_activity
+          )
+          verdict = "PROMISING_FOR_LONGER_PAPER_TESTING" if promising else "NOT_YET_PROVEN_PROFITABLE"
+
+          summary = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "verdict": verdict,
+              "method": "365 daily candles, next-open fills, worst-case ambiguous intrabar ordering, modeled costs/taxes",
+              "backtest_count": total,
+              "positive_backtests": positive,
+              "beat_buy_and_hold": beat_hold,
+              "walk_forward_count": wf_total,
+              "accepted_walk_forwards": accepted,
+              "portfolio_net_return": portfolio_net,
+              "portfolio_ending_cash": float(portfolio.get("ending_cash", 0.0)),
+              "portfolio_max_drawdown": portfolio_drawdown,
+              "portfolio_trade_count": portfolio_trades,
+              "backtests": backtests,
+              "walk_forward": walk_forward,
+              "robustness": robustness,
+              "disclaimer": "Paper results are not proof of future profit and do not authorize real-money trading.",
+          }
+          (root / "profitability_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+          lines = [
+              "# Current Paper Profit Evaluation",
+              "",
+              f"**Verdict:** `{verdict}`",
+              "",
+              "This is a paper-only research result using public historical candles. It is not proof of future profit.",
+              "",
+              "## Aggregate results",
+              "",
+              f"- Positive strategy backtests: {positive}/{total}",
+              f"- Strategy backtests beating buy-and-hold: {beat_hold}/{total}",
+              f"- Accepted walk-forward checks: {accepted}/{wf_total}",
+              f"- Portfolio net return: {portfolio_net * 100:.2f}%",
+              f"- Portfolio ending cash from 100000: {float(portfolio.get('ending_cash', 0.0)):.2f}",
+              f"- Portfolio max drawdown: {portfolio_drawdown * 100:.2f}%",
+              f"- Portfolio closed trades: {portfolio_trades}",
+              "",
+              "## Strategy results",
+              "",
+              "| Symbol | Strategy | Net return | Buy & hold | Excess | Max drawdown | Trades |",
+              "|---|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in backtests:
+              lines.append(
+                  f"| {item['symbol']} | {item['strategy']} | {item['net_return'] * 100:.2f}% | "
+                  f"{item['buy_and_hold_return'] * 100:.2f}% | {item['excess_return'] * 100:.2f}% | "
+                  f"{item['max_drawdown'] * 100:.2f}% | {item['trade_count']} |"
+              )
+          lines.extend([
+              "",
+              "## Decision rule",
+              "",
+              "The result is only marked promising when most backtests are positive, a meaningful share beat buy-and-hold, walk-forward checks survive unseen windows, the portfolio is positive with controlled drawdown, and there are enough trades to avoid judging on one lucky trade.",
+              "",
+              "## Safety boundary",
+              "",
+              "Do not connect real funds based on this report. A promising result still requires longer forward paper trading across multiple market regimes.",
+          ])
+          (root / "profitability_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print("\n".join(lines))
+          PY
+
+      - name: Upload evaluation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-paper-profit-evaluation
+          path: |
+            reports/current/
+            data/current/
+          retention-days: 30
