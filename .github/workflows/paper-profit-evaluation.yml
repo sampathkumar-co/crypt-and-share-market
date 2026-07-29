@@ -2,14 +2,26 @@ name: Current Paper Profit Evaluation
 
 on:
   workflow_dispatch:
+  schedule:
+    # 09:00 Asia/Kolkata. Scheduled workflows run from the default branch.
+    - cron: "30 3 * * *"
   push:
     branches:
+      - main
       - profitability/current-paper-eval-v1
+    paths:
+      - ".github/workflows/paper-profit-evaluation.yml"
+      - "src/**"
+      - "pyproject.toml"
   pull_request:
     paths:
       - ".github/workflows/paper-profit-evaluation.yml"
       - "src/**"
       - "pyproject.toml"
+
+concurrency:
+  group: paper-profit-evaluation-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -154,6 +166,7 @@ jobs:
           portfolio_net = float(portfolio.get("net_return", 0.0))
           portfolio_drawdown = float(portfolio.get("max_drawdown", 0.0))
           portfolio_trades = len(portfolio.get("trades", []))
+          robustness_status = str(robustness.get("status", "UNKNOWN")).upper()
 
           enough_activity = portfolio_trades >= 5 and any(item["trade_count"] >= 5 for item in backtests)
           promising = (
@@ -164,6 +177,7 @@ jobs:
               and accepted / wf_total >= 0.40
               and portfolio_net > 0
               and portfolio_drawdown <= 0.20
+              and robustness_status == "PASS"
               and enough_activity
           )
           verdict = "PROMISING_FOR_LONGER_PAPER_TESTING" if promising else "NOT_YET_PROVEN_PROFITABLE"
@@ -181,6 +195,7 @@ jobs:
               "portfolio_ending_cash": float(portfolio.get("ending_cash", 0.0)),
               "portfolio_max_drawdown": portfolio_drawdown,
               "portfolio_trade_count": portfolio_trades,
+              "robustness_status": robustness_status,
               "backtests": backtests,
               "walk_forward": walk_forward,
               "robustness": robustness,
@@ -204,6 +219,7 @@ jobs:
               f"- Portfolio ending cash from 100000: {float(portfolio.get('ending_cash', 0.0)):.2f}",
               f"- Portfolio max drawdown: {portfolio_drawdown * 100:.2f}%",
               f"- Portfolio closed trades: {portfolio_trades}",
+              f"- Robustness status: {robustness_status}",
               "",
               "## Strategy results",
               "",
@@ -220,7 +236,7 @@ jobs:
               "",
               "## Decision rule",
               "",
-              "The result is only marked promising when most backtests are positive, a meaningful share beat buy-and-hold, walk-forward checks survive unseen windows, the portfolio is positive with controlled drawdown, and there are enough trades to avoid judging on one lucky trade.",
+              "The result is only marked promising when most backtests are positive, a meaningful share beat buy-and-hold, walk-forward checks survive unseen windows, the portfolio is positive with controlled drawdown, robustness is PASS, and there are enough trades to avoid judging on one lucky trade.",
               "",
               "## Safety boundary",
               "",
@@ -229,6 +245,7 @@ jobs:
           (root / "profitability_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
           print("\n".join(lines))
           PY
+          cat reports/current/profitability_summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload evaluation evidence
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from tradebot.cli import main
 from tradebot.data.crypto_provider import (
@@ -17,7 +17,7 @@ def kline(ts_ms: int, open_price: str = "100"):
 def test_normalize_binance_klines_sorts_and_deduplicates_timestamps():
     rows = [kline(2_000, "101"), kline(1_000, "100"), kline(2_000, "102")]
     candles = normalize_binance_klines(rows)
-    assert [c.timestamp for c in candles] == [datetime.fromtimestamp(1), datetime.fromtimestamp(2)]
+    assert [c.timestamp for c in candles] == [datetime.fromtimestamp(1, tz=timezone.utc).replace(tzinfo=None), datetime.fromtimestamp(2, tz=timezone.utc).replace(tzinfo=None)]
     assert candles[-1].open == 102.0
 
 
