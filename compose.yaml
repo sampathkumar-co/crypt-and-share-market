@@ -1,0 +1,40 @@
+services:
+  tradebot:
+    build:
+      context: .
+      args:
+        VCS_REF: ${VCS_REF:-local}
+        BUILD_DATE: ${BUILD_DATE:-local}
+    image: ${TRADEBOT_IMAGE:-tradebot:local}
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${TRADEBOT_BIND_ADDRESS:-127.0.0.1}:${TRADEBOT_HOST_PORT:-8000}:8000"
+    environment:
+      PORT: "8000"
+      TRADEBOT_ALLOW_PUBLIC: "true"
+      TRADEBOT_ENABLE_MUTATIONS: "${TRADEBOT_ENABLE_MUTATIONS:-false}"
+      TRADEBOT_ADMIN_TOKEN: "${TRADEBOT_ADMIN_TOKEN:-}"
+      TRADEBOT_DATA_DIR: /app/data
+      TRADEBOT_REPORTS_DIR: /var/lib/tradebot/reports
+      TRADEBOT_STATE_DIR: /var/lib/tradebot/paper_state
+    volumes:
+      - ./data:/app/data:ro
+      - ./runtime:/var/lib/tradebot
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; raise SystemExit(0 if urlopen('http://127.0.0.1:8000/ready', timeout=3).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
