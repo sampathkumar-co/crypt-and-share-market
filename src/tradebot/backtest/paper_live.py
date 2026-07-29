@@ -154,6 +154,7 @@ class PaperLiveCryptoBot:
         gate_max_age_days: int = 90,
         research_ledger_path: str | Path | None = None,
     ) -> dict:
+        self.continuous_authorized = False
         research_status = require_continuous_paper_authorization(
             self.strategy_name, research_ledger_path
         )
@@ -230,6 +231,14 @@ class PaperLiveCryptoBot:
         )
         print("CONTINUOUS PAPER MODE ONLY - exact historical gate configuration loaded; no real orders are possible.")
         while True:
+            # Re-read both approvals before every iteration. Revocation, deletion,
+            # expiry, fingerprint drift, or configuration drift stops the loop
+            # before a new signal can be queued or executed.
+            self.authorize_continuous(
+                gate_report_path,
+                gate_max_age_days=gate_max_age_days,
+                research_ledger_path=research_ledger_path,
+            )
             print(self.run_once())
             time.sleep(sleep_seconds)
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from tradebot.backtest.paper_live import PaperLiveCryptoBot
 from tradebot.backtest.research_gate import (
@@ -188,3 +189,69 @@ def test_continuous_authorization_requires_research_ledger(tmp_path):
         assert "fails closed" in str(exc)
     assert not bot.continuous_authorized
     assert bot.state.gate_authorization is None
+
+
+def test_failed_revalidation_clears_continuous_authorization(tmp_path):
+    gate = write_gate(tmp_path)
+    ledger = write_ledger(tmp_path)
+    bot = PaperLiveCryptoBot(
+        ["BTCUSDT"],
+        "1m",
+        100000,
+        tmp_path / "state.json",
+        provider=EmptyProvider(),
+    )
+    bot.authorize_continuous(gate, research_ledger_path=ledger)
+    assert bot.continuous_authorized
+
+    Path(ledger).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "deployment_mode": "research_only",
+                "paper_only": True,
+                "approved_strategies": [],
+                "continuous_paper_authorized": False,
+                "live_trading_authorized": False,
+                "experiments": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    try:
+        bot.authorize_continuous(gate, research_ledger_path=ledger)
+        assert False, "revoked ledger must stop continuous authorization"
+    except ValueError as exc:
+        assert "not authorized" in str(exc)
+    assert not bot.continuous_authorized
+
+
+def test_continuous_loop_revalidates_before_each_iteration(tmp_path):
+    bot = PaperLiveCryptoBot(
+        ["BTCUSDT"],
+        "1m",
+        100000,
+        tmp_path / "state.json",
+        provider=EmptyProvider(),
+    )
+    calls = []
+
+    def authorize(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) >= 2:
+            raise RuntimeError("authorization revoked")
+        bot.continuous_authorized = True
+        return {}
+
+    bot.authorize_continuous = authorize  # type: ignore[method-assign]
+    bot.run_once = lambda: (_ for _ in ()).throw(AssertionError("run_once must not execute after revocation"))  # type: ignore[method-assign]
+    try:
+        bot.run_continuous(
+            sleep_seconds=1,
+            gate_report_path=tmp_path / "gate.json",
+            research_ledger_path=tmp_path / "ledger.json",
+        )
+        assert False, "revocation should stop the loop"
+    except RuntimeError as exc:
+        assert "revoked" in str(exc)
+    assert len(calls) == 2
