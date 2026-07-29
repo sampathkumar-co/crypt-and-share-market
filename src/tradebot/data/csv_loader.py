@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 
@@ -21,7 +21,7 @@ def _parse_time(value: str) -> datetime:
     except ValueError as exc:
         raise CSVValidationError(f"Invalid timestamp: {value}") from exc
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(UTC).replace(tzinfo=None)
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed
 
 
