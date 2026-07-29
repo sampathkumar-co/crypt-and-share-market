@@ -303,7 +303,7 @@ class PaperTrader:
             average_holding_bars=sum(holding_bars) / len(holding_bars) if holding_bars else 0.0,
             trades_per_100_bars=len(trades) / max(processed_bars, 1) * 100.0,
             turnover=turnover_notional / self.starting_cash,
-            cost_drag_ratio=total_costs / max(gross_activity, 1e-9) if trades else 0.0,
+            cost_drag_ratio=total_costs / max(gross_activity, total_costs, 1e-9) if trades else 0.0,
             regime_rejections=regime_rejections,
         )
         if self.store_path:
