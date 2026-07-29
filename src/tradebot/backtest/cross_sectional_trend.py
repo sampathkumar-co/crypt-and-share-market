@@ -17,7 +17,7 @@ from tradebot.risk.tax_engine import TaxEngine
 
 
 SCHEMA_VERSION = "1.0"
-REQUIRED_SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT")
+REQUIRED_SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT")
 
 
 @dataclass(frozen=True)

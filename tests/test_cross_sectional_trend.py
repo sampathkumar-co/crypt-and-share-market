@@ -63,7 +63,7 @@ def test_bear_market_forces_cash():
         "BTCUSDT": candles(0.001, falling=True)[:180],
         "ETHUSDT": candles(0.0012, falling=True)[:180],
         "SOLUSDT": candles(0.0015, falling=True)[:180],
-        "XRPUSDT": candles(0.0011, falling=True)[:180],
+        "DOGEUSDT": candles(0.0011, falling=True)[:180],
         "ADAUSDT": candles(0.0013, falling=True)[:180],
     }
     weights, regime_cash = _target_weights(histories, VARIANTS[0], config)
@@ -77,7 +77,7 @@ def test_healthy_market_selects_no_more_than_two_primary_assets():
         "BTCUSDT": candles(0.0015)[:180],
         "ETHUSDT": candles(0.0013)[:180],
         "SOLUSDT": candles(0.0011)[:180],
-        "XRPUSDT": candles(0.0009)[:180],
+        "DOGEUSDT": candles(0.0009)[:180],
         "ADAUSDT": candles(0.0008)[:180],
     }
     weights, regime_cash = _target_weights(histories, VARIANTS[0], config)
@@ -93,7 +93,7 @@ def test_shared_cash_period_runs_with_real_costs_and_no_leverage():
         "BTCUSDT": candles(0.0015),
         "ETHUSDT": candles(0.0013),
         "SOLUSDT": candles(0.0011),
-        "XRPUSDT": candles(0.0009),
+        "DOGEUSDT": candles(0.0009),
         "ADAUSDT": candles(0.0008),
     }
     result = _simulate_period(histories, 1, VARIANTS[0], config)
