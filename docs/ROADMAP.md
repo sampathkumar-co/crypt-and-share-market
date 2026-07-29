@@ -30,16 +30,31 @@
 - Deployment, backup, rollback, and vulnerability-reporting documentation.
 - Automated dependency update configuration.
 
+## Completed in v0.4.0
+
+- Strategy-aware market-regime filtering for long-only entries.
+- Patient execution profiles with minimum holds, cooldowns, confirmed exits, trailing protection, and breakeven stops.
+- Explicit turnover, trade-frequency, holding-duration, and transaction-cost-drag metrics.
+- Cash and buy-and-hold benchmarks in single-strategy, walk-forward, portfolio, and gate reports.
+- Training-only strategy and execution-profile selection.
+- Non-overlapping independent unseen historical periods.
+- Hard positive unseen-return, drawdown, churn, holding, and cost gates.
+- Evaluation of momentum, breakout, and mean reversion under the same gate process.
+- Deterministic dataset fingerprints and machine-readable gate reports.
+- Continuous forward paper mode that refuses to start without a fresh passing report for the selected strategy.
+- Deferred forward entries so an old historical candle cannot be treated as an immediately executable fill.
+
 ## Next research and product milestones
 
 1. **Higher-quality datasets** — adjusted equity data, corporate actions, symbol histories, delistings, dividends, and explicit provenance metadata.
 2. **Execution sensitivity** — spread models, variable slippage, partial-fill approximations, latency scenarios, and Monte Carlo order sequencing.
-3. **Portfolio research** — configurable position concurrency, diversification constraints, correlation exposure, rebalancing, and benchmark portfolios.
-4. **Validation depth** — purged/embargoed cross-validation, bootstrap confidence intervals, probability-of-backtest-overfitting diagnostics, and multiple-testing controls.
-5. **Model governance** — drift checks, feature lineage, calibration, explainability, reproducible model cards, and challenger-versus-champion evaluation.
-6. **Observability** — run manifests, dataset hashes, deterministic seeds, versioned report schemas, metrics export, and experiment comparison tools.
-7. **Storage evolution** — optional shared/object storage if multi-replica deployment becomes necessary.
-8. **Usability** — richer charts, downloadable reports, saved experiment configurations, and accessibility improvements.
+3. **Statistical confidence** — purged/embargoed validation, bootstrap confidence intervals, probability-of-backtest-overfitting diagnostics, and multiple-testing controls.
+4. **Portfolio research** — configurable position concurrency, diversification constraints, correlation exposure, rebalancing, and benchmark portfolios.
+5. **Forward-paper governance** — scheduled gate refreshes, automatic suspension on drift or drawdown, champion/challenger tracking, and immutable run manifests.
+6. **Model governance** — drift checks, feature lineage, calibration, explainability, reproducible model cards, and challenger-versus-champion evaluation.
+7. **Observability** — metrics export, dataset hashes, deterministic seeds, versioned report schemas, and experiment comparison tools.
+8. **Storage evolution** — optional shared/object storage if multi-replica deployment becomes necessary.
+9. **Usability** — richer charts, downloadable reports, saved experiment configurations, and accessibility improvements.
 
 ## Permanent safety boundary
 

@@ -1,0 +1,128 @@
+name: Current Historical Research Gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+  pull_request:
+    paths:
+      - ".github/workflows/research-gate.yml"
+      - "src/**"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/research-gate.yml"
+      - "src/**"
+      - "pyproject.toml"
+
+concurrency:
+  group: research-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p data/gate reports/gate
+
+      - name: Fetch independent daily histories
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/gate
+
+      - name: Run fail-closed research gate
+        id: gate
+        shell: bash
+        run: |
+          set +e
+          tradebot research-gate \
+            --market crypto \
+            --folder data/gate \
+            --train-size 180 \
+            --test-size 60 \
+            --min-periods 3 \
+            --max-drawdown 0.20 \
+            --max-cost-drag 0.50 \
+            --max-trades-per-100 8 \
+            --min-average-holding-bars 2 \
+            --min-beat-buy-hold-fraction 0.50 \
+            --json-out reports/gate/research_gate.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Research-gate execution failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize gate evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/gate/research_gate.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["schema_version"] == "1.0"
+          assert len(payload["strategies"]) == 3
+
+          lines = [
+              "# Current Historical Research Gate",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Eligible for continuous forward paper: **{payload['eligible_for_continuous_paper']}**",
+              f"- Champion: **{payload.get('champion_strategy') or '-'}**",
+              f"- Dataset fingerprint: `{payload['dataset_fingerprint']}`",
+              "",
+              "| Strategy | Passed | Periods | Positive unseen | Beat buy & hold | Avg unseen | Worst unseen | Worst drawdown | Trades/100 | Cost drag |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for strategy in payload["strategies"]:
+              lines.append(
+                  f"| {strategy['strategy']} | {strategy['passed']} | {strategy['independent_periods']} | "
+                  f"{strategy['positive_unseen_fraction']:.0%} | {strategy['beat_buy_and_hold_fraction']:.0%} | "
+                  f"{strategy['average_unseen_return']:.2%} | {strategy['worst_unseen_return']:.2%} | "
+                  f"{strategy['worst_drawdown']:.2%} | {strategy['average_trades_per_100_bars']:.2f} | "
+                  f"{strategy['average_cost_drag_ratio']:.2%} |"
+              )
+          lines.extend([
+              "",
+              "A rejection is a valid research result. Continuous forward paper remains blocked unless the report is accepted for the selected strategy.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/gate/research_gate.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+          cat reports/gate/research_gate.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload gate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-historical-research-gate
+          path: |
+            reports/gate/
+            data/gate/
+          retention-days: 30

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from tradebot.backtest.ml_comparison import MLComparisonReport
 from tradebot.backtest.portfolio_trader import PortfolioResult
+from tradebot.backtest.research_gate import ResearchGateReport
 from tradebot.backtest.robustness import RobustnessReport
 from tradebot.models import BacktestResult, ScanResult, WalkForwardResult
 
@@ -31,13 +32,19 @@ def backtest_console(result: BacktestResult) -> str:
             f"Ending cash: {result.ending_cash:.2f}",
             f"Gross return: {result.gross_return:.2%}",
             f"Net return: {result.net_return:.2%}",
+            f"Cash return: {result.cash_return:.2%}",
             f"Buy-and-hold return: {result.buy_and_hold_return:.2%}",
-            f"Excess return: {result.excess_return:.2%}",
+            f"Excess return vs buy-and-hold: {result.excess_return:.2%}",
             f"Win rate: {result.win_rate:.2%}",
             f"Max drawdown: {result.max_drawdown:.2%}",
             f"Sharpe / Sortino / Calmar: {result.sharpe_ratio:.2f} / {result.sortino_ratio:.2f} / {result.calmar_ratio:.2f}",
             f"Profit factor / expectancy: {result.profit_factor:.2f} / {result.expectancy:.2f}",
             f"Exposure: {result.exposure:.2%}",
+            f"Average holding bars: {result.average_holding_bars:.2f}",
+            f"Trades per 100 bars: {result.trades_per_100_bars:.2f}",
+            f"Turnover multiple: {result.turnover:.2f}",
+            f"Cost drag ratio: {result.cost_drag_ratio:.2%}",
+            f"Regime-filtered entries: {result.regime_rejections}",
             f"Total fees: {result.total_fees:.2f}",
             f"Total slippage: {result.total_slippage:.2f}",
             f"Total estimated tax: {result.total_tax:.2f}",
@@ -76,12 +83,21 @@ def portfolio_console(result: PortfolioResult) -> str:
             f"Ending cash: {result.ending_cash:.2f}",
             f"Gross return: {result.gross_return:.2%}",
             f"Net return after costs/taxes: {result.net_return:.2%}",
+            f"Cash return: {result.cash_return:.2%}",
+            f"Equal-weight buy-and-hold return: {result.buy_and_hold_return:.2%}",
+            f"Excess vs buy-and-hold: {result.excess_vs_buy_and_hold:.2%}",
             f"Max drawdown: {result.max_drawdown:.2%}",
             f"Win rate: {result.win_rate:.2%}",
             f"Rotations/trades: {result.rotations}",
+            f"Trades per 100 bars: {result.trades_per_100_bars:.2f}",
             f"Average hold bars: {result.average_hold_bars:.2f}",
+            f"Turnover multiple: {result.turnover:.2f}",
+            f"Cost drag ratio: {result.cost_drag_ratio:.2%}",
             f"Total fees: {result.total_fees:.2f}",
+            f"Total slippage: {result.total_slippage:.2f}",
             f"Total estimated tax: {result.total_tax:.2f}",
+            f"Regime-filtered opportunities: {result.regime_filtered_opportunities}",
+            f"Cooldown skips: {result.cooldown_skips}",
             f"Rejected opportunities: {result.rejected_opportunities_count}",
             f"Warnings: {'; '.join(result.warnings) if result.warnings else '-'}",
         ]
@@ -142,8 +158,34 @@ def robustness_console(result: RobustnessReport) -> str:
 def walk_forward_console(result: WalkForwardResult) -> str:
     return (
         f"{DISCLAIMER}\nStability score: {result.stability_score:.2%}\nAccepted: {result.accepted}"
-        f"\nReason: {result.reason}\nWindows: {len(result.windows)}"
+        f"\nReason: {result.reason}\nIndependent unseen windows: {len(result.windows)}"
     )
+
+
+def research_gate_console(result: ResearchGateReport) -> str:
+    lines = [
+        DISCLAIMER,
+        f"Historical research gate accepted: {result.accepted}",
+        f"Eligible for continuous forward paper: {result.eligible_for_continuous_paper}",
+        f"Champion strategy: {result.champion_strategy or '-'}",
+        f"Passed strategies: {', '.join(result.passed_strategies) if result.passed_strategies else '-'}",
+        f"Dataset fingerprint: {result.dataset_fingerprint}",
+        f"Why: {'; '.join(result.reasons)}",
+    ]
+    for strategy in result.strategies:
+        lines.append(
+            f"{strategy.strategy}: passed={strategy.passed} periods={strategy.independent_periods} "
+            f"positive={strategy.positive_unseen_fraction:.0%} "
+            f"beat_buy_hold={strategy.beat_buy_and_hold_fraction:.0%} "
+            f"avg_unseen={strategy.average_unseen_return:.2%} "
+            f"worst={strategy.worst_unseen_return:.2%} "
+            f"drawdown={strategy.worst_drawdown:.2%} "
+            f"trades/100={strategy.average_trades_per_100_bars:.2f} "
+            f"cost_drag={strategy.average_cost_drag_ratio:.2%}"
+        )
+    if not result.accepted:
+        lines.append("Continuous forward paper trading remains blocked.")
+    return "\n".join(lines)
 
 
 def to_json(obj) -> str:

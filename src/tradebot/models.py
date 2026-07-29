@@ -64,6 +64,7 @@ class Trade:
     reason: str
     tds_cashflow: float = 0.0
     holding_days: int = 0
+    holding_bars: int = 0
 
 
 @dataclass
@@ -84,6 +85,7 @@ class BacktestResult:
     risk_warnings: list[str] = field(default_factory=list)
     total_slippage: float = 0.0
     total_tds_cashflow: float = 0.0
+    cash_return: float = 0.0
     buy_and_hold_return: float = 0.0
     excess_return: float = 0.0
     profit_factor: float = 0.0
@@ -92,6 +94,11 @@ class BacktestResult:
     sortino_ratio: float = 0.0
     calmar_ratio: float = 0.0
     exposure: float = 0.0
+    average_holding_bars: float = 0.0
+    trades_per_100_bars: float = 0.0
+    turnover: float = 0.0
+    cost_drag_ratio: float = 0.0
+    regime_rejections: int = 0
 
 
 @dataclass(frozen=True)
