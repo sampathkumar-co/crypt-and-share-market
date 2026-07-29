@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 from tradebot.api.server import run_server
@@ -27,7 +28,6 @@ from tradebot.reports.report_generator import (
 from tradebot.scanner.crypto_scanner import scan_crypto_folder
 from tradebot.scanner.equity_scanner import scan_equity_folder
 
-
 STRATEGIES = ["momentum", "breakout", "mean_reversion"]
 
 
@@ -39,6 +39,13 @@ def write_json(path: str, content: str) -> None:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(content, encoding="utf-8")
+
+
+def _environment_port() -> int:
+    try:
+        return int(os.getenv("PORT", "8000"))
+    except ValueError as exc:
+        raise ValueError("PORT must be an integer") from exc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -121,8 +128,30 @@ def main(argv: list[str] | None = None) -> int:
     paper_live_parser.add_argument("--sleep-seconds", type=float, default=60.0)
 
     dashboard_parser = sub.add_parser("serve-dashboard")
-    dashboard_parser.add_argument("--host", default="127.0.0.1")
-    dashboard_parser.add_argument("--port", type=int, default=8000)
+    dashboard_parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"))
+    dashboard_parser.add_argument("--port", type=int, default=_environment_port())
+    dashboard_parser.add_argument(
+        "--public",
+        action="store_true",
+        help="Explicitly permit binding a non-loopback address. Public mode is read-only by default.",
+    )
+    mutation_group = dashboard_parser.add_mutually_exclusive_group()
+    mutation_group.add_argument(
+        "--enable-mutations",
+        action="store_true",
+        dest="enable_mutations",
+        default=None,
+        help="Enable scan/portfolio/robustness POST actions. Public mode also requires TRADEBOT_ADMIN_TOKEN.",
+    )
+    mutation_group.add_argument(
+        "--read-only",
+        action="store_false",
+        dest="enable_mutations",
+        help="Disable all POST research actions.",
+    )
+    dashboard_parser.add_argument("--data-dir", default=None)
+    dashboard_parser.add_argument("--reports-dir", default=None)
+    dashboard_parser.add_argument("--state-dir", default=None)
 
     demo_parser = sub.add_parser("demo-report")
     demo_parser.add_argument("--out", required=True)
@@ -139,7 +168,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "serve-dashboard":
-        run_server(args.host, args.port)
+        run_server(
+            args.host,
+            args.port,
+            allow_public=args.public or None,
+            enable_mutations=args.enable_mutations,
+            data_dir=args.data_dir,
+            reports_dir=args.reports_dir,
+            state_dir=args.state_dir,
+        )
         return 0
 
     if args.cmd == "paper-live-crypto":
