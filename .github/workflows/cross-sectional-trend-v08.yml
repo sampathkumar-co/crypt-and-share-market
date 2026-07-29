@@ -56,7 +56,7 @@ jobs:
           from pathlib import Path
           from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
 
-          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"]
+          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"]
           out = Path("data/cross-sectional-trend")
           out.mkdir(parents=True, exist_ok=True)
           client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
@@ -75,7 +75,7 @@ jobs:
           from pathlib import Path
           from tradebot.data.csv_loader import load_candles
 
-          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"}
           files = {path.stem: path for path in Path("data/cross-sectional-trend").glob("*.csv")}
           missing = sorted(expected - set(files))
           if missing:
