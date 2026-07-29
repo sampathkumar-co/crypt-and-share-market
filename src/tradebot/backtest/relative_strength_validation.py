@@ -25,7 +25,7 @@ from tradebot.backtest.meta_allocation import (
     next_drawdown_multiplier,
 )
 from tradebot.backtest.metrics import max_drawdown, period_returns, sharpe_ratio, sortino_ratio
-from tradebot.backtest.research_gate import (
+from tradebot.backtest.profit_quality_gate import _cash_metrics`r`nfrom tradebot.backtest.research_gate import (
     dataset_fingerprint,
     independent_train_test_windows,
     load_histories,
