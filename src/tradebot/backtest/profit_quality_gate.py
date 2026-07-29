@@ -222,6 +222,7 @@ def _select_candidates(
     naive = candidates[0]
     screened = candidates[: config.stability_screen_candidates]
     stable_candidates: list[dict[str, Any]] = []
+    screened_diagnostics: list[dict[str, Any]] = []
     for candidate in screened:
         folds = _fold_metrics(
             symbol,
@@ -246,20 +247,14 @@ def _select_candidates(
                 config.stability_policy,
             ),
         }
+        screened_diagnostics.append(candidate)
         if not reasons:
             stable_candidates.append(candidate)
 
     stable_candidates.sort(key=lambda item: float(item["stability_score"]), reverse=True)
     best_screened = max(
-        (
-            {
-                **candidate,
-                "training_stability": candidate.get("training_stability", {}),
-                "selection_reasons": candidate.get("selection_reasons", []),
-            }
-            for candidate in screened
-        ),
-        key=lambda item: float(item.get("stability_score", item["base_score"])),
+        screened_diagnostics,
+        key=lambda item: float(item["stability_score"]),
     )
     return {
         "naive": naive,
