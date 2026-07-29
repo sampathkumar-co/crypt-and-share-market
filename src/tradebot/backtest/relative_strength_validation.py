@@ -12,6 +12,7 @@ from typing import Any
 from tradebot.backtest.combined_ablation import (
     COMBINED_FAMILY,
     CombinedAblationConfig,
+    _allocation_config,
     _evaluate_alpha_result,
     _evaluate_v05_reference,
     _screen_alpha_candidates,
@@ -23,6 +24,7 @@ from tradebot.backtest.meta_allocation import (
     _pad_curve,
     correlation_filter,
     next_drawdown_multiplier,
+    exposure_from_confidence,
 )
 from tradebot.backtest.metrics import max_drawdown, period_returns, sharpe_ratio, sortino_ratio
 from tradebot.backtest.profit_quality_gate import _cash_metrics
@@ -278,6 +280,13 @@ def _evaluate_asset_period(
     plateau = select_alpha_plateau(stable, combined_config)
     volatility = _annualized_volatility(train)
     reasons = list(plateau["reasons"])
+    eligibility_exposure = exposure_from_confidence(
+        float(plateau["consensus_strength"]),
+        volatility,
+        _allocation_config(combined_config),
+    )
+    if eligibility_exposure <= 0 and not reasons:
+        reasons.append("eligibility_exposure_below_minimum")
     selected = stable[0] if stable else None
     if selected is None and not reasons:
         reasons.append("no_single_stable_relative_strength_candidate")
