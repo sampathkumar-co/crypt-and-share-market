@@ -109,3 +109,26 @@ def test_paper_live_trades_endpoint(tmp_path):
         assert payload["trades"][0]["symbol"] == "BTCUSDT"
     finally:
         stop_server(server, old)
+
+
+def test_research_status_endpoint_fails_closed_when_ledger_missing(tmp_path):
+    server, base, old = start_server(tmp_path)
+    try:
+        payload = get_json(base, "/research/status")
+        assert payload["source_valid"] is False
+        assert payload["approved_strategy_count"] == 0
+        assert payload["continuous_paper_authorized"] is False
+        assert payload["live_trading_authorized"] is False
+    finally:
+        stop_server(server, old)
+
+
+def test_dashboard_contains_research_approval_card(tmp_path):
+    server, base, old = start_server(tmp_path)
+    try:
+        with urlopen(base + "/", timeout=5) as response:
+            html = response.read().decode()
+        assert "Research Approval Status" in html
+        assert "/research/status" in html
+    finally:
+        stop_server(server, old)
