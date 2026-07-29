@@ -1,0 +1,167 @@
+name: Sparse Trend Replication v0.9
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/sparse-trend-replication-v09.yml"
+      - "src/tradebot/backtest/sparse_trend_replication.py"
+      - "tests/test_sparse_trend_replication.py"
+
+concurrency:
+  group: sparse-trend-replication-v09-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  replicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify v0.8 method is unchanged
+        shell: bash
+        run: |
+          git fetch origin research/v0.8-cross-sectional-trend-portfolio
+          git diff --exit-code origin/research/v0.8-cross-sectional-trend-portfolio -- \
+            src/tradebot/backtest/cross_sectional_trend.py \
+            src/tradebot/risk/cost_engine.py \
+            src/tradebot/risk/tax_engine.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/sparse-trend-replication reports/sparse-trend-replication
+
+      - name: Fetch exactly 1800 aligned daily candles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
+
+          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"]
+          out = Path("data/sparse-trend-replication")
+          client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
+          for symbol in symbols:
+              candles = client.fetch_symbol(symbol, interval="1d", days=1800)
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} returned {len(candles)} candles; exactly 1800 required")
+              save_candles_csv(symbol, candles, out)
+              print(f"{symbol}: {len(candles)} candles")
+          PY
+
+      - name: Require exact common timestamps
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          paths = sorted(Path("data/sparse-trend-replication").glob("*.csv"))
+          if len(paths) != 5:
+              raise SystemExit(f"Expected five histories, found {len(paths)}")
+          timestamp_sets = []
+          for path in paths:
+              candles = load_candles(path)
+              if len(candles) != 1800:
+                  raise SystemExit(f"{path.stem} contains {len(candles)} candles")
+              timestamp_sets.append(set(candle.timestamp for candle in candles))
+          common = set.intersection(*timestamp_sets)
+          if len(common) != 1800:
+              raise SystemExit(f"Only {len(common)} timestamps align")
+          print("All five histories contain 1800 aligned timestamps")
+          PY
+
+      - name: Run unchanged-method secondary replication
+        id: replication
+        shell: bash
+        run: |
+          set +e
+          python -m tradebot.backtest.sparse_trend_replication \
+            --folder data/sparse-trend-replication \
+            --market crypto \
+            --json-out reports/sparse-trend-replication/sparse_trend_replication.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Secondary replication failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/sparse-trend-replication/sparse_trend_replication.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["secondary_not_fully_independent"] is True
+          assert payload["method_parameters_unchanged_from_v08"] is True
+          assert len(payload["variants"]) == 3
+          assert all(len(item["summary"]["periods"]) == 13 for item in payload["variants"])
+
+          lines = [
+              "# Sparse Trend Secondary Replication v0.9",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Forward-paper candidate: **{payload['eligible_for_forward_paper_candidate']}**",
+              f"- Replication interval: `{payload['replication_start']}` to `{payload['replication_end']}`",
+              f"- Final embargo: `{payload['embargo_start']}` to `{payload['embargo_end']}`",
+              "- This interval is later and disjoint from v0.8 validation, but not fully independent from the wider research programme.",
+              "",
+              "| Variant | Active | Average | Compounded | Active positive | First half | Second half | Stressed | B&H excess | Beat B&H | Worst DD |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              summary = item["summary"]
+              lines.append(
+                  f"| {item['variant']} | {summary['active_periods']}/13 | "
+                  f"{summary['average_return']:.3%} | {summary['compounded_return']:.3%} | "
+                  f"{item['active_positive_fraction']:.0%} | "
+                  f"{item['first_half_average_return']:.3%} | "
+                  f"{item['second_half_average_return']:.3%} | "
+                  f"{summary['average_stressed_return']:.3%} | "
+                  f"{summary['average_excess_vs_buy_and_hold']:.3%} | "
+                  f"{summary['beat_buy_and_hold_fraction']:.0%} | "
+                  f"{summary['worst_drawdown']:.3%} |"
+              )
+          lines.extend([
+              "",
+              f"Leave-one-asset-out positive fraction: **{payload['leave_one_out_positive_fraction']:.0%}**",
+              "",
+              "Passing can authorize only a forward-paper candidate, never real-money trading.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/sparse-trend-replication/sparse_trend_replication.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+          cat reports/sparse-trend-replication/sparse_trend_replication.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete replication evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparse-trend-replication-v09
+          path: |
+            reports/sparse-trend-replication/
+            data/sparse-trend-replication/
+          retention-days: 30
