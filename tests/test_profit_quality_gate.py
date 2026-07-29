@@ -67,7 +67,7 @@ def test_temporal_folds_are_contiguous_and_non_overlapping():
 
 def test_lucky_single_fold_is_rejected_even_with_positive_full_return():
     policy = TemporalStabilityPolicy(
-        min_positive_fold_fraction=0.67,
+        min_positive_active_fold_fraction=0.67,
         min_worst_fold_return=-0.03,
         max_return_dispersion=0.08,
     )
@@ -76,9 +76,24 @@ def test_lucky_single_fold_is_rejected_even_with_positive_full_return():
     )
     reasons = stability_reasons(metrics(0.07, trades=6), summary, policy)
 
-    assert "too_few_positive_training_folds" in reasons
-    assert "worst_training_fold_too_negative" in reasons
+    assert "too_few_positive_active_training_folds" in reasons
+    assert "worst_active_training_fold_too_negative" in reasons
     assert not with_stability_flag(summary, reasons)["stable"]
+
+
+def test_inactive_cash_fold_is_neutral_not_a_failed_trade():
+    policy = TemporalStabilityPolicy(
+        min_positive_active_fold_fraction=0.50,
+        min_required_active_folds=2,
+    )
+    summary = summarize_fold_metrics(
+        [metrics(0.01, trades=1), metrics(0.0, trades=0), metrics(0.02, trades=1)]
+    )
+    reasons = stability_reasons(metrics(0.03, trades=2), summary, policy)
+
+    assert summary["inactive_fold_count"] == 1
+    assert summary["positive_active_fold_fraction"] == 1.0
+    assert not reasons
 
 
 def test_stability_score_prefers_consistent_candidate():
@@ -94,7 +109,7 @@ def test_stability_score_prefers_consistent_candidate():
     fragile_score = stability_adjusted_score(0.05, fragile, policy)
 
     assert stable_score > fragile_score
-    assert consistent["return_dispersion"] < fragile["return_dispersion"]
+    assert consistent["active_return_dispersion"] < fragile["active_return_dispersion"]
 
 
 def test_profit_quality_summary_approves_real_unseen_improvement():
