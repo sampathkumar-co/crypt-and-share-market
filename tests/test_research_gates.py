@@ -89,7 +89,7 @@ def test_backtest_reports_cash_buy_hold_churn_and_cost_metrics():
     assert isinstance(result.buy_and_hold_return, float)
     assert result.trades_per_100_bars >= 0.0
     assert result.turnover >= 0.0
-    assert result.cost_drag_ratio >= 0.0
+    assert 0.0 <= result.cost_drag_ratio <= 1.0
     assert result.average_holding_bars >= 0.0
 
 
