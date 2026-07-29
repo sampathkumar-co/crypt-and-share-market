@@ -1,0 +1,132 @@
+name: Profit Quality v0.5
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * 2"
+  pull_request:
+    paths:
+      - ".github/workflows/profit-quality-v05.yml"
+      - "src/tradebot/backtest/profit_quality_gate.py"
+      - "src/tradebot/backtest/selection_stability.py"
+      - "src/tradebot/backtest/**"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/profit-quality-v05.yml"
+      - "src/tradebot/backtest/profit_quality_gate.py"
+      - "src/tradebot/backtest/selection_stability.py"
+      - "src/tradebot/backtest/**"
+      - "pyproject.toml"
+
+concurrency:
+  group: profit-quality-v05-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p data/profit-quality reports/profit-quality
+
+      - name: Fetch fresh independent histories
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/profit-quality
+
+      - name: Compare stable selection with naive selection
+        id: quality
+        shell: bash
+        run: |
+          set +e
+          tradebot-profit-quality \
+            --folder data/profit-quality \
+            --market crypto \
+            --train-size 180 \
+            --test-size 60 \
+            --max-candidates 27 \
+            --screen-candidates 9 \
+            --json-out reports/profit-quality/profit_quality.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Profit-quality evaluation failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/profit-quality/profit_quality.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["schema_version"] == "1.0"
+          assert len(payload["strategies"]) == 3
+
+          lines = [
+              "# Profit Quality v0.5",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Champion: **{payload.get('champion_strategy') or '-'}**",
+              f"- Dataset fingerprint: `{payload['dataset_fingerprint']}`",
+              "",
+              "| Strategy | Approved | Deployed | Abstained | Stable return | Naive return | Improvement | Positive deployed | Beats naive | Worst drawdown |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for strategy in payload["strategies"]:
+              lines.append(
+                  f"| {strategy['strategy']} | {strategy['approved']} | "
+                  f"{strategy['deployed_periods']} | {strategy['abstained_periods']} | "
+                  f"{strategy['average_stable_return']:.2%} | "
+                  f"{strategy['average_naive_return']:.2%} | "
+                  f"{strategy['average_net_improvement']:.2%} | "
+                  f"{strategy['positive_deployed_fraction']:.0%} | "
+                  f"{strategy['stable_beats_naive_fraction']:.0%} | "
+                  f"{strategy['worst_stable_drawdown']:.2%} |"
+              )
+          lines.extend([
+              "",
+              "A rejected result is valid evidence. It means stability-aware selection did not yet prove positive unseen profit quality.",
+              "This workflow remains paper-only and cannot authorize real-money trading.",
+          ])
+          summary = "\n".join(lines) + "\n"
+          Path("reports/profit-quality/profit_quality.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+          cat reports/profit-quality/profit_quality.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload profit-quality evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: profit-quality-v05
+          path: |
+            reports/profit-quality/
+            data/profit-quality/
+          retention-days: 30
