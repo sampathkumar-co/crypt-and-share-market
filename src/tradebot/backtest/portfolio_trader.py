@@ -7,7 +7,7 @@ from pathlib import Path
 from tradebot.backtest.metrics import max_drawdown, win_rate
 from tradebot.data.csv_loader import load_candles
 from tradebot.ml.crypto_signal_model import CryptoSignalModel
-from tradebot.models import Candle, Market, Position, Signal, Action
+from tradebot.models import Action, Candle, Market, Position, Signal
 from tradebot.risk.cost_engine import CostEngine
 from tradebot.risk.risk_manager import RiskManager
 from tradebot.risk.tax_engine import TaxEngine
@@ -32,6 +32,7 @@ class PortfolioTrade:
     exit_reason: str
     entry_ml_probability: float | None = None
     entry_ml_score: float | None = None
+    tds_cashflow: float = 0.0
 
 
 @dataclass
@@ -50,6 +51,7 @@ class PortfolioResult:
     trades: list[PortfolioTrade] = field(default_factory=list)
     equity_curve: list[dict[str, float | str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    total_tds_cashflow: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -59,12 +61,33 @@ class PortfolioConfig:
     min_symbols: int = 2
     min_candles_per_symbol: int = 30
     danger_risk_score: float = 85.0
+    intrabar_policy: str = "worst_case"
+
+    def __post_init__(self) -> None:
+        if self.max_holding_bars < 1:
+            raise ValueError("max_holding_bars must be positive")
+        if self.scanner_top < 1:
+            raise ValueError("scanner_top must be positive")
+        if self.intrabar_policy not in {"worst_case", "best_case"}:
+            raise ValueError("intrabar_policy must be 'worst_case' or 'best_case'")
 
 
 class CryptoPortfolioPaperTrader:
-    """Paper-only one-position crypto rotation simulator; never places real orders."""
+    """Paper-only one-position crypto rotation simulator; never places real orders.
 
-    def __init__(self, cash: float = 100000.0, config: PortfolioConfig | None = None, scanner_config: ScannerConfig | None = None, model: CryptoSignalModel | None = None):
+    Candidate ranking uses candles strictly before the execution timestamp. Entries
+    are filled at the next available candle open, eliminating same-close look-ahead.
+    """
+
+    def __init__(
+        self,
+        cash: float = 100000.0,
+        config: PortfolioConfig | None = None,
+        scanner_config: ScannerConfig | None = None,
+        model: CryptoSignalModel | None = None,
+    ):
+        if cash <= 0:
+            raise ValueError("cash must be positive")
         self.starting_cash = cash
         self.cash = cash
         self.config = config or PortfolioConfig()
@@ -79,7 +102,14 @@ class CryptoPortfolioPaperTrader:
         return self.run(histories)
 
     def run(self, histories: dict[str, list[Candle]]) -> PortfolioResult:
-        warnings: list[str] = []
+        self.cash = self.starting_cash
+        if not histories:
+            raise ValueError("No symbol histories supplied")
+
+        warnings = [
+            "Signals use completed candles and entries execute at the next available open.",
+            f"Ambiguous stop/target candles use {self.config.intrabar_policy} ordering.",
+        ]
         if len(histories) < self.config.min_symbols:
             warnings.append("Too few symbols for diversified rotation research.")
         short_symbols = [symbol for symbol, candles in histories.items() if len(candles) < self.config.min_candles_per_symbol]
@@ -87,12 +117,13 @@ class CryptoPortfolioPaperTrader:
             warnings.append(f"Too few candles for symbols: {', '.join(short_symbols)}")
 
         all_times = sorted({candle.timestamp for candles in histories.values() for candle in candles})
-        by_symbol_time = {symbol: {c.timestamp: c for c in candles} for symbol, candles in histories.items()}
+        if not all_times:
+            raise ValueError("Symbol histories contain no candles")
+        by_symbol_time = {symbol: {candle.timestamp: candle for candle in candles} for symbol, candles in histories.items()}
         position: Position | None = None
         position_symbol = ""
         entry_reason = ""
         entry_index = 0
-        entry_cash_basis = 0.0
         entry_ml_probability: float | None = None
         entry_ml_score: float | None = None
         trades: list[PortfolioTrade] = []
@@ -108,20 +139,38 @@ class CryptoPortfolioPaperTrader:
                 day_start_equity = self._mark_to_market(position, position_symbol, timestamp, by_symbol_time)
                 halted_for_day = False
 
-            if position:
+            closed_this_bar = False
+            if position is not None:
                 candle = by_symbol_time.get(position_symbol, {}).get(timestamp)
-                if candle:
-                    exit_price, exit_reason = self._exit_decision(position, position_symbol, candle, histories[position_symbol], timestamp, index, entry_index)
+                if candle is not None:
+                    exit_price, exit_reason = self._exit_decision(
+                        position,
+                        position_symbol,
+                        candle,
+                        histories[position_symbol],
+                        timestamp,
+                        index,
+                        entry_index,
+                    )
                     if exit_reason:
-                        trade = self._close_trade(position_symbol, position, timestamp, exit_price, entry_reason, exit_reason, entry_ml_probability, entry_ml_score)
+                        trade = self._close_trade(
+                            position_symbol,
+                            position,
+                            timestamp,
+                            exit_price,
+                            entry_reason,
+                            exit_reason,
+                            entry_ml_probability,
+                            entry_ml_score,
+                        )
                         self.cash += position.entry_price * position.quantity + trade.net_pnl
                         trades.append(trade)
                         position = None
                         position_symbol = ""
                         entry_reason = ""
-                        entry_cash_basis = 0.0
                         entry_ml_probability = None
                         entry_ml_score = None
+                        closed_this_bar = True
                         if trade.net_pnl < 0 and abs(trade.net_pnl) >= day_start_equity * self.risk.config.max_daily_loss:
                             halted_for_day = True
 
@@ -129,44 +178,101 @@ class CryptoPortfolioPaperTrader:
             if equity <= day_start_equity * (1 - self.risk.config.max_daily_loss):
                 halted_for_day = True
 
-            if not position and not halted_for_day:
+            if position is None and not halted_for_day and not closed_this_bar:
                 candidates = []
                 for symbol, candles in histories.items():
-                    available = [candle for candle in candles if candle.timestamp <= timestamp]
-                    if len(available) < self.scanner_config.min_candles:
+                    history_before_execution = [candle for candle in candles if candle.timestamp < timestamp]
+                    execution_candle = by_symbol_time.get(symbol, {}).get(timestamp)
+                    if execution_candle is None or len(history_before_execution) < self.scanner_config.min_candles:
                         continue
-                    scan = evaluate_symbol(symbol, Market.CRYPTO, available, self.scanner_config, model=self.model)
+                    scan = evaluate_symbol(symbol, Market.CRYPTO, history_before_execution, self.scanner_config, model=self.model)
                     if scan.rejected:
                         rejected_count += 1
                         continue
-                    candidates.append(scan)
-                candidates.sort(key=lambda result: result.opportunity_score, reverse=True)
-                for candidate in candidates[: self.config.scanner_top]:
-                    latest = self._latest_at_or_before(histories[candidate.symbol], timestamp)
-                    if latest is None:
-                        continue
-                    risk_signal = Signal(Action.BUY, candidate.opportunity_score / 100.0, candidate.explanation, candidate.confidence, candidate.risk_score / 100.0)
-                    decision = self.risk.evaluate(Market.CRYPTO, self.cash, candidate.symbol, risk_signal, latest, daily_loss=equity - day_start_equity)
+                    candidates.append((scan, history_before_execution[-1], execution_candle))
+
+                candidates.sort(key=lambda item: item[0].opportunity_score, reverse=True)
+                for candidate, signal_candle, execution_candle in candidates[: self.config.scanner_top]:
+                    risk_signal = Signal(
+                        Action.BUY,
+                        candidate.opportunity_score / 100.0,
+                        candidate.explanation,
+                        candidate.confidence,
+                        candidate.risk_score / 100.0,
+                    )
+                    decision = self.risk.evaluate(
+                        Market.CRYPTO,
+                        self.cash,
+                        candidate.symbol,
+                        risk_signal,
+                        signal_candle,
+                        daily_loss=equity - day_start_equity,
+                        entry_price=execution_candle.open,
+                    )
                     if not decision.approved:
                         rejected_count += 1
                         continue
-                    position = Position(candidate.symbol, decision.quantity, latest.close, decision.stop_loss, decision.target, timestamp)
+
+                    position = Position(
+                        candidate.symbol,
+                        decision.quantity,
+                        execution_candle.open,
+                        decision.stop_loss,
+                        decision.target,
+                        timestamp,
+                    )
                     position_symbol = candidate.symbol
                     entry_index = index
-                    ml_text = f" ml_probability={candidate.ml_probability:.2f} ml_score={candidate.ml_score:.1f};" if candidate.ml_probability is not None and candidate.ml_score is not None else ""
+                    ml_text = (
+                        f" ml_probability={candidate.ml_probability:.2f} ml_score={candidate.ml_score:.1f};"
+                        if candidate.ml_probability is not None and candidate.ml_score is not None
+                        else ""
+                    )
                     entry_reason = f"Rank {candidate.rank or 1} opportunity_score={candidate.opportunity_score:.1f};{ml_text} {candidate.explanation}"
                     entry_ml_probability = candidate.ml_probability
                     entry_ml_score = candidate.ml_score
-                    entry_cash_basis = latest.close * decision.quantity
-                    self.cash -= entry_cash_basis
+                    self.cash -= execution_candle.open * decision.quantity
+
+                    # The order was placed at the open, so stop/target orders may
+                    # legitimately execute later in this same candle.
+                    immediate_price, immediate_reason = self._intrabar_stop_target(position, execution_candle)
+                    if immediate_reason:
+                        trade = self._close_trade(
+                            position_symbol,
+                            position,
+                            timestamp,
+                            immediate_price,
+                            entry_reason,
+                            immediate_reason,
+                            entry_ml_probability,
+                            entry_ml_score,
+                        )
+                        self.cash += position.entry_price * position.quantity + trade.net_pnl
+                        trades.append(trade)
+                        position = None
+                        position_symbol = ""
+                        entry_reason = ""
+                        entry_ml_probability = None
+                        entry_ml_score = None
                     break
 
-            equity_curve.append({"timestamp": timestamp.isoformat(), "equity": self._mark_to_market(position, position_symbol, timestamp, by_symbol_time)})
+            equity_curve.append(
+                {"timestamp": timestamp.isoformat(), "equity": self._mark_to_market(position, position_symbol, timestamp, by_symbol_time)}
+            )
 
-        if position:
+        if position is not None:
             last = self._latest_at_or_before(histories[position_symbol], all_times[-1])
-            if last:
-                trade = self._close_trade(position_symbol, position, all_times[-1], last.close, entry_reason, "End of portfolio simulation", entry_ml_probability, entry_ml_score)
+            if last is not None:
+                trade = self._close_trade(
+                    position_symbol,
+                    position,
+                    all_times[-1],
+                    last.close,
+                    entry_reason,
+                    "End of portfolio simulation",
+                    entry_ml_probability,
+                    entry_ml_score,
+                )
                 self.cash += position.entry_price * position.quantity + trade.net_pnl
                 trades.append(trade)
                 equity_curve.append({"timestamp": all_times[-1].isoformat(), "equity": self.cash})
@@ -189,26 +295,68 @@ class CryptoPortfolioPaperTrader:
             trades=trades,
             equity_curve=equity_curve,
             warnings=warnings,
+            total_tds_cashflow=sum(trade.tds_cashflow for trade in trades),
         )
 
-    def _exit_decision(self, position: Position, symbol: str, candle: Candle, candles: list[Candle], timestamp: datetime, index: int, entry_index: int) -> tuple[float, str]:
-        if candle.low <= position.stop_loss:
+    def _intrabar_stop_target(self, position: Position, candle: Candle) -> tuple[float, str]:
+        if candle.open <= position.stop_loss:
+            return candle.open, "Stop loss gap exit"
+        if candle.open >= position.target:
+            return candle.open, "Target gap exit"
+        stop_hit = candle.low <= position.stop_loss
+        target_hit = candle.high >= position.target
+        if stop_hit and target_hit:
+            if self.config.intrabar_policy == "best_case":
+                return position.target, "Target hit"
             return position.stop_loss, "Stop loss hit"
-        if candle.high >= position.target:
+        if stop_hit:
+            return position.stop_loss, "Stop loss hit"
+        if target_hit:
             return position.target, "Target hit"
-        if index - entry_index >= self.config.max_holding_bars:
-            return candle.close, "Max holding period reached"
-        available = [item for item in candles if item.timestamp <= timestamp]
-        if len(available) >= self.scanner_config.min_candles:
-            scan = evaluate_symbol(symbol, Market.CRYPTO, available, self.scanner_config, model=self.model)
-            if scan.rejected or scan.risk_score >= self.config.danger_risk_score:
-                return candle.close, f"Scanner risk exit: {scan.rejection_reason or 'dangerous risk score'}"
         return 0.0, ""
 
-    def _close_trade(self, symbol: str, position: Position, exit_time: datetime, exit_price: float, entry_reason: str, exit_reason: str, entry_ml_probability: float | None = None, entry_ml_score: float | None = None) -> PortfolioTrade:
+    def _exit_decision(
+        self,
+        position: Position,
+        symbol: str,
+        candle: Candle,
+        candles: list[Candle],
+        timestamp: datetime,
+        index: int,
+        entry_index: int,
+    ) -> tuple[float, str]:
+        price, reason = self._intrabar_stop_target(position, candle)
+        if reason:
+            return price, reason
+        if index - entry_index >= self.config.max_holding_bars:
+            return candle.open, "Max holding period reached"
+        history_before_execution = [item for item in candles if item.timestamp < timestamp]
+        if len(history_before_execution) >= self.scanner_config.min_candles:
+            scan = evaluate_symbol(symbol, Market.CRYPTO, history_before_execution, self.scanner_config, model=self.model)
+            if scan.rejected or scan.risk_score >= self.config.danger_risk_score:
+                return candle.open, f"Scanner risk exit: {scan.rejection_reason or 'dangerous risk score'}"
+        return 0.0, ""
+
+    def _close_trade(
+        self,
+        symbol: str,
+        position: Position,
+        exit_time: datetime,
+        exit_price: float,
+        entry_reason: str,
+        exit_reason: str,
+        entry_ml_probability: float | None = None,
+        entry_ml_score: float | None = None,
+    ) -> PortfolioTrade:
         gross = (exit_price - position.entry_price) * position.quantity
         costs = self.costs.estimate(Market.CRYPTO, position.entry_price, exit_price, position.quantity)
-        tax = self.tax.estimate(Market.CRYPTO, gross)["tax"]
+        tax_result = self.tax.estimate(
+            Market.CRYPTO,
+            gross,
+            exit_value=exit_price * position.quantity,
+        )
+        tax = float(tax_result["tax"])
+        tds = float(tax_result["tds_cashflow"])
         net = gross - costs["fees"] - costs["slippage"] - tax
         return PortfolioTrade(
             symbol=symbol,
@@ -227,10 +375,17 @@ class CryptoPortfolioPaperTrader:
             exit_reason=exit_reason,
             entry_ml_probability=entry_ml_probability,
             entry_ml_score=entry_ml_score,
+            tds_cashflow=tds,
         )
 
-    def _mark_to_market(self, position: Position | None, symbol: str, timestamp: datetime, by_symbol_time: dict[str, dict[datetime, Candle]]) -> float:
-        if not position:
+    def _mark_to_market(
+        self,
+        position: Position | None,
+        symbol: str,
+        timestamp: datetime,
+        by_symbol_time: dict[str, dict[datetime, Candle]],
+    ) -> float:
+        if position is None:
             return self.cash
         candle = by_symbol_time.get(symbol, {}).get(timestamp)
         price = candle.close if candle else position.entry_price
