@@ -500,7 +500,7 @@ class CryptoPortfolioPaperTrader:
             excess_vs_buy_and_hold=net_return - buy_and_hold,
             total_slippage=total_slippage,
             cost_drag_ratio=(
-                total_costs / max(gross_activity, 1e-9)
+                total_costs / max(gross_activity, total_costs, 1e-9)
                 if trades
                 else 0.0
             ),
