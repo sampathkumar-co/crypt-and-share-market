@@ -1,0 +1,170 @@
+name: Relative Strength Validation v0.7
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/relative-strength-validation-v07.yml"
+      - "src/tradebot/backtest/relative_strength_validation.py"
+      - "src/tradebot/backtest/combined_ablation.py"
+      - "src/tradebot/backtest/alpha_discovery.py"
+      - "src/tradebot/strategies/relative_strength.py"
+      - "tests/test_relative_strength_validation.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: relative-strength-validation-v07-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen v0.5 boundaries
+        shell: bash
+        run: |
+          git fetch origin research/profit-quality-v0.5
+          git diff --exit-code origin/research/profit-quality-v0.5 -- \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py \
+            src/tradebot/backtest/portfolio_trader.py \
+            src/tradebot/strategies/momentum.py \
+            src/tradebot/strategies/breakout.py \
+            src/tradebot/strategies/mean_reversion.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/relative-strength-validation reports/relative-strength-validation
+
+      - name: Fetch 1000 daily candles per asset
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 1000 \
+            --out data/relative-strength-validation
+
+      - name: Require the frozen 1000-day histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          files = {
+              path.stem: path
+              for path in Path("data/relative-strength-validation").glob("*.csv")
+          }
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing required histories: {', '.join(missing)}")
+          for symbol in sorted(expected):
+              count = len(load_candles(files[symbol]))
+              print(f"{symbol}: {count} candles")
+              if count != 1000:
+                  raise SystemExit(
+                      f"{symbol} has {count} candles; the frozen validation requires exactly 1000"
+                  )
+          PY
+
+      - name: Run older-window portfolio validation
+        id: validation
+        shell: bash
+        run: |
+          set +e
+          tradebot-relative-strength-validation \
+            --folder data/relative-strength-validation \
+            --market crypto \
+            --json-out reports/relative-strength-validation/validation.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Validation failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+
+          path = Path("reports/relative-strength-validation/validation.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["schema_version"] == "1.0"
+          assert payload["discovery_overlap_bars"] == 0
+          assert len(payload["asset_periods"]) == 35
+          assert len(payload["portfolio_periods"]) == 7
+          assert datetime.fromisoformat(payload["validation_end"]) < datetime.fromisoformat(
+              payload["discovery_start"]
+          )
+
+          lines = [
+              "# Relative Strength Portfolio Validation v0.7",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Eligible for forward paper: **{payload['eligible_for_forward_paper']}**",
+              f"- Validation fingerprint: `{payload['validation_dataset_fingerprint']}`",
+              f"- Validation end: **{payload['validation_end']}**",
+              f"- Discovery start: **{payload['discovery_start']}**",
+              f"- Discovery overlap: **{payload['discovery_overlap_bars']} bars**",
+              f"- Active portfolio periods: **{payload['active_portfolio_periods']}/7**",
+              "",
+              "| Metric | Result |",
+              "|---|---:|",
+              f"| Average portfolio return | {payload['average_portfolio_return']:.4%} |",
+              f"| Median portfolio return | {payload['median_portfolio_return']:.4%} |",
+              f"| Compounded validation return | {payload['compounded_portfolio_return']:.4%} |",
+              f"| Positive-period fraction | {payload['positive_portfolio_fraction']:.1%} |",
+              f"| Frozen v0.5 average | {payload['average_v05_return']:.4%} |",
+              f"| Improvement over v0.5 | {payload['average_improvement_vs_v05']:.4%} |",
+              f"| Equal-weight buy-and-hold average | {payload['average_buy_and_hold_return']:.4%} |",
+              f"| Excess over buy-and-hold | {payload['average_excess_vs_buy_and_hold']:.4%} |",
+              f"| Extra-cost-stressed average | {payload['average_stressed_return']:.4%} |",
+              f"| Worst portfolio drawdown | {payload['worst_portfolio_drawdown']:.4%} |",
+              f"| Leave-one-out positive fraction | {payload['leave_one_out_positive_fraction']:.1%} |",
+              "",
+              "The validation uses only the 635 older bars preceding the latest 365-bar discovery window. Its seven unseen portfolio periods do not overlap each other or the discovery period.",
+              "A rejected result is valid evidence and cannot authorize forward or real-money trading.",
+          ]
+          summary = "\n".join(lines) + "\n"
+          Path("reports/relative-strength-validation/validation.md").write_text(
+              summary,
+              encoding="utf-8",
+          )
+          print(summary)
+          PY
+          cat reports/relative-strength-validation/validation.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: relative-strength-validation-v07
+          path: |
+            reports/relative-strength-validation/
+            data/relative-strength-validation/
+          retention-days: 30
