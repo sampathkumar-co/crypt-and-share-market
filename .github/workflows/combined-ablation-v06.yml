@@ -1,0 +1,160 @@
+name: Combined Ablation v0.6
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/combined-ablation-v06.yml"
+      - "src/tradebot/backtest/combined_ablation.py"
+      - "src/tradebot/backtest/meta_allocation.py"
+      - "src/tradebot/backtest/alpha_discovery.py"
+      - "src/tradebot/strategies/relative_strength.py"
+      - "tests/test_combined_ablation.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: combined-ablation-v06-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen baseline boundaries
+        shell: bash
+        run: |
+          git fetch origin research/profit-quality-v0.5
+          git diff --exit-code origin/research/profit-quality-v0.5 -- \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py \
+            src/tradebot/backtest/portfolio_trader.py \
+            src/tradebot/strategies/momentum.py \
+            src/tradebot/strategies/breakout.py \
+            src/tradebot/strategies/mean_reversion.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/combined-ablation reports/combined-ablation
+
+      - name: Fetch fixed fresh histories
+        run: |
+          tradebot fetch-crypto \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
+            --interval 1d \
+            --days 365 \
+            --out data/combined-ablation
+
+      - name: Require all five complete histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/combined-ablation").glob("*.csv")}
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing required histories: {', '.join(missing)}")
+          for symbol in sorted(expected):
+              count = len(load_candles(files[symbol]))
+              print(f"{symbol}: {count} candles")
+              if count < 365:
+                  raise SystemExit(f"{symbol} has only {count} candles; exactly 365 requested")
+          PY
+
+      - name: Run frozen four-way ablation
+        id: ablation
+        shell: bash
+        run: |
+          set +e
+          tradebot-combined-ablation \
+            --folder data/combined-ablation \
+            --market crypto \
+            --json-out reports/combined-ablation/combined_ablation.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Combined ablation failed with unexpected status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate and summarize evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/combined-ablation/combined_ablation.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["schema_version"] == "1.0"
+          assert payload["family"] == "cross_asset_relative_strength"
+          assert len(payload["periods"]) == 15
+          assert len(payload["portfolio_periods"]) == 3
+
+          lines = [
+              "# Combined v0.6 Ablation",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Dataset fingerprint: `{payload['dataset_fingerprint']}`",
+              f"- Combined deployments: **{payload['combined_deployed_periods']}/15**",
+              f"- Profitable assets: **{', '.join(payload['combined_profitable_assets']) or '-'}**",
+              "",
+              "| Ablation | Average unseen return |",
+              "|---|---:|",
+              f"| Frozen v0.5 reference | {payload['v05_average_return']:.4%} |",
+              f"| Track A relative strength alone | {payload['track_a_average_return']:.4%} |",
+              f"| Best Part B old-signal portfolio ({payload.get('part_b_best_strategy') or '-'}) | {payload['part_b_best_portfolio_average_return']:.4%} |",
+              f"| Track A + Part B combined | {payload['combined_average_return']:.4%} |",
+              "",
+              "| Portfolio ablation | Average return |",
+              "|---|---:|",
+              f"| Frozen v0.5 | {payload['v05_portfolio_average_return']:.4%} |",
+              f"| Track A alone | {payload['track_a_portfolio_average_return']:.4%} |",
+              f"| Combined | {payload['combined_portfolio_average_return']:.4%} |",
+              "",
+              f"- Combined worst asset drawdown: **{payload['combined_worst_drawdown']:.4%}**",
+              f"- Combined worst portfolio drawdown: **{payload['combined_portfolio_worst_drawdown']:.4%}**",
+              "",
+              "A rejected result is valid evidence. The combined layer must become positive and beat every frozen baseline; merely losing less is insufficient.",
+              "This workflow remains paper-only and cannot authorize real-money trading.",
+          ]
+          summary = "\n".join(lines) + "\n"
+          Path("reports/combined-ablation/combined_ablation.md").write_text(
+              summary,
+              encoding="utf-8",
+          )
+          print(summary)
+          PY
+          cat reports/combined-ablation/combined_ablation.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete ablation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-ablation-v06
+          path: |
+            reports/combined-ablation/
+            data/combined-ablation/
+          retention-days: 30
