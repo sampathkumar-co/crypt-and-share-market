@@ -3,22 +3,32 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from tradebot.backtest.paper_live import PaperLiveCryptoBot
-from tradebot.backtest.paper_trader import PaperTrader
+from tradebot.api.server import run_server
 from tradebot.backtest.ml_comparison import compare_crypto_ml
+from tradebot.backtest.paper_live import PaperLiveCryptoBot
+from tradebot.backtest.paper_trader import BacktestConfig, PaperTrader
 from tradebot.backtest.portfolio_trader import CryptoPortfolioPaperTrader, PortfolioConfig
 from tradebot.backtest.robustness import evaluate_robustness
-from tradebot.backtest.walk_forward import walk_forward
-from tradebot.api.server import run_server
-from tradebot.data.csv_loader import load_candles
+from tradebot.backtest.walk_forward import build_strategy, walk_forward
+from tradebot.data.csv_loader import audit_candles, load_candles
 from tradebot.data.crypto_provider import PublicCryptoHistoricalClient
 from tradebot.ml.crypto_signal_model import CryptoSignalModel, evaluate_folder, train_from_folder
 from tradebot.models import Market
 from tradebot.reports.demo_report import generate_demo_report
-from tradebot.reports.report_generator import backtest_console, ml_comparison_console, portfolio_console, robustness_console, scan_console, to_json, walk_forward_console
+from tradebot.reports.report_generator import (
+    backtest_console,
+    ml_comparison_console,
+    portfolio_console,
+    robustness_console,
+    scan_console,
+    to_json,
+    walk_forward_console,
+)
 from tradebot.scanner.crypto_scanner import scan_crypto_folder
 from tradebot.scanner.equity_scanner import scan_equity_folder
-from tradebot.strategies.momentum import MomentumVolumeStrategy
+
+
+STRATEGIES = ["momentum", "breakout", "mean_reversion"]
 
 
 def parse_market(value: str) -> Market:
@@ -39,24 +49,33 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     backtest_parser = sub.add_parser("backtest")
-    backtest_parser.add_argument("--market", required=True)
+    backtest_parser.add_argument("--market", required=True, choices=[market.value for market in Market])
     backtest_parser.add_argument("--symbol", required=True)
     backtest_parser.add_argument("--data", required=True)
+    backtest_parser.add_argument("--strategy", choices=STRATEGIES, default="momentum")
+    backtest_parser.add_argument("--cash", type=float, default=100000.0)
+    backtest_parser.add_argument("--intrabar-policy", choices=["worst_case", "best_case"], default="worst_case")
     backtest_parser.add_argument("--json-out")
 
     scan_parser = sub.add_parser("scan")
-    scan_parser.add_argument("--market", required=True)
+    scan_parser.add_argument("--market", required=True, choices=[market.value for market in Market])
     scan_parser.add_argument("--folder", required=True)
     scan_parser.add_argument("--json-out")
     scan_parser.add_argument("--top", type=int, default=None)
     scan_parser.add_argument("--model")
 
     walk_parser = sub.add_parser("walk-forward")
-    walk_parser.add_argument("--market", required=True)
+    walk_parser.add_argument("--market", required=True, choices=[market.value for market in Market])
     walk_parser.add_argument("--symbol", required=True)
     walk_parser.add_argument("--data", required=True)
-    walk_parser.add_argument("--strategy", choices=["momentum", "breakout", "mean_reversion"], default="momentum")
+    walk_parser.add_argument("--strategy", choices=STRATEGIES, default="momentum")
+    walk_parser.add_argument("--train-size", type=int)
+    walk_parser.add_argument("--test-size", type=int)
     walk_parser.add_argument("--json-out")
+
+    validate_parser = sub.add_parser("validate-data")
+    validate_parser.add_argument("--data", required=True)
+    validate_parser.add_argument("--json-out")
 
     fetch_parser = sub.add_parser("fetch-crypto")
     fetch_parser.add_argument("--symbols", required=True, help="Comma-separated symbols, for example BTCUSDT,ETHUSDT")
@@ -110,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     demo_parser.add_argument("--json-out")
 
     args = parser.parse_args(argv)
+
     if args.cmd == "demo-report":
         summary = generate_demo_report(args.out, json_out=args.json_out)
         print(f"Demo report written to {args.out}")
@@ -159,7 +179,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "portfolio-crypto":
         model = CryptoSignalModel.load(args.model) if getattr(args, "model", None) else None
-        result = CryptoPortfolioPaperTrader(cash=args.cash, config=PortfolioConfig(scanner_top=args.top), model=model).run_folder(args.folder)
+        result = CryptoPortfolioPaperTrader(
+            cash=args.cash,
+            config=PortfolioConfig(scanner_top=args.top),
+            model=model,
+        ).run_folder(args.folder)
         print(portfolio_console(result))
         if args.json_out:
             write_json(args.json_out, to_json(result))
@@ -176,26 +200,48 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"SAVED {result.symbol}: {result.candles} candles -> {result.path}")
         return 1 if any(result.error for result in results) else 0
 
+    if args.cmd == "validate-data":
+        report = audit_candles(load_candles(args.data))
+        content = to_json(report)
+        print(content)
+        if args.json_out:
+            write_json(args.json_out, content)
+        return 0
+
     market = parse_market(args.market)
 
     if args.cmd == "backtest":
-        result = PaperTrader(market, MomentumVolumeStrategy(), store_path=args.json_out).run(
-            args.symbol,
-            load_candles(args.data),
-        )
+        result = PaperTrader(
+            market,
+            build_strategy(args.strategy),
+            starting_cash=args.cash,
+            store_path=args.json_out,
+            config=BacktestConfig(intrabar_policy=args.intrabar_policy),
+        ).run(args.symbol, load_candles(args.data))
         print(backtest_console(result))
         return 0
 
     if args.cmd == "scan":
         model = CryptoSignalModel.load(args.model) if getattr(args, "model", None) and market == Market.CRYPTO else None
-        results = scan_crypto_folder(args.folder, top=args.top, model=model) if market == Market.CRYPTO else scan_equity_folder(args.folder, top=args.top)
+        results = (
+            scan_crypto_folder(args.folder, top=args.top, model=model)
+            if market == Market.CRYPTO
+            else scan_equity_folder(args.folder, top=args.top)
+        )
         print(scan_console(results))
         if args.json_out:
             write_json(args.json_out, to_json(results))
         return 0
 
     if args.cmd == "walk-forward":
-        result = walk_forward(args.symbol, market, load_candles(args.data), strategy_name=args.strategy)
+        result = walk_forward(
+            args.symbol,
+            market,
+            load_candles(args.data),
+            strategy_name=args.strategy,
+            train_size=args.train_size,
+            test_size=args.test_size,
+        )
         print(walk_forward_console(result))
         if args.json_out:
             write_json(args.json_out, to_json(result))
