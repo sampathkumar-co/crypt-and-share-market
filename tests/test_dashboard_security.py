@@ -10,9 +10,10 @@ def test_dashboard_data_folder_cannot_escape_project_data(tmp_path, monkeypatch)
     (tmp_path / "data" / "crypto").mkdir(parents=True)
 
     assert resolve_data_folder("data/crypto") == (tmp_path / "data" / "crypto").resolve()
-    with pytest.raises(ValueError, match="inside the local data directory"):
+    assert resolve_data_folder("crypto") == (tmp_path / "data" / "crypto").resolve()
+    with pytest.raises(ValueError, match="inside the configured data directory"):
         resolve_data_folder("../outside")
-    with pytest.raises(ValueError, match="inside the local data directory"):
+    with pytest.raises(ValueError, match="inside the configured data directory"):
         resolve_data_folder(tmp_path.parent)
 
 
