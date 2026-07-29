@@ -77,6 +77,27 @@ def write_gate(tmp_path) -> str:
     return str(path)
 
 
+
+def write_ledger(tmp_path) -> str:
+    path = tmp_path / "ledger.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "deployment_mode": "forward_paper_candidate",
+                "paper_only": True,
+                "approved_strategies": ["momentum"],
+                "continuous_paper_authorized": True,
+                "live_trading_authorized": False,
+                "experiments": [],
+                "decision": "FORWARD_PAPER_ONLY",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
 def test_continuous_authorization_loads_exact_frozen_configuration(tmp_path):
     bot = PaperLiveCryptoBot(
         ["BTCUSDT"],
@@ -85,7 +106,7 @@ def test_continuous_authorization_loads_exact_frozen_configuration(tmp_path):
         tmp_path / "state.json",
         provider=EmptyProvider(),
     )
-    bot.authorize_continuous(write_gate(tmp_path))
+    bot.authorize_continuous(write_gate(tmp_path), research_ledger_path=write_ledger(tmp_path))
 
     assert bot.continuous_authorized
     assert bot.strategy.lookback == 8
@@ -108,7 +129,7 @@ def test_pending_forward_signal_expires_when_more_than_one_candle_was_missed(tmp
         tmp_path / "state.json",
         provider=EmptyProvider(),
     )
-    bot.authorize_continuous(write_gate(tmp_path))
+    bot.authorize_continuous(write_gate(tmp_path), research_ledger_path=write_ledger(tmp_path))
     candles = history(37)
     signal_time = candles[-3].timestamp
     bot.histories["BTCUSDT"] = candles
@@ -143,7 +164,27 @@ def test_continuous_authorization_refuses_uncovered_symbol(tmp_path):
         provider=EmptyProvider(),
     )
     try:
-        bot.authorize_continuous(write_gate(tmp_path))
+        bot.authorize_continuous(write_gate(tmp_path), research_ledger_path=write_ledger(tmp_path))
         assert False, "authorization should reject a symbol outside the gate dataset"
     except ValueError as exc:
         assert "covered" in str(exc)
+
+
+def test_continuous_authorization_requires_research_ledger(tmp_path):
+    bot = PaperLiveCryptoBot(
+        ["BTCUSDT"],
+        "1m",
+        100000,
+        tmp_path / "state.json",
+        provider=EmptyProvider(),
+    )
+    try:
+        bot.authorize_continuous(
+            write_gate(tmp_path),
+            research_ledger_path=tmp_path / "missing-ledger.json",
+        )
+        assert False, "missing research ledger must deny continuous paper"
+    except ValueError as exc:
+        assert "fails closed" in str(exc)
+    assert not bot.continuous_authorized
+    assert bot.state.gate_authorization is None

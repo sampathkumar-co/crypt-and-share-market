@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-07-29T18:03:00Z",
+  "deployment_mode": "research_only",
+  "paper_only": true,
+  "decision": "NO_STRATEGY_APPROVED",
+  "decision_summary": "All completed profitability tracks remain rejected. One-shot paper research is available; continuous paper and live trading are disabled.",
+  "approved_strategies": [],
+  "continuous_paper_authorized": false,
+  "live_trading_authorized": false,
+  "experiments": [
+    {
+      "version": "v0.4",
+      "name": "historical validation gates",
+      "status": "rejected",
+      "merged_safety_infrastructure": true,
+      "approved": false
+    },
+    {
+      "version": "v0.5",
+      "name": "stability-aware profit quality",
+      "pull_request": 14,
+      "status": "rejected",
+      "approved": false,
+      "result": "No strategy achieved positive average unseen return."
+    },
+    {
+      "version": "v0.6-a",
+      "name": "new alpha families",
+      "pull_request": 15,
+      "status": "rejected",
+      "approved": false,
+      "result": "No promising signal family."
+    },
+    {
+      "version": "v0.6-b",
+      "name": "meta allocation",
+      "pull_request": 16,
+      "status": "rejected",
+      "approved": false,
+      "result": "Reduced losses but did not create positive unseen edge."
+    },
+    {
+      "version": "v0.6-combined",
+      "name": "signal and allocation ablation",
+      "pull_request": 17,
+      "status": "rejected",
+      "approved": false,
+      "result": "Average asset-period return remained negative."
+    },
+    {
+      "version": "v0.7",
+      "name": "relative-strength older validation",
+      "pull_request": 18,
+      "status": "rejected",
+      "approved": false,
+      "average_return": -0.000924,
+      "compounded_return": -0.006458
+    },
+    {
+      "version": "v0.8",
+      "name": "shared-cash cross-sectional trend",
+      "pull_request": 19,
+      "status": "rejected_positive_clue",
+      "approved": false,
+      "average_return": 0.00400599,
+      "compounded_return": 0.03587745,
+      "reason": "Only 3/10 periods active; robustness gates failed.",
+      "artifact_digest": "sha256:b87ca2a9fad1cb41fb43d4c3320d826dc1c68e84fd915aebf3de7c1ddeca530c"
+    },
+    {
+      "version": "v0.9",
+      "name": "unchanged sparse-trend later replication",
+      "pull_request": 20,
+      "status": "rejected",
+      "approved": false,
+      "average_return": -0.03787038,
+      "compounded_return": -0.420096,
+      "artifact_digest": "sha256:7575c527ce1675823f5ce24d43e75659e143e274077442a60ced6cb42c76e348"
+    }
+  ]
+}

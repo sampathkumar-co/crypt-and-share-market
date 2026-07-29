@@ -16,6 +16,7 @@ from tradebot.models import Action, Candle, Market, Signal
 from tradebot.risk.cost_engine import CostEngine
 from tradebot.risk.risk_manager import RiskManager
 from tradebot.risk.tax_engine import TaxEngine
+from tradebot.research.status import require_continuous_paper_authorization
 from tradebot.scanner.crypto_scanner import ScannerConfig, evaluate_symbol
 
 
@@ -151,7 +152,11 @@ class PaperLiveCryptoBot:
         gate_report_path: str | Path,
         *,
         gate_max_age_days: int = 90,
+        research_ledger_path: str | Path | None = None,
     ) -> dict:
+        research_status = require_continuous_paper_authorization(
+            self.strategy_name, research_ledger_path
+        )
         gate = validate_forward_gate(
             gate_report_path,
             strategy_name=self.strategy_name,
@@ -167,6 +172,7 @@ class PaperLiveCryptoBot:
             "implementation_version": gate["implementation_version"],
             "implementation_fingerprint": gate["implementation_fingerprint"],
             "strategy": self.strategy_name,
+            "research_ledger_fingerprint": research_status["source_fingerprint"],
             "forward_configuration": frozen,
         }
         if (self.state.open_position or self.state.pending_entry) and self.state.gate_authorization != authorization:
@@ -213,12 +219,14 @@ class PaperLiveCryptoBot:
         sleep_seconds: float,
         gate_report_path: str | Path,
         gate_max_age_days: int = 90,
+        research_ledger_path: str | Path | None = None,
     ) -> LivePaperState:
         if sleep_seconds <= 0:
             raise ValueError("continuous mode requires positive sleep_seconds")
         self.authorize_continuous(
             gate_report_path,
             gate_max_age_days=gate_max_age_days,
+            research_ledger_path=research_ledger_path,
         )
         print("CONTINUOUS PAPER MODE ONLY - exact historical gate configuration loaded; no real orders are possible.")
         while True:

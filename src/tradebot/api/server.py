@@ -18,6 +18,7 @@ from tradebot.backtest.portfolio_trader import CryptoPortfolioPaperTrader
 from tradebot.backtest.robustness import evaluate_robustness
 from tradebot.reports.report_generator import to_json
 from tradebot.scanner.crypto_scanner import scan_crypto_folder
+from tradebot.research.status import load_research_status
 
 FORBIDDEN_FIELDS = {"api_key", "secret", "wallet", "private_key", "order", "orders", "place_order"}
 REPORTS_DIR = Path("reports")
@@ -246,18 +247,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_html(dashboard_html(self.config))
             return
         if path == "/health":
+            research_status = load_research_status()
             self._send_json(
                 {
                     "status": "ok",
                     "uptime_seconds": round(time.monotonic() - STARTED_AT, 3),
                     "mode": "public" if self.config.public else "local",
                     "mutations_enabled": self.config.enable_mutations,
+                    "deployment_mode": research_status.get("deployment_mode", "research_only"),
+                    "approved_strategy_count": research_status.get("approved_strategy_count", 0),
+                    "continuous_paper_authorized": research_status.get("continuous_paper_authorized", False),
                 }
             )
             return
         if path == "/ready":
             ready, checks = readiness(self.config)
             self._send_json({"status": "ready" if ready else "not_ready", "checks": checks}, status=200 if ready else 503)
+            return
+        if path == "/research/status":
+            self._send_json(load_research_status())
             return
         if path == "/reports/scanner":
             self._send_json(read_first_report(self.config.reports_dir, ["crypto_scan_ml.json", "crypto_scan.json", "crypto_scan_dashboard.json"]))
@@ -490,6 +498,7 @@ def dashboard_html(config: ServerConfig | None = None) -> str:
 <style>body{{font-family:system-ui,sans-serif;margin:24px;background:#0f172a;color:#e2e8f0}}.warn{{background:#7f1d1d;padding:16px;border-radius:8px;font-size:20px;font-weight:bold}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}}.card{{background:#1e293b;padding:16px;border-radius:8px}}pre{{white-space:pre-wrap;max-height:360px;overflow:auto;font-size:12px}}small{{color:#94a3b8}}</style></head>
 <body><div class='warn'>{mode} — no live trading, wallets, order endpoints, leverage, futures, API keys, or guaranteed profit.</div>
 <h1>Dual Market AI Bot</h1><small>Health: <span id='health'>checking...</span></small><div class='grid'>
+<div class='card'><h2>Research Approval Status</h2><pre id='research'>Loading...</pre></div>
 <div class='card'><h2>Scanner</h2><pre id='scanner'>Loading...</pre></div>
 <div class='card'><h2>Portfolio</h2><pre id='portfolio'>Loading...</pre></div>
 <div class='card'><h2>Robustness</h2><pre id='robustness'>Loading...</pre></div>
@@ -498,5 +507,5 @@ def dashboard_html(config: ServerConfig | None = None) -> str:
 <div class='card'><h2>Paper-live Trades</h2><pre id='trades'>Loading...</pre></div>
 </div><script>
 async function load(id,url){{try{{const r=await fetch(url,{{cache:'no-store'}});const j=await r.json();document.getElementById(id).textContent=JSON.stringify(j,null,2);return j}}catch(e){{document.getElementById(id).textContent=String(e)}}}}
-load('health','/health').then(j=>{{if(j)document.getElementById('health').textContent=j.status+' / '+j.mode}});load('scanner','/reports/scanner');load('portfolio','/reports/portfolio');load('robustness','/reports/robustness');load('ml','/reports/ml-comparison');load('state','/paper-live/state');load('trades','/paper-live/trades');
+load('health','/health').then(j=>{{if(j)document.getElementById('health').textContent=j.status+' / '+j.mode}});load('research','/research/status');load('scanner','/reports/scanner');load('portfolio','/reports/portfolio');load('robustness','/reports/robustness');load('ml','/reports/ml-comparison');load('state','/paper-live/state');load('trades','/paper-live/trades');
 </script></body></html>"""

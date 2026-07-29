@@ -192,6 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     paper_live_parser.add_argument("--gate-report")
     paper_live_parser.add_argument("--gate-max-age-days", type=int, default=90)
+    paper_live_parser.add_argument(
+        "--research-ledger",
+        default=None,
+        help="Fail-closed research approval ledger; defaults to TRADEBOT_RESEARCH_LEDGER or research/experiment_ledger.json.",
+    )
 
     dashboard_parser = sub.add_parser("serve-dashboard")
     dashboard_parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"))
@@ -284,6 +289,7 @@ def main(argv: list[str] | None = None) -> int:
                 sleep_seconds=args.sleep_seconds,
                 gate_report_path=args.gate_report,
                 gate_max_age_days=args.gate_max_age_days,
+                research_ledger_path=args.research_ledger,
             )
         else:
             bot.run(max_loops=args.max_loops, sleep_seconds=args.sleep_seconds)

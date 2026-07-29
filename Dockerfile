@@ -40,6 +40,7 @@ COPY --from=builder /wheels /wheels
 RUN python -m pip install --no-cache-dir /wheels/*.whl \
     && rm -rf /wheels
 COPY data ./data
+COPY research ./research
 RUN mkdir -p /var/lib/tradebot/reports /var/lib/tradebot/paper_state \
     && chown -R tradebot:tradebot /var/lib/tradebot
 
