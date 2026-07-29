@@ -24,8 +24,8 @@ class CompressionBreakoutRetestStrategy(Strategy):
     """Long-only compression breakout followed by retest or continuation.
 
     The breakout level is formed strictly from candles before the breakout
-    candle. A retest must also be visible on a completed candle before a BUY
-    signal can be emitted.
+    candle. A retest or continuation must also be visible on a later completed
+    candle before a BUY signal can be emitted.
     """
 
     name = "compression_breakout_retest"
@@ -97,6 +97,7 @@ class CompressionBreakoutRetestStrategy(Strategy):
             )
             continuation = (
                 self.allow_continuation
+                and bars_since_breakout >= 1
                 and bars_since_breakout <= self.retest_bars
                 and last.close >= breakout_close
                 and extension <= self.max_extension
