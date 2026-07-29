@@ -9,6 +9,7 @@ on:
       - "pyproject.toml"
       - "src/**"
       - "data/**"
+      - "research/**"
       - ".github/workflows/container.yml"
   push:
     branches: [main]
@@ -61,8 +62,15 @@ jobs:
           done
 
           curl --fail --silent --show-error http://127.0.0.1:18000/health | tee /tmp/health.json
+          curl --fail --silent --show-error http://127.0.0.1:18000/research/status | tee /tmp/research.json
           grep -q '"status": "ready"' /tmp/ready.json
           grep -q '"mutations_enabled": false' /tmp/health.json
+          grep -q '"deployment_mode": "research_only"' /tmp/health.json
+          grep -q '"approved_strategy_count": 0' /tmp/health.json
+          grep -q '"source_valid": true' /tmp/research.json
+          grep -q '"approved_strategy_count": 0' /tmp/research.json
+          grep -q '"continuous_paper_authorized": false' /tmp/research.json
+          grep -q '"live_trading_authorized": false' /tmp/research.json
 
           status=$(curl --silent --output /tmp/post.json --write-out '%{http_code}' \
             --request POST --header 'Content-Type: application/json' --data '{}' \
