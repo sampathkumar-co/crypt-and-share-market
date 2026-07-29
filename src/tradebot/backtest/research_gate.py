@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from itertools import product
 from pathlib import Path
 from statistics import mean, median
@@ -20,8 +21,24 @@ from tradebot.data.csv_loader import load_candles
 from tradebot.models import Candle, Market
 
 
-GATE_SCHEMA_VERSION = "1.0"
+GATE_SCHEMA_VERSION = "1.1"
 STRATEGIES = ("momentum", "breakout", "mean_reversion")
+IMPLEMENTATION_FILES = (
+    "models.py",
+    "backtest/paper_live.py",
+    "backtest/paper_trader.py",
+    "backtest/regime.py",
+    "backtest/research_gate.py",
+    "backtest/walk_forward.py",
+    "risk/cost_engine.py",
+    "risk/risk_manager.py",
+    "risk/tax_engine.py",
+    "scanner/crypto_scanner.py",
+    "strategies/base.py",
+    "strategies/breakout.py",
+    "strategies/mean_reversion.py",
+    "strategies/momentum.py",
+)
 
 
 @dataclass(frozen=True)
@@ -105,6 +122,8 @@ class ResearchGateReport:
     generated_at: str
     market: str
     dataset_fingerprint: str
+    implementation_version: str
+    implementation_fingerprint: str
     symbols: list[str]
     config: dict[str, Any]
     strategies: list[StrategyGateResult]
@@ -112,6 +131,7 @@ class ResearchGateReport:
     eligible_for_continuous_paper: bool
     champion_strategy: str | None
     passed_strategies: list[str]
+    forward_configurations: dict[str, dict[str, Any]]
     reasons: list[str]
     paper_only: bool = True
 
@@ -147,12 +167,30 @@ EXECUTION_PROFILES: tuple[dict[str, Any], ...] = (
 )
 
 
+def implementation_version() -> str:
+    try:
+        return version("dual-market-ai-bot")
+    except PackageNotFoundError:
+        return "0+uninstalled"
+
+
+def implementation_fingerprint() -> str:
+    package_root = Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256()
+    for relative in sorted(IMPLEMENTATION_FILES):
+        path = package_root / relative
+        if not path.exists():
+            raise ValueError(f"Gate implementation file is missing: {relative}")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def load_histories(folder: str | Path) -> dict[str, list[Candle]]:
     root = Path(folder)
-    histories = {
-        path.stem: load_candles(path)
-        for path in sorted(root.glob("*.csv"))
-    }
+    histories = {path.stem: load_candles(path) for path in sorted(root.glob("*.csv"))}
     if not histories:
         raise ValueError(f"No CSV histories found in {root}")
     return histories
@@ -173,16 +211,17 @@ def dataset_fingerprint(histories: dict[str, list[Candle]]) -> str:
 
 
 def independent_train_test_windows(
-    candles: list[Candle],
-    train_size: int,
-    test_size: int,
+    candles: list[Candle], train_size: int, test_size: int
 ) -> list[tuple[list[Candle], list[Candle]]]:
     windows: list[tuple[list[Candle], list[Candle]]] = []
     test_start = train_size
     while test_start + test_size <= len(candles):
-        train = candles[test_start - train_size : test_start]
-        unseen = candles[test_start : test_start + test_size]
-        windows.append((train, unseen))
+        windows.append(
+            (
+                candles[test_start - train_size : test_start],
+                candles[test_start : test_start + test_size],
+            )
+        )
         test_start += test_size
     return windows
 
@@ -196,28 +235,47 @@ def _execution_config(profile: dict[str, Any], *, warmup_bars: int) -> BacktestC
 
 
 def _candidate_score(metrics: dict[str, float | int], config: ResearchGateConfig) -> float:
+    churn_penalty = max(
+        0.0,
+        float(metrics.get("trades_per_100_bars", 0.0)) / config.max_trades_per_100_bars - 1.0,
+    )
+    cost_penalty = max(
+        0.0,
+        float(metrics.get("cost_drag_ratio", 0.0)) / max(config.max_cost_drag_ratio, 1e-9) - 1.0,
+    )
     return (
         float(metrics["net_return"]) * 0.55
         + float(metrics.get("excess_return", 0.0)) * 0.15
         + min(float(metrics.get("sharpe_ratio", 0.0)), 3.0) * 0.03
         - float(metrics["max_drawdown"]) * 0.25
-        - max(
-            0.0,
-            float(metrics.get("trades_per_100_bars", 0.0)) / config.max_trades_per_100_bars - 1.0,
-        )
-        * 0.10
-        - max(
-            0.0,
-            float(metrics.get("cost_drag_ratio", 0.0)) / max(config.max_cost_drag_ratio, 1e-9) - 1.0,
-        )
-        * 0.10
+        - churn_penalty * 0.10
+        - cost_penalty * 0.10
     )
 
 
-def _candidate_grid(strategy_name: str, config: ResearchGateConfig) -> list[tuple[dict[str, Any], dict[str, Any]]]:
-    strategy_params = parameter_grid(DEFAULT_PARAMETER_GRIDS[strategy_name])
-    candidates = list(product(strategy_params, EXECUTION_PROFILES))
-    return candidates[: config.max_candidates_per_strategy]
+def _candidate_grid(
+    strategy_name: str, config: ResearchGateConfig
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    return list(product(parameter_grid(DEFAULT_PARAMETER_GRIDS[strategy_name]), EXECUTION_PROFILES))[
+        : config.max_candidates_per_strategy
+    ]
+
+
+def _evaluate_candidate(
+    symbol: str,
+    market: Market,
+    candles: list[Candle],
+    strategy_name: str,
+    strategy_parameters: dict[str, Any],
+    execution_parameters: dict[str, Any],
+) -> dict[str, float | int]:
+    lookback = int(strategy_parameters.get("lookback", 10))
+    result = PaperTrader(
+        market,
+        build_strategy(strategy_name, strategy_parameters),
+        config=_execution_config(execution_parameters, warmup_bars=lookback + 1),
+    ).run(symbol, candles)
+    return result_metrics(result)
 
 
 def _select_on_training(
@@ -228,19 +286,19 @@ def _select_on_training(
     config: ResearchGateConfig,
 ) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
-    for strategy_params, execution_profile in _candidate_grid(strategy_name, config):
-        lookback = int(strategy_params.get("lookback", 10))
-        backtest_config = _execution_config(execution_profile, warmup_bars=lookback + 1)
-        result = PaperTrader(
+    for strategy_parameters, execution_parameters in _candidate_grid(strategy_name, config):
+        metrics = _evaluate_candidate(
+            symbol,
             market,
-            build_strategy(strategy_name, strategy_params),
-            config=backtest_config,
-        ).run(symbol, train)
-        metrics = result_metrics(result)
+            train,
+            strategy_name,
+            strategy_parameters,
+            execution_parameters,
+        )
         candidates.append(
             {
-                "strategy_parameters": strategy_params,
-                "execution_parameters": execution_profile,
+                "strategy_parameters": strategy_parameters,
+                "execution_parameters": execution_parameters,
                 "train_metrics": metrics,
                 "selection_score": _candidate_score(metrics, config),
             }
@@ -275,20 +333,19 @@ def _evaluate_period(
     unseen: list[Candle],
     config: ResearchGateConfig,
 ) -> GatePeriodResult:
-    selection = _select_on_training(symbol, market, train, strategy_name, config)
-    selected = selection["selected"]
-    strategy_params = selected["strategy_parameters"]
-    execution_profile = selected["execution_parameters"]
-    lookback = int(strategy_params.get("lookback", 10))
+    selected = _select_on_training(symbol, market, train, strategy_name, config)["selected"]
+    strategy_parameters = selected["strategy_parameters"]
+    execution_parameters = selected["execution_parameters"]
+    lookback = int(strategy_parameters.get("lookback", 10))
     warmup_count = min(len(train), max(30, lookback + 1))
     evaluation = [*train[-warmup_count:], *unseen]
-    test_result = PaperTrader(
+    result = PaperTrader(
         market,
-        build_strategy(strategy_name, strategy_params),
-        config=_execution_config(execution_profile, warmup_bars=lookback + 1),
+        build_strategy(strategy_name, strategy_parameters),
+        config=_execution_config(execution_parameters, warmup_bars=lookback + 1),
     ).run(symbol, evaluation, trade_start_index=warmup_count)
-    unseen_metrics = result_metrics(test_result)
-    reasons = _period_reasons(unseen_metrics, config)
+    metrics = result_metrics(result)
+    reasons = _period_reasons(metrics, config)
     return GatePeriodResult(
         symbol=symbol,
         strategy=strategy_name,
@@ -297,14 +354,14 @@ def _evaluate_period(
         train_end=train[-1].timestamp.isoformat(),
         unseen_start=unseen[0].timestamp.isoformat(),
         unseen_end=unseen[-1].timestamp.isoformat(),
-        selected_parameters=strategy_params,
-        selected_execution=execution_profile,
+        selected_parameters=strategy_parameters,
+        selected_execution=execution_parameters,
         train_metrics=selected["train_metrics"],
-        unseen_metrics=unseen_metrics,
+        unseen_metrics=metrics,
         cash_return=0.0,
-        buy_and_hold_return=float(unseen_metrics["buy_and_hold_return"]),
-        excess_vs_cash=float(unseen_metrics["net_return"]),
-        excess_vs_buy_and_hold=float(unseen_metrics["excess_return"]),
+        buy_and_hold_return=float(metrics["buy_and_hold_return"]),
+        excess_vs_cash=float(metrics["net_return"]),
+        excess_vs_buy_and_hold=float(metrics["excess_return"]),
         passed=not reasons,
         rejection_reasons=reasons,
     )
@@ -321,7 +378,6 @@ def _score_strategy(
             f"Only {len(periods)} independent unseen periods were available; "
             f"{config.min_independent_periods} are required."
         )
-
     returns = [float(period.unseen_metrics["net_return"]) for period in periods]
     positive_fraction = (
         sum(value > config.min_positive_unseen_return for value in returns) / len(returns)
@@ -336,50 +392,103 @@ def _score_strategy(
     if config.require_all_unseen_positive and periods and positive_fraction < 1.0:
         reasons.append("At least one independent unseen period had a non-positive net return.")
     if beat_fraction < config.min_beat_buy_hold_fraction:
-        reasons.append(
-            "The strategy did not beat buy-and-hold in enough independent unseen periods."
-        )
-
+        reasons.append("The strategy did not beat buy-and-hold in enough independent unseen periods.")
     failing_periods = [period for period in periods if not period.passed]
     if failing_periods:
         reasons.append(f"{len(failing_periods)} unseen periods failed risk, churn, or cost gates.")
 
     average_return = mean(returns) if returns else 0.0
-    median_return = median(returns) if returns else 0.0
-    average_excess = mean([period.excess_vs_buy_and_hold for period in periods]) if periods else 0.0
-    worst_return = min(returns) if returns else 0.0
-    worst_drawdown = max(
-        (float(period.unseen_metrics["max_drawdown"]) for period in periods),
-        default=0.0,
-    )
-    average_cost_drag = mean(
-        [float(period.unseen_metrics.get("cost_drag_ratio", 0.0)) for period in periods]
-    ) if periods else 0.0
-    average_trade_rate = mean(
-        [float(period.unseen_metrics.get("trades_per_100_bars", 0.0)) for period in periods]
-    ) if periods else 0.0
-    average_holding = mean(
-        [float(period.unseen_metrics.get("average_holding_bars", 0.0)) for period in periods]
-    ) if periods else 0.0
-
-    passed = len(periods) >= config.min_independent_periods and not reasons
     return StrategyGateResult(
         strategy=strategy_name,
-        passed=passed,
+        passed=len(periods) >= config.min_independent_periods and not reasons,
         reasons=reasons or ["All historical research gates passed."],
         independent_periods=len(periods),
         positive_unseen_fraction=positive_fraction,
         beat_buy_and_hold_fraction=beat_fraction,
         average_unseen_return=average_return,
-        median_unseen_return=median_return,
-        average_excess_vs_buy_and_hold=average_excess,
-        worst_unseen_return=worst_return,
-        worst_drawdown=worst_drawdown,
-        average_cost_drag_ratio=average_cost_drag,
-        average_trades_per_100_bars=average_trade_rate,
-        average_holding_bars=average_holding,
+        median_unseen_return=median(returns) if returns else 0.0,
+        average_excess_vs_buy_and_hold=(
+            mean([period.excess_vs_buy_and_hold for period in periods]) if periods else 0.0
+        ),
+        worst_unseen_return=min(returns) if returns else 0.0,
+        worst_drawdown=max(
+            (float(period.unseen_metrics["max_drawdown"]) for period in periods),
+            default=0.0,
+        ),
+        average_cost_drag_ratio=(
+            mean([float(period.unseen_metrics.get("cost_drag_ratio", 0.0)) for period in periods])
+            if periods
+            else 0.0
+        ),
+        average_trades_per_100_bars=(
+            mean([float(period.unseen_metrics.get("trades_per_100_bars", 0.0)) for period in periods])
+            if periods
+            else 0.0
+        ),
+        average_holding_bars=(
+            mean([float(period.unseen_metrics.get("average_holding_bars", 0.0)) for period in periods])
+            if periods
+            else 0.0
+        ),
         periods=periods,
     )
+
+
+def _select_forward_configuration(
+    histories: dict[str, list[Candle]],
+    market: Market,
+    strategy_name: str,
+    config: ResearchGateConfig,
+) -> dict[str, Any]:
+    candidates: list[dict[str, Any]] = []
+    metric_names = (
+        "net_return",
+        "excess_return",
+        "max_drawdown",
+        "trades_per_100_bars",
+        "average_holding_bars",
+        "cost_drag_ratio",
+        "turnover",
+    )
+    for strategy_parameters, execution_parameters in _candidate_grid(strategy_name, config):
+        rows = [
+            _evaluate_candidate(
+                symbol,
+                market,
+                candles,
+                strategy_name,
+                strategy_parameters,
+                execution_parameters,
+            )
+            for symbol, candles in histories.items()
+        ]
+        aggregate = {
+            name: mean(float(row.get(name, 0.0)) for row in rows)
+            for name in metric_names
+        }
+        candidates.append(
+            {
+                "strategy": strategy_name,
+                "strategy_parameters": strategy_parameters,
+                "execution_parameters": {
+                    "intrabar_policy": "worst_case",
+                    **execution_parameters,
+                },
+                "aggregate_training_metrics": aggregate,
+                "selection_score": mean(_candidate_score(row, config) for row in rows),
+            }
+        )
+    candidates.sort(key=lambda row: row["selection_score"], reverse=True)
+    selected = candidates[0]
+    selected.update(
+        {
+            "selection_method": "full_history_training_after_independent_gate",
+            "training_symbols": sorted(histories),
+            "training_start": min(candles[0].timestamp for candles in histories.values()).isoformat(),
+            "training_end": max(candles[-1].timestamp for candles in histories.values()).isoformat(),
+        }
+    )
+    return selected
 
 
 def evaluate_research_gate(
@@ -390,12 +499,13 @@ def evaluate_research_gate(
     config = config or ResearchGateConfig()
     histories = load_histories(folder)
     strategy_results: list[StrategyGateResult] = []
-
     for strategy_name in STRATEGIES:
         periods: list[GatePeriodResult] = []
         for symbol, candles in histories.items():
-            windows = independent_train_test_windows(candles, config.train_size, config.test_size)
-            for period_index, (train, unseen) in enumerate(windows, start=1):
+            for period_index, (train, unseen) in enumerate(
+                independent_train_test_windows(candles, config.train_size, config.test_size),
+                start=1,
+            ):
                 periods.append(
                     _evaluate_period(
                         symbol,
@@ -422,11 +532,18 @@ def evaluate_research_gate(
         if passed
         else None
     )
+    forward_configurations = {
+        result.strategy: _select_forward_configuration(
+            histories, market, result.strategy, config
+        )
+        for result in passed
+    }
     accepted = bool(passed)
     reasons = (
         [
             f"Historical gates passed for: {', '.join(result.strategy for result in passed)}.",
             f"Champion strategy for forward paper testing: {champion}.",
+            "Forward configurations were frozen after retraining the validated selection process on all available history.",
         ]
         if accepted
         else [
@@ -439,6 +556,8 @@ def evaluate_research_gate(
         generated_at=datetime.now(timezone.utc).isoformat(),
         market=market.value,
         dataset_fingerprint=dataset_fingerprint(histories),
+        implementation_version=implementation_version(),
+        implementation_fingerprint=implementation_fingerprint(),
         symbols=sorted(histories),
         config=asdict(config),
         strategies=strategy_results,
@@ -446,6 +565,7 @@ def evaluate_research_gate(
         eligible_for_continuous_paper=accepted,
         champion_strategy=champion,
         passed_strategies=[result.strategy for result in passed],
+        forward_configurations=forward_configurations,
         reasons=reasons,
     )
 
@@ -476,13 +596,22 @@ def validate_forward_gate(
         raise ValueError(f"Invalid research gate report: {exc}") from exc
 
     if payload.get("schema_version") != GATE_SCHEMA_VERSION:
-        raise ValueError("Unsupported research gate report schema")
+        raise ValueError("Unsupported research gate report schema; rerun the historical gates")
+    if payload.get("implementation_version") != implementation_version():
+        raise ValueError("Research gate package version does not match this installation")
+    if payload.get("implementation_fingerprint") != implementation_fingerprint():
+        raise ValueError("Research gate implementation changed; rerun the historical gates")
     if payload.get("market") != market.value:
         raise ValueError(f"Gate report market must be {market.value}")
     if not payload.get("accepted") or not payload.get("eligible_for_continuous_paper"):
         raise ValueError("Historical research gates did not pass; continuous paper trading is blocked")
     if strategy_name not in payload.get("passed_strategies", []):
         raise ValueError(f"Strategy {strategy_name} did not pass the historical research gates")
+    forward = payload.get("forward_configurations", {}).get(strategy_name)
+    if not isinstance(forward, dict):
+        raise ValueError(f"Gate report has no frozen forward configuration for {strategy_name}")
+    if forward.get("strategy") != strategy_name:
+        raise ValueError("Frozen forward configuration strategy does not match the requested strategy")
 
     try:
         generated = datetime.fromisoformat(str(payload["generated_at"]).replace("Z", "+00:00"))
@@ -490,8 +619,7 @@ def validate_forward_gate(
         raise ValueError("Gate report generated_at is missing or invalid") from exc
     if generated.tzinfo is None:
         generated = generated.replace(tzinfo=timezone.utc)
-    age_seconds = (datetime.now(timezone.utc) - generated.astimezone(timezone.utc)).total_seconds()
-    if age_seconds > max_age_days * 86400:
+    if (datetime.now(timezone.utc) - generated.astimezone(timezone.utc)).total_seconds() > max_age_days * 86400:
         raise ValueError("Research gate report is stale; rerun the historical gates")
 
     return payload
