@@ -1,0 +1,179 @@
+name: Crypto Multifactor v1.0
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-multifactor-v10.yml"
+      - "docs/CRYPTO_MULTIFACTOR_V10_PROTOCOL.md"
+      - "src/tradebot/backtest/crypto_multifactor.py"
+      - "tests/test_crypto_multifactor.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-multifactor-v10-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol and execution boundaries
+        shell: bash
+        run: |
+          git diff --exit-code 89f16bc2ecf8e38e687857c6aa640181a65228e1 -- \
+            docs/CRYPTO_MULTIFACTOR_V10_PROTOCOL.md
+          git fetch origin main
+          git diff --exit-code origin/main -- \
+            src/tradebot/risk/cost_engine.py \
+            src/tradebot/risk/tax_engine.py \
+            src/tradebot/backtest/research_gate.py \
+            src/tradebot/strategies
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m compileall -q src tests
+          python -m pytest -q
+          mkdir -p data/crypto-multifactor reports/crypto-multifactor
+
+      - name: Fetch exactly 1800 paginated daily candles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
+
+          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"]
+          output = Path("data/crypto-multifactor")
+          output.mkdir(parents=True, exist_ok=True)
+          client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
+          for symbol in symbols:
+              candles = client.fetch_symbol(symbol, interval="1d", days=1800)
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} returned {len(candles)} candles; exactly 1800 required")
+              path = save_candles_csv(symbol, candles, output)
+              print(f"{symbol}: {len(candles)} candles -> {path}")
+          PY
+
+      - name: Require complete aligned histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/crypto-multifactor").glob("*.csv")}
+          missing = sorted(expected - set(files))
+          if missing:
+              raise SystemExit(f"Missing histories: {', '.join(missing)}")
+          timestamp_sets = []
+          for symbol in sorted(expected):
+              candles = load_candles(files[symbol])
+              print(f"{symbol}: {len(candles)} candles, {candles[0].timestamp} to {candles[-1].timestamp}")
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} does not contain exactly 1800 candles")
+              timestamp_sets.append(set(candle.timestamp for candle in candles))
+          common = set.intersection(*timestamp_sets)
+          if len(common) != 1800:
+              raise SystemExit(f"Only {len(common)} timestamps align across all assets")
+          PY
+
+      - name: Run frozen multifactor evaluation
+        id: multifactor
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-multifactor \
+            --folder data/crypto-multifactor \
+            --market crypto \
+            --json-out reports/crypto-multifactor/crypto_multifactor.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Multifactor evaluation failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate evidence and write report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/crypto-multifactor/crypto_multifactor.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema_version"] == "1.0"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert len(payload["symbols"]) == 5
+          assert len(payload["variants"]) == 5
+          assert all(len(item["periods"]) == 12 for item in payload["variants"])
+          assert payload["config"]["history_bars"] == 1800
+
+          lines = [
+              "# Crypto Multifactor v1.0",
+              "",
+              f"- Accepted: **{payload['accepted']}**",
+              f"- Forward-paper eligible: **{payload['eligible_for_forward_paper']}**",
+              f"- Dataset: `{payload['dataset_start']}` to `{payload['dataset_end']}`",
+              f"- Fingerprint: `{payload['dataset_fingerprint']}`",
+              "",
+              "| Variant | Active | Positive | Average | Median | Compounded | Early | Late | Stressed | Equal-weight | Excess | Beat benchmark | Worst DD | Turnover |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/12 | {item['positive_periods']}/12 | "
+                  f"{item['average_return']:.3%} | {item['median_return']:.3%} | "
+                  f"{item['compounded_return']:.3%} | {item['early_average_return']:.3%} | "
+                  f"{item['late_average_return']:.3%} | {item['average_stressed_return']:.3%} | "
+                  f"{item['average_equal_weight_return']:.3%} | "
+                  f"{item['average_excess_vs_equal_weight']:.3%} | "
+                  f"{item['beat_equal_weight_fraction']:.0%} | {item['worst_drawdown']:.3%} | "
+                  f"{item['average_turnover']:.2f}x |"
+              )
+          lines.extend([
+              "",
+              f"Primary beats price-only: **{payload['primary_beats_price_only_fraction']:.0%}**",
+              f"Primary beats simple trend: **{payload['primary_beats_simple_trend_fraction']:.0%}**",
+              f"Leave-one-asset-out positive: **{payload['leave_one_out_positive_fraction']:.0%}**",
+              "",
+              "Rejection reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "A successful workflow proves evidence integrity, not profitability.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/crypto-multifactor/crypto_multifactor.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/crypto-multifactor/crypto_multifactor.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete multifactor evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-multifactor-v10
+          path: |
+            reports/crypto-multifactor/
+            data/crypto-multifactor/
+            docs/CRYPTO_MULTIFACTOR_V10_PROTOCOL.md
+          retention-days: 30
