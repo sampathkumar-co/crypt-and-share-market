@@ -1,17 +1,21 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
+
 class Market(str, Enum):
     CRYPTO = "crypto"
     EQUITY = "equity"
+
 
 class Action(str, Enum):
     BUY = "BUY"
     HOLD = "HOLD"
     SELL = "SELL"
+
 
 @dataclass(frozen=True)
 class Candle:
@@ -22,6 +26,7 @@ class Candle:
     close: float
     volume: float
 
+
 @dataclass(frozen=True)
 class Signal:
     action: Action
@@ -29,6 +34,7 @@ class Signal:
     reason: str
     confidence: float
     risk_score: float
+
 
 @dataclass
 class Position:
@@ -38,6 +44,7 @@ class Position:
     stop_loss: float
     target: float
     entry_time: datetime
+
 
 @dataclass
 class Trade:
@@ -55,6 +62,9 @@ class Trade:
     net_pnl: float
     pnl_percent: float
     reason: str
+    tds_cashflow: float = 0.0
+    holding_days: int = 0
+
 
 @dataclass
 class BacktestResult:
@@ -72,6 +82,17 @@ class BacktestResult:
     average_win: float = 0.0
     average_loss: float = 0.0
     risk_warnings: list[str] = field(default_factory=list)
+    total_slippage: float = 0.0
+    total_tds_cashflow: float = 0.0
+    buy_and_hold_return: float = 0.0
+    excess_return: float = 0.0
+    profit_factor: float = 0.0
+    expectancy: float = 0.0
+    sharpe_ratio: float = 0.0
+    sortino_ratio: float = 0.0
+    calmar_ratio: float = 0.0
+    exposure: float = 0.0
+
 
 @dataclass(frozen=True)
 class RiskDecision:
@@ -81,6 +102,7 @@ class RiskDecision:
     target: float = 0.0
     reason: str = ""
     warnings: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True)
 class ScanResult:
@@ -93,6 +115,22 @@ class ScanResult:
     liquidity_safety: float
     net_profit_possibility: float
     rank_score: float
+    rank: int = 0
+    opportunity_score: float = 0.0
+    risk_score: float = 0.0
+    confidence: float = 0.0
+    expected_move_percent: float = 0.0
+    estimated_net_profit_after_cost_tax: float = 0.0
+    rejected: bool = False
+    rejection_reason: str = ""
+    explanation: str = ""
+    breakout_quality: float = 0.0
+    pullback_quality: float = 0.0
+    ml_probability: float | None = None
+    ml_score: float | None = None
+    combined_opportunity_score: float | None = None
+    ml_explanation: str = ""
+
 
 @dataclass(frozen=True)
 class WalkForwardResult:

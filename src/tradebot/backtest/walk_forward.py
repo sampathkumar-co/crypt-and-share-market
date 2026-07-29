@@ -45,6 +45,8 @@ DEFAULT_PARAMETER_GRIDS: dict[str, dict[str, list[Any]]] = {
 
 
 def split_windows(candles: list[Candle], train_size: int, test_size: int) -> list[tuple[list[Candle], list[Candle]]]:
+    if train_size <= 0 or test_size <= 0:
+        raise ValueError("train_size and test_size must be positive")
     windows: list[tuple[list[Candle], list[Candle]]] = []
     start = 0
     while start + train_size + test_size <= len(candles):
@@ -83,6 +85,9 @@ def result_metrics(result: BacktestResult) -> dict[str, float | int]:
         "total_fees": result.total_fees,
         "total_tax": result.total_tax,
         "ending_cash": result.ending_cash,
+        "sharpe_ratio": result.sharpe_ratio,
+        "profit_factor": result.profit_factor,
+        "excess_return": result.excess_return,
     }
 
 
@@ -171,6 +176,8 @@ def walk_forward(
         strategy_name = _strategy_name_from_instance(strategy) if strategy is not None else "momentum"
 
     grids = parameter_grids or DEFAULT_PARAMETER_GRIDS
+    if strategy_name not in grids:
+        raise ValueError(f"No parameter grid configured for strategy: {strategy_name}")
     parameter_sets = parameter_grid(grids[strategy_name])
     windows = split_windows(candles, config.train_size, config.test_size)
     split_results: list[dict[str, Any]] = []
@@ -178,7 +185,17 @@ def walk_forward(
     for index, (train, test) in enumerate(windows, start=1):
         selection = select_best_parameters(symbol, market, train, strategy_name, parameter_sets, config)
         selected_params = selection["selected"]["params"]
-        test_result = PaperTrader(market, build_strategy(strategy_name, selected_params)).run(symbol, test)
+
+        # Carry only historical training candles into the test run as indicator
+        # warm-up. Trading remains disabled until the first unseen test candle.
+        lookback = int(selected_params.get("lookback", 10))
+        warmup_count = min(len(train), max(10, lookback + 1))
+        evaluation_candles = [*train[-warmup_count:], *test]
+        test_result = PaperTrader(market, build_strategy(strategy_name, selected_params)).run(
+            symbol,
+            evaluation_candles,
+            trade_start_index=warmup_count,
+        )
         test_metrics = result_metrics(test_result)
         train_metrics = selection["selected"]["metrics"]
         reasons = rejection_reasons(train_metrics, test_metrics, config)
@@ -201,7 +218,11 @@ def walk_forward(
 
     accepted = [row for row in split_results if row["accepted"]]
     stability_score = len(accepted) / len(split_results) if split_results else 0.0
-    reason = "Stable across walk-forward splits" if stability_score >= 0.5 else "Rejected: selected parameters were not stable on unseen test windows"
+    reason = (
+        "Stable across walk-forward splits"
+        if stability_score >= 0.5
+        else "Rejected: selected parameters were not stable on unseen test windows"
+    )
     return WalkForwardResult(split_results, stability_score, stability_score >= 0.5 and bool(split_results), reason)
 
 
