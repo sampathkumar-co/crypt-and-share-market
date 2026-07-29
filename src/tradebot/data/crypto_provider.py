@@ -4,12 +4,12 @@ import csv
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from tradebot.data.csv_loader import load_candles
 from tradebot.models import Candle
@@ -35,7 +35,7 @@ class CryptoCSVProvider:
 
 
 class PublicCryptoHistoricalClient:
-    """Read-only public OHLCV client using Binance with CoinGecko fallback."""
+    """Read-only public OHLCV client using Binance, Coinbase, then CoinGecko."""
 
     base_url = "https://api.binance.com"
     max_limit = 1000
@@ -45,6 +45,7 @@ class PublicCryptoHistoricalClient:
         self.retries = retries
         self.backoff_seconds = backoff_seconds
         self.use_fallback = use_fallback
+        self.coinbase = CoinbaseHistoricalClient(timeout=timeout, retries=retries, backoff_seconds=backoff_seconds) if use_fallback else None
         self.fallback = CoinGeckoHistoricalClient(timeout=timeout, retries=retries, backoff_seconds=backoff_seconds) if use_fallback else None
 
     def fetch_symbol(self, symbol: str, interval: str = "1d", days: int = 365) -> list[Candle]:
@@ -58,10 +59,16 @@ class PublicCryptoHistoricalClient:
             rows: list[Any] = self._request_klines(symbol, interval, min(days, self.max_limit))
             candles = normalize_binance_klines(rows)
         except Exception as exc:
-            if not self.fallback:
+            if not self.coinbase:
                 raise
-            print(f"WARNING: Binance public data failed for {symbol}; trying CoinGecko fallback: {exc}")
-            candles = self.fallback.fetch_symbol(symbol, interval=interval, days=days)
+            print(f"WARNING: Binance public data failed for {symbol}; trying Coinbase fallback: {exc}")
+            try:
+                candles = self.coinbase.fetch_symbol(symbol, interval=interval, days=days)
+            except Exception as coinbase_exc:
+                if not self.fallback:
+                    raise
+                print(f"WARNING: Coinbase public data failed for {symbol}; trying CoinGecko fallback: {coinbase_exc}")
+                candles = self.fallback.fetch_symbol(symbol, interval=interval, days=days)
         min_candles = min(days, 5)
         validate_fetched_candles(candles, min_candles=min_candles)
         return candles[-days:]
@@ -122,6 +129,88 @@ class PublicCryptoHistoricalClient:
             if attempt < self.retries:
                 time.sleep(self.backoff_seconds * attempt)
         raise CryptoDataError(f"Failed to fetch {symbol} {interval} candles after {self.retries} attempts: {last_error}")
+
+
+class CoinbaseHistoricalClient:
+    """Read-only daily spot OHLCV fallback using Coinbase Exchange public candles."""
+
+    base_url = "https://api.exchange.coinbase.com"
+    max_candles_per_request = 300
+    symbol_to_product = {
+        "BTCUSDT": "BTC-USD",
+        "ETHUSDT": "ETH-USD",
+        "SOLUSDT": "SOL-USD",
+        "XRPUSDT": "XRP-USD",
+        "ADAUSDT": "ADA-USD",
+        "DOGEUSDT": "DOGE-USD",
+    }
+
+    def __init__(self, timeout: float = 20.0, retries: int = 3, backoff_seconds: float = 1.0):
+        self.timeout = timeout
+        self.retries = retries
+        self.backoff_seconds = backoff_seconds
+
+    def fetch_symbol(self, symbol: str, interval: str = "1d", days: int = 365) -> list[Candle]:
+        if interval != "1d":
+            raise CryptoDataError("Coinbase fallback currently supports interval=1d only")
+        product = self.symbol_to_product.get(symbol.upper())
+        if not product:
+            raise CryptoDataError(f"Coinbase fallback does not know symbol mapping for {symbol}")
+        if days <= 0:
+            raise CryptoDataError("Days must be positive")
+
+        granularity = 86_400
+        end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=days + 2)
+        cursor = start
+        rows: list[Any] = []
+        chunk_span = timedelta(seconds=granularity * (self.max_candles_per_request - 1))
+
+        while cursor < end:
+            chunk_end = min(cursor + chunk_span, end)
+            rows.extend(self._request_candles(product, cursor, chunk_end, granularity))
+            cursor = chunk_end + timedelta(seconds=granularity)
+            if cursor < end and self.backoff_seconds > 0:
+                time.sleep(self.backoff_seconds)
+
+        candles = normalize_coinbase_candles(rows)
+        if len(candles) < min(days, 5):
+            raise CryptoDataError(f"Coinbase returned too few candles for {symbol}: {len(candles)}")
+        return candles[-days:]
+
+    def _request_candles(
+        self,
+        product: str,
+        start: datetime,
+        end: datetime,
+        granularity: int,
+    ) -> list[Any]:
+        query = urlencode({
+            "start": start.isoformat().replace("+00:00", "Z"),
+            "end": end.isoformat().replace("+00:00", "Z"),
+            "granularity": granularity,
+        })
+        url = f"{self.base_url}/products/{product}/candles?{query}"
+        request = Request(url, headers={"Accept": "application/json", "User-Agent": "dual-market-ai-bot/0.3"})
+        last_error: Exception | None = None
+        for attempt in range(1, self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - fixed public Coinbase URL
+                    if response.status != 200:
+                        raise CryptoDataError(f"Coinbase returned HTTP {response.status} for {product}")
+                    payload = json.loads(response.read().decode("utf-8"))
+                    if not isinstance(payload, list):
+                        raise CryptoDataError(f"Unexpected Coinbase response for {product}: {payload}")
+                    return payload
+            except HTTPError as exc:
+                last_error = exc
+                if exc.code not in {429, 500, 502, 503, 504}:
+                    break
+            except (URLError, TimeoutError, json.JSONDecodeError, CryptoDataError) as exc:
+                last_error = exc
+            if attempt < self.retries:
+                time.sleep(self.backoff_seconds * attempt)
+        raise CryptoDataError(f"Coinbase fallback failed for {product} after {self.retries} attempts: {last_error}")
 
 
 class CoinGeckoHistoricalClient:
@@ -191,6 +280,25 @@ def _volumes_by_day(rows: list[Any]) -> dict[str, float]:
             day = datetime.fromtimestamp(int(row[0]) / 1000, tz=timezone.utc).date().isoformat()
             volumes[day] = float(row[1])
     return volumes
+
+
+
+def normalize_coinbase_candles(rows: list[Any]) -> list[Candle]:
+    candles_by_timestamp: dict[datetime, Candle] = {}
+    for row in rows:
+        if not isinstance(row, list) or len(row) < 6:
+            raise CryptoDataError("Coinbase candle row is missing required OHLCV fields")
+        timestamp = datetime.fromtimestamp(int(row[0]), tz=timezone.utc).replace(tzinfo=None)
+        candle = Candle(
+            timestamp=timestamp,
+            open=float(row[3]),
+            high=float(row[2]),
+            low=float(row[1]),
+            close=float(row[4]),
+            volume=float(row[5]),
+        )
+        candles_by_timestamp[timestamp] = candle
+    return sorted(candles_by_timestamp.values(), key=lambda candle: candle.timestamp)
 
 
 def normalize_binance_klines(rows: list[Any]) -> list[Candle]:

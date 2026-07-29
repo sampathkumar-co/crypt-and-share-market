@@ -49,7 +49,7 @@ jobs:
       - name: Fetch fresh public daily crypto data
         run: |
           tradebot fetch-crypto \
-            --symbols BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT \
+            --symbols BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT \
             --interval 1d \
             --days 365 \
             --out data/current
