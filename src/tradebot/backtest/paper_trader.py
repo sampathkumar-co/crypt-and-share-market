@@ -56,12 +56,7 @@ class BacktestConfig:
 
 
 class PaperTrader:
-    """Single-position, long-only paper backtester with next-bar execution.
-
-    Signals see only completed candles. Entries fill at the next candle open.
-    Optional regime filtering, cooldowns, minimum holding periods, exit
-    confirmation and trailing stops reduce churn without hiding transaction costs.
-    """
+    """Single-position, long-only paper backtester with next-bar execution."""
 
     def __init__(
         self,
@@ -87,6 +82,8 @@ class PaperTrader:
         self.cash = self.starting_cash
         if not candles:
             raise ValueError("At least one candle is required")
+        if trade_start_index < 0 or trade_start_index > len(candles):
+            raise ValueError("trade_start_index must be within the candle history")
 
         position: Position | None = None
         entry_index = -1
@@ -115,10 +112,12 @@ class PaperTrader:
             signal_history = candles[:index]
             signal_candle = candles[index - 1]
             can_trade = index >= trade_start_index
-            processed_bars += 1
+            if can_trade:
+                processed_bars += 1
 
             if position is not None:
-                active_bars += 1
+                if can_trade:
+                    active_bars += 1
                 bars_held = index - entry_index
                 self._advance_protective_stop(position, highest_completed_high)
 
