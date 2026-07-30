@@ -1,0 +1,105 @@
+name: Crypto Multi-Regime v1.4.1 Hourly Gap Audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-multiregime-v141-hourly-gap-audit.yml"
+      - "src/tradebot/data/crypto_4h_provider.py"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Audit exact missing hourly timestamps only
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import timedelta
+          from pathlib import Path
+          from tradebot.data.crypto_4h_provider import (
+              EXPECTED_END_EXCLUSIVE,
+              EXPECTED_HOURLY_BARS,
+              EXPECTED_START,
+              SYMBOL_TO_PRODUCT,
+              fetch_coinbase_hourly,
+          )
+
+          expected = [
+              EXPECTED_START + timedelta(hours=index)
+              for index in range(EXPECTED_HOURLY_BARS)
+          ]
+          report = {
+              "schema_version": "1.0",
+              "requested_start": EXPECTED_START.isoformat(),
+              "requested_end_exclusive": EXPECTED_END_EXCLUSIVE.isoformat(),
+              "expected_hourly_rows": EXPECTED_HOURLY_BARS,
+              "price_returns_calculated": False,
+              "strategy_returns_calculated": False,
+              "holdout_returns_calculated": False,
+              "assets": [],
+          }
+          for symbol, product in SYMBOL_TO_PRODUCT.items():
+              rows = fetch_coinbase_hourly(product, EXPECTED_START, EXPECTED_END_EXCLUSIVE)
+              observed = {item.timestamp for item in rows}
+              missing = [stamp for stamp in expected if stamp not in observed]
+              runs = []
+              current = []
+              previous = None
+              for stamp in missing:
+                  if previous is None or stamp == previous + timedelta(hours=1):
+                      current.append(stamp)
+                  else:
+                      runs.append(current)
+                      current = [stamp]
+                  previous = stamp
+              if current:
+                  runs.append(current)
+              item = {
+                  "symbol": symbol,
+                  "product": product,
+                  "observed_rows": len(rows),
+                  "missing_count": len(missing),
+                  "missing_fraction": len(missing) / EXPECTED_HOURLY_BARS,
+                  "longest_consecutive_gap_hours": max((len(run) for run in runs), default=0),
+                  "missing_timestamps": [stamp.isoformat() for stamp in missing],
+                  "gap_runs": [
+                      {
+                          "start": run[0].isoformat(),
+                          "end": run[-1].isoformat(),
+                          "hours": len(run),
+                      }
+                      for run in runs
+                  ],
+              }
+              report["assets"].append(item)
+              print(json.dumps(item, sort_keys=True))
+          report["total_missing"] = sum(item["missing_count"] for item in report["assets"])
+          report["max_asset_missing_fraction"] = max(item["missing_fraction"] for item in report["assets"])
+          report["max_consecutive_gap_hours"] = max(item["longest_consecutive_gap_hours"] for item in report["assets"])
+          Path("v141_hourly_gap_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+          PY
+
+      - name: Upload hourly gap evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-multiregime-v141-hourly-gap-audit
+          path: v141_hourly_gap_audit.json
+          if-no-files-found: error
+          retention-days: 30
