@@ -1,0 +1,107 @@
+name: Crypto Multi-Regime v1.4 Coverage Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-multiregime-v14-coverage.yml"
+      - "docs/CRYPTO_MULTIREGIME_4H_V14_PROTOCOL.md"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Audit Coinbase and Hyperliquid coverage only
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from datetime import datetime
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          products = ["AVAX-USD", "DOT-USD", "NEAR-USD", "FIL-USD", "ICP-USD", "OP-USD", "ARB-USD", "SUI-USD"]
+          coins = ["AVAX", "DOT", "NEAR", "FIL", "ICP", "OP", "ARB", "SUI"]
+          windows = [
+              ("2023-06-07T00:00:00Z", "2023-06-09T00:00:00Z"),
+              ("2025-11-21T00:00:00Z", "2025-11-23T00:00:00Z"),
+          ]
+
+          def get_json(url):
+              request = Request(url, headers={"Accept": "application/json", "User-Agent": "v14-coverage-audit/1.0"})
+              with urlopen(request, timeout=30) as response:
+                  return json.loads(response.read().decode("utf-8"))
+
+          def post_json(body):
+              payload = json.dumps(body, separators=(",", ":")).encode("utf-8")
+              last = None
+              for attempt in range(1, 6):
+                  request = Request(
+                      "https://api.hyperliquid.xyz/info",
+                      data=payload,
+                      headers={"Accept": "application/json", "Content-Type": "application/json", "User-Agent": "v14-coverage-audit/1.0"},
+                      method="POST",
+                  )
+                  try:
+                      with urlopen(request, timeout=30) as response:
+                          return json.loads(response.read().decode("utf-8"))
+                  except HTTPError as exc:
+                      last = exc
+                      if exc.code != 429 or attempt == 5:
+                          raise
+                      time.sleep(5 * attempt)
+              raise RuntimeError(last)
+
+          report = {"price_returns_read": False, "strategy_returns_calculated": False, "coinbase": [], "hyperliquid": []}
+          for product in products:
+              details = get_json(f"https://api.exchange.coinbase.com/products/{product}")
+              item = {"product": product, "status": details.get("status"), "windows": []}
+              for start, end in windows:
+                  query = urlencode({"start": start, "end": end, "granularity": 3600})
+                  rows = get_json(f"https://api.exchange.coinbase.com/products/{product}/candles?{query}")
+                  stamps = sorted(int(row[0]) for row in rows)
+                  item["windows"].append({"start": start, "end": end, "rows": len(rows), "first": stamps[0] if stamps else None, "last": stamps[-1] if stamps else None})
+              report["coinbase"].append(item)
+
+          meta = post_json({"type": "meta"})
+          listed = {entry["name"] for entry in meta.get("universe", [])}
+          for coin in coins:
+              item = {"coin": coin, "listed": coin in listed, "windows": []}
+              for start, end in windows:
+                  body = {
+                      "type": "fundingHistory",
+                      "coin": coin,
+                      "startTime": int(datetime.fromisoformat(start.replace("Z", "+00:00")).timestamp() * 1000),
+                      "endTime": int(datetime.fromisoformat(end.replace("Z", "+00:00")).timestamp() * 1000),
+                  }
+                  rows = post_json(body)
+                  stamps = sorted(int(row["time"]) for row in rows)
+                  item["windows"].append({"start": start, "end": end, "rows": len(rows), "first": stamps[0] if stamps else None, "last": stamps[-1] if stamps else None})
+                  time.sleep(1.1)
+              report["hyperliquid"].append(item)
+
+          if any(item["status"] not in {"online", None} for item in report["coinbase"]):
+              raise SystemExit("A Coinbase product is not online")
+          if any(window["rows"] < 44 for item in report["coinbase"] for window in item["windows"]):
+              raise SystemExit("A Coinbase product lacks hourly endpoint coverage")
+          if any(not item["listed"] for item in report["hyperliquid"]):
+              raise SystemExit("A required Hyperliquid coin is not listed")
+          if any(window["rows"] == 0 for item in report["hyperliquid"] for window in item["windows"]):
+              raise SystemExit("A required Hyperliquid funding window is empty")
+
+          Path("v14_coverage_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload coverage evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-multiregime-v14-coverage
+          path: v14_coverage_audit.json
+          retention-days: 30
