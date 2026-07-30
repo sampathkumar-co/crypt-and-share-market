@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from statistics import mean, median
+from statistics import median
 from typing import Iterator
 from unittest.mock import patch
 
@@ -17,6 +17,7 @@ from tradebot.models import Market
 FOUR_HOURS = timedelta(hours=4)
 SEVEN_DAY_BUCKETS = 7 * 6
 HISTORY_BUCKETS = 120 * 6
+REPORT_SCHEMA_VERSION = "1.4.2"
 _SNAPSHOT_CACHE: dict[
     tuple[int, str], dict[datetime, tuple[float, float, float]]
 ] = {}
@@ -93,6 +94,11 @@ def calendar_funding_model() -> Iterator[None]:
         yield
 
 
+def _label_report(report: base.MultiRegimeReport) -> base.MultiRegimeReport:
+    report.schema_version = REPORT_SCHEMA_VERSION
+    return report
+
+
 def evaluate_discovery(
     price_folder: str | Path,
     external_folder: str | Path,
@@ -100,12 +106,13 @@ def evaluate_discovery(
     config: base.MultiRegimeConfig | None = None,
 ) -> base.MultiRegimeReport:
     with calendar_funding_model():
-        return base.evaluate_discovery(
+        report = base.evaluate_discovery(
             price_folder,
             external_folder,
             market,
             config,
         )
+    return _label_report(report)
 
 
 def evaluate_holdout(
@@ -116,19 +123,20 @@ def evaluate_holdout(
     config: base.MultiRegimeConfig | None = None,
 ) -> base.MultiRegimeReport:
     with calendar_funding_model():
-        return base.evaluate_holdout(
+        report = base.evaluate_holdout(
             price_folder,
             external_folder,
             discovery_json,
             market,
             config,
         )
+    return _label_report(report)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Evaluate frozen v1.4.1 multi-regime research with "
+            "Evaluate frozen v1.4.2 multi-regime research with "
             "calendar-normalized settled funding"
         )
     )
