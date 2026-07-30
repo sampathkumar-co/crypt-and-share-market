@@ -164,3 +164,14 @@ Frozen before evaluator code and before any future decision is scored:
 - Positive taxable gain and no-loss-setoff treatment are calculated separately for each proportional lot disposal.
 - Positive realized pre-tax sleeve contribution is the sum of positive lot gains before income tax, TDS and sell friction.
 - The equal-weight benchmark invests one sixth of deployable starting capital in each frozen asset at the activation fill, then forcibly liquidates at the block end.
+
+## Pre-implementation decision/fill timing clarification
+
+Frozen before evaluator code and before any decision is scored:
+
+- A router decision with cutoff hour `t` is first executable at the earliest valid spot mid in hour `t+1`.
+- That position earns its first scored price outcome from the `t+1` fill to the `t+2` mark.
+- The next decision, with cutoff `t+1`, is rebalanced at that same `t+2` mark after the prior interval is recorded.
+- Therefore 2,160 scored discovery intervals require 2,160 consecutive decisions and 2,161 consecutive post-decision hourly snapshots, from activation fill through final mark.
+- The final forced liquidation occurs at the last mark, after the final scored holding interval.
+- The equal-weight benchmark buys at the activation fill and liquidates at the same final mark.
