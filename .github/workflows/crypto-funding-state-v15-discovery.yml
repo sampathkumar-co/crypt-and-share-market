@@ -1,0 +1,238 @@
+name: Crypto Funding-State v1.5 Discovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-funding-state-v15-discovery.yml"
+      - "docs/CRYPTO_FUNDING_STATE_V15_PROTOCOL.md"
+      - "research/v15_discovery_freeze.json"
+      - "src/tradebot/backtest/crypto_funding_state_v15.py"
+      - "tests/test_crypto_funding_state_v15.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-funding-state-v15-discovery-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol, source and references
+        shell: bash
+        run: |
+          git diff --exit-code ebf58669c12cfca06b484b4bf238c141963f195b -- \
+            src/tradebot/backtest/crypto_funding_state_v15.py \
+            tests/test_crypto_funding_state_v15.py \
+            pyproject.toml
+          git show acbe68881b4dedf70fa220cf46ec62984d58e4a5:docs/CRYPTO_FUNDING_STATE_V15_PROTOCOL.md > /tmp/frozen-v15-protocol.md
+          cmp /tmp/frozen-v15-protocol.md docs/CRYPTO_FUNDING_STATE_V15_PROTOCOL.md
+          git show 9ad248418fb5c73e08019b8711be529d5cdc91e2:research/v15_discovery_freeze.json > /tmp/frozen-v15-reference.json
+          cmp /tmp/frozen-v15-reference.json research/v15_discovery_freeze.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p frozen-v142 reports/v15-discovery
+
+      - name: Download immutable market and factor data
+        uses: actions/download-artifact@v4
+        with:
+          name: crypto-multiregime-v142-data-freeze
+          path: frozen-v142
+          repository: sampathkumar-co/crypt-and-share-market
+          run-id: 30516539776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify immutable data byte-for-byte
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from tradebot.backtest.crypto_multiregime_4h import load_exact_histories
+          from tradebot.backtest.research_gate import dataset_fingerprint
+          from tradebot.data.crypto_4h_provider_bounded_continuity import verify_v142_manifest
+          from tradebot.data.crypto_external_factors import verify_external_manifest
+
+          frozen = json.loads(Path("research/v15_discovery_freeze.json").read_text(encoding="utf-8"))
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with Path(path).open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          price_manifest = Path("frozen-v142/data/v142-market/manifest.json")
+          external_manifest = Path("frozen-v142/data/v142-external/manifest.json")
+          assert sha256(price_manifest) == frozen["price_manifest_sha256"]
+          assert sha256(external_manifest) == frozen["external_manifest_sha256"]
+          price = verify_v142_manifest("frozen-v142/data/v142-market")
+          external = verify_external_manifest("frozen-v142/data/v142-external")
+          assert price["dataset_fingerprint"] == frozen["acquisition_price_fingerprint"]
+          assert price["requested_start"] == frozen["market_start"]
+          assert price["requested_end_exclusive"] == frozen["market_end_exclusive"]
+          assert sum(item["synthetic_hourly_rows"] for item in price["sources"]) == frozen["synthetic_hourly_rows"] == 43
+          assert external["requested_start"] == frozen["external_start"]
+          assert external["requested_end"] == frozen["external_end"]
+          histories = load_exact_histories("frozen-v142/data/v142-market/four_hour")
+          assert dataset_fingerprint(histories) == frozen["canonical_csv_price_fingerprint"]
+          assert set(histories) == set(frozen["symbols"])
+          assert all(len(candles) == frozen["four_hour_rows_per_asset"] for candles in histories.values())
+          assert frozen["v15_returns_calculated"] is False
+          assert frozen["holdout_accessed"] is False
+          print("verified v1.5 canonical price fingerprint:", frozen["canonical_csv_price_fingerprint"])
+          print("verified external manifest:", frozen["external_manifest_sha256"])
+          PY
+
+      - name: Run frozen v1.5 discovery only
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-funding-state-v15 \
+            --price-folder frozen-v142/data/v142-market/four_hour \
+            --external-folder frozen-v142/data/v142-external \
+            --json-out reports/v15-discovery/discovery.json \
+            --mode discovery \
+            > reports/v15-discovery/discovery_stdout.json
+          status=$?
+          set -e
+          echo "$status" > reports/v15-discovery/exit_status.txt
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Unexpected v1.5 discovery software failure: $status" >&2
+            exit "$status"
+          fi
+          echo "v1.5 discovery completed with research status $status"
+
+      - name: Validate evidence and holdout isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("reports/v15-discovery/discovery.json").read_text(encoding="utf-8"))
+          frozen = json.loads(Path("research/v15_discovery_freeze.json").read_text(encoding="utf-8"))
+          status = int(Path("reports/v15-discovery/exit_status.txt").read_text(encoding="utf-8").strip())
+
+          assert payload["schema_version"] == "1.5.0"
+          assert payload["mode"] == "discovery"
+          assert payload["market"] == "crypto"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_shadow_paper"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert payload["price_dataset_fingerprint"] == frozen["canonical_csv_price_fingerprint"]
+          assert payload["external_manifest_fingerprint"] == frozen["external_manifest_sha256"]
+          assert payload["dataset_start"] == "2023-11-15T00:00:00"
+          assert payload["dataset_end"] == "2025-11-22T20:00:00"
+          assert payload["discovery_test_start"] == "2024-02-23T00:00:00"
+          assert payload["discovery_test_end"] == "2025-06-16T20:00:00"
+          assert payload["embargo_start"] == "2025-06-17T00:00:00"
+          assert payload["embargo_end"] == "2025-07-25T20:00:00"
+          assert payload["holdout_start"] == "2025-07-26T00:00:00"
+          assert payload["holdout_end"] == "2025-11-22T20:00:00"
+          assert payload["config"]["max_positions"] == 2
+          assert payload["config"]["max_asset_weight"] == 0.25
+          assert payload["config"]["min_cash_reserve"] == 0.50
+          assert set(payload["symbols"]) == set(frozen["symbols"])
+          by_name = {item["variant"]: item for item in payload["variants"]}
+          assert set(by_name) == {
+              "primary_consensus",
+              "without_cross_sectional_rank",
+              "without_price_recovery",
+              "deep_extreme",
+              "legacy_funding_only",
+              "cash",
+              "equal_weight_buy_hold",
+          }
+          assert all(len(item["periods"]) == 6 for item in payload["variants"])
+          assert all(
+              period["mode"] == "discovery"
+              and period["test_end"] <= payload["discovery_test_end"]
+              and period["test_start"] < payload["embargo_start"]
+              for item in payload["variants"]
+              for period in item["periods"]
+          )
+          assert set(payload["leave_one_asset_out_average_returns"]) == set(frozen["symbols"])
+          assert payload["accepted"] is (status == 0)
+          assert payload["eligible_for_holdout"] is payload["accepted"]
+          assert (not payload["accepted"]) or not payload["reasons"]
+          assert payload["accepted"] or payload["reasons"]
+
+          lines = [
+              "# Crypto Funding-State v1.5 Discovery",
+              "",
+              f"- Accepted for one-shot holdout: **{payload['accepted']}**",
+              f"- Canonical price fingerprint: `{payload['price_dataset_fingerprint']}`",
+              f"- External manifest: `{payload['external_manifest_fingerprint']}`",
+              f"- Discovery interval: `{payload['discovery_test_start']}` to `{payload['discovery_test_end']}`",
+              f"- Locked holdout: `{payload['holdout_start']}` to `{payload['holdout_end']}`",
+              "- Holdout returns evaluated: **False**",
+              "",
+              "| Variant | Active | Positive | Average | Median | Compounded | Stressed | Worst DD | Max asset share | Assets |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/6 | {item['positive_periods']}/6 | "
+                  f"{item['average_return']:.3%} | {item['median_return']:.3%} | "
+                  f"{item['compounded_return']:.3%} | {item['average_stressed_return']:.3%} | "
+                  f"{item['worst_drawdown']:.3%} | {item['max_asset_notional_fraction']:.2%} | "
+                  f"{len(item['selected_symbols'])} |"
+              )
+          primary = by_name["primary_consensus"]
+          lines.extend([
+              "",
+              f"- Primary beats legacy periods: **{payload['primary_beats_legacy_periods']}/6**",
+              f"- Positive structural diagnostics: **{payload['positive_structural_diagnostics']}/3**",
+              f"- Positive leave-one-asset-out reruns: **{payload['leave_one_asset_out_positive_count']}/8**",
+              f"- Primary entries: `{primary['sleeve_entries']['funding']}`",
+              f"- Primary selected assets: `{', '.join(primary['selected_symbols']) or 'none'}`",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "This workflow did not evaluate the final 720-bar holdout and cannot authorise real-money trading.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/v15-discovery/discovery.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/v15-discovery/discovery.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete v1.5 discovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-funding-state-v15-discovery
+          path: |
+            reports/v15-discovery
+            docs/CRYPTO_FUNDING_STATE_V15_PROTOCOL.md
+            research/v15_discovery_freeze.json
+            frozen-v142/reports/v142/data_freeze_summary.json
+            frozen-v142/data/v142-market/manifest.json
+            frozen-v142/data/v142-external/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
