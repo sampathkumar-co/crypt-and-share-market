@@ -115,8 +115,19 @@ The primary is accepted only if every condition passes:
 
 Failure of any gate keeps the final holdout locked and is preserved as valid negative evidence.
 
-## Holdout rule
+## Holdout rule and acceptance gates
 
 If and only if discovery passes, run the primary once on the unchanged 720-bar holdout. No redesign, threshold change, retry or alternate variant is allowed after discovery acceptance.
+
+The one-shot holdout is accepted only if every condition passes:
+
+- At least two of three holdout periods are active.
+- At least two of three holdout periods are profitable.
+- Average and compounded returns are positive after normal costs.
+- Average return remains positive under the extra-cost stress.
+- Average return exceeds both equal-weight buy-and-hold and `legacy_funding_only`.
+- Worst period drawdown is at most 10%.
+- At least three distinct assets are selected.
+- Maximum traded-notional concentration in one asset is at most 45%.
 
 A successful holdout still authorises only a later shadow-paper stage, never real-money trading.
