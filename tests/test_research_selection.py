@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from tradebot.backtest.research_gate import ResearchGateConfig, _candidate_grid
 from tradebot.backtest.research_selection import (
     annualization_for_market,
     balanced_candidate_pairs,
@@ -65,3 +66,14 @@ def test_active_period_requires_actual_unseen_trades() -> None:
 def test_market_annualization_is_explicit() -> None:
     assert annualization_for_market(Market.CRYPTO) == 365
     assert annualization_for_market(Market.EQUITY) == 252
+
+
+def test_research_gate_budget_covers_full_momentum_parameter_grid() -> None:
+    pairs = _candidate_grid(
+        "momentum",
+        ResearchGateConfig(max_candidates_per_strategy=27),
+    )
+
+    assert len(pairs) == 27
+    assert {params["lookback"] for params, _ in pairs} == {3, 5, 8}
+    assert len({tuple(sorted(params.items())) for params, _ in pairs}) == 27

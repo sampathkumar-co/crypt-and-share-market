@@ -5,12 +5,15 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
-from itertools import product
 from pathlib import Path
 from statistics import mean, median
 from typing import Any
 
 from tradebot.backtest.paper_trader import BacktestConfig, PaperTrader
+from tradebot.backtest.research_selection import (
+    balanced_candidate_pairs,
+    required_warmup_bars,
+)
 from tradebot.backtest.walk_forward import (
     DEFAULT_PARAMETER_GRIDS,
     build_strategy,
@@ -29,6 +32,7 @@ IMPLEMENTATION_FILES = (
     "backtest/paper_trader.py",
     "backtest/regime.py",
     "backtest/research_gate.py",
+    "backtest/research_selection.py",
     "backtest/walk_forward.py",
     "risk/cost_engine.py",
     "risk/risk_manager.py",
@@ -256,9 +260,11 @@ def _candidate_score(metrics: dict[str, float | int], config: ResearchGateConfig
 def _candidate_grid(
     strategy_name: str, config: ResearchGateConfig
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
-    return list(product(parameter_grid(DEFAULT_PARAMETER_GRIDS[strategy_name]), EXECUTION_PROFILES))[
-        : config.max_candidates_per_strategy
-    ]
+    return balanced_candidate_pairs(
+        parameter_grid(DEFAULT_PARAMETER_GRIDS[strategy_name]),
+        EXECUTION_PROFILES,
+        config.max_candidates_per_strategy,
+    )
 
 
 def _evaluate_candidate(
@@ -270,10 +276,15 @@ def _evaluate_candidate(
     execution_parameters: dict[str, Any],
 ) -> dict[str, float | int]:
     lookback = int(strategy_parameters.get("lookback", 10))
+    regime_lookback = 30 if execution_parameters.get("use_regime_filter", False) else 0
+    warmup_bars = required_warmup_bars(
+        lookback,
+        regime_lookback=regime_lookback,
+    )
     result = PaperTrader(
         market,
         build_strategy(strategy_name, strategy_parameters),
-        config=_execution_config(execution_parameters, warmup_bars=lookback + 1),
+        config=_execution_config(execution_parameters, warmup_bars=warmup_bars),
     ).run(symbol, candles)
     return result_metrics(result)
 
@@ -337,12 +348,17 @@ def _evaluate_period(
     strategy_parameters = selected["strategy_parameters"]
     execution_parameters = selected["execution_parameters"]
     lookback = int(strategy_parameters.get("lookback", 10))
-    warmup_count = min(len(train), max(30, lookback + 1))
+    regime_lookback = 30 if execution_parameters.get("use_regime_filter", False) else 0
+    required_warmup = required_warmup_bars(
+        lookback,
+        regime_lookback=regime_lookback,
+    )
+    warmup_count = min(len(train), required_warmup)
     evaluation = [*train[-warmup_count:], *unseen]
     result = PaperTrader(
         market,
         build_strategy(strategy_name, strategy_parameters),
-        config=_execution_config(execution_parameters, warmup_bars=lookback + 1),
+        config=_execution_config(execution_parameters, warmup_bars=required_warmup),
     ).run(symbol, evaluation, trade_start_index=warmup_count)
     metrics = result_metrics(result)
     reasons = _period_reasons(metrics, config)
