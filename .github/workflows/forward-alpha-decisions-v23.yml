@@ -64,6 +64,7 @@ jobs:
           test -d "$source_dir"
           cp "$source_dir"/*.json evidence/v23-history/
           FORWARD_DATA_HEAD=$(git -C /tmp/forward-data-v2-read rev-parse HEAD)
+          export FORWARD_DATA_HEAD
           echo "FORWARD_DATA_HEAD=$FORWARD_DATA_HEAD" >> "$GITHUB_ENV"
           python - <<'PY'
           import hashlib
