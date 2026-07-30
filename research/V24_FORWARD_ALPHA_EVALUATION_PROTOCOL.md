@@ -174,3 +174,18 @@ Frozen before evaluator code and before any outcome access:
   snapshots exist.
 - The discovery and holdout gates, thresholds, costs, families and universe are
   unchanged. This clarification only prevents label overlap.
+
+## v2.4.2 frozen evidence-support dependency
+
+Frozen before evaluator implementation:
+
+- v2.4 may reuse only canonical JSON, SHA-256, UTC parsing, atomic JSON,
+  append-only filename indexing and v2.0 snapshot validation helpers from the
+  merged v2.2 evidence module.
+- Required v2.2 support SHA-256:
+  `444de074af9476b8e16cf0f219aec5700b2de2fa284025f31d2ee9dceaa8478f`.
+- v2.4 implements its own v2.3 decision validation, overlapping-cohort
+  accounting, benchmarks, bootstrap, discovery gates and holdout gates.
+- Any change to the pinned support module fails the v2.4 implementation
+  fingerprint until independently reviewed; it cannot silently alter evidence
+  parsing or outcome access.
