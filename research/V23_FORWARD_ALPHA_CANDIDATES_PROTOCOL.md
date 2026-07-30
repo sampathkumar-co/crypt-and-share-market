@@ -135,3 +135,5 @@ Passing authorizes only a later time-limited shadow-paper observation design. It
 4. Collect canonical v2.3 decisions from append-only forward snapshots without calculating returns.
 5. Implement readiness-only verification before any outcome attachment.
 6. Attach outcomes only after 1,440 eligible decisions exist and permanently record discovery before opening the holdout.
+
+The mechanism thresholds, universe, cost model, horizons and gates above are now frozen for the first v2.3 forward campaign. Later wording-only or workflow-transport corrections may not change them.
