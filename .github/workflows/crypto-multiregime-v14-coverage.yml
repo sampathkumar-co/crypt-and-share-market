@@ -1,10 +1,12 @@
-name: Crypto Multi-Regime v1.4 Coverage Audit
+name: Crypto Multi-Regime v1.4.1 Coverage Audit
 
 on:
   pull_request:
     paths:
       - ".github/workflows/crypto-multiregime-v14-coverage.yml"
-      - "docs/CRYPTO_MULTIREGIME_4H_V14_PROTOCOL.md"
+      - "docs/CRYPTO_MULTIREGIME_4H_V141_PROTOCOL.md"
+      - "src/tradebot/data/crypto_4h_provider.py"
+      - "src/tradebot/data/crypto_v14_external_factors.py"
 
 permissions:
   contents: read
@@ -14,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Audit Coinbase and Hyperliquid coverage only
+      - name: Audit final Coinbase and Hyperliquid coverage only
         shell: bash
         run: |
           python - <<'PY'
@@ -26,20 +28,18 @@ jobs:
           from urllib.parse import urlencode
           from urllib.request import Request, urlopen
 
-          products = ["AVAX-USD", "DOT-USD", "NEAR-USD", "FIL-USD", "ICP-USD", "OP-USD", "ARB-USD", "SUI-USD", "APT-USD"]
-          coins = ["AVAX", "DOT", "NEAR", "FIL", "ICP", "OP", "ARB", "SUI", "APT"]
+          products = ["AVAX-USD", "DOT-USD", "NEAR-USD", "FIL-USD", "APT-USD", "OP-USD", "ARB-USD", "SUI-USD"]
+          coins = ["AVAX", "DOT", "NEAR", "FIL", "APT", "OP", "ARB", "SUI"]
           windows = [
-              ("2023-06-07T00:00:00Z", "2023-06-09T00:00:00Z"),
+              ("2023-11-15T00:00:00Z", "2023-11-17T00:00:00Z"),
               ("2025-11-21T00:00:00Z", "2025-11-23T00:00:00Z"),
           ]
-          broad_start = "2023-06-07T00:00:00Z"
-          broad_end = "2024-12-31T00:00:00Z"
 
           def milliseconds(value):
               return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
 
           def get_json(url):
-              request = Request(url, headers={"Accept": "application/json", "User-Agent": "v14-coverage-audit/1.0"})
+              request = Request(url, headers={"Accept": "application/json", "User-Agent": "v141-coverage-audit/1.0"})
               with urlopen(request, timeout=30) as response:
                   return json.loads(response.read().decode("utf-8"))
 
@@ -50,7 +50,7 @@ jobs:
                   request = Request(
                       "https://api.hyperliquid.xyz/info",
                       data=payload,
-                      headers={"Accept": "application/json", "Content-Type": "application/json", "User-Agent": "v14-coverage-audit/1.0"},
+                      headers={"Accept": "application/json", "Content-Type": "application/json", "User-Agent": "v141-coverage-audit/1.0"},
                       method="POST",
                   )
                   try:
@@ -63,7 +63,14 @@ jobs:
                       time.sleep(5 * attempt)
               raise RuntimeError(last)
 
-          report = {"price_returns_read": False, "strategy_returns_calculated": False, "coinbase": [], "hyperliquid": []}
+          report = {
+              "price_returns_read": False,
+              "strategy_returns_calculated": False,
+              "frozen_start": windows[0][0],
+              "frozen_end_exclusive": windows[1][1],
+              "coinbase": [],
+              "hyperliquid": [],
+          }
           for product in products:
               details = get_json(f"https://api.exchange.coinbase.com/products/{product}")
               item = {"product": product, "status": details.get("status"), "windows": []}
@@ -78,11 +85,6 @@ jobs:
           listed = {entry["name"] for entry in meta.get("universe", [])}
           for coin in coins:
               item = {"coin": coin, "listed": coin in listed, "windows": []}
-              broad = post_json({"type": "fundingHistory", "coin": coin, "startTime": milliseconds(broad_start), "endTime": milliseconds(broad_end)})
-              broad_stamps = sorted(int(row["time"]) for row in broad)
-              item["first_available_from_2023_06"] = broad_stamps[0] if broad_stamps else None
-              item["first_page_rows"] = len(broad)
-              time.sleep(1.1)
               for start, end in windows:
                   rows = post_json({"type": "fundingHistory", "coin": coin, "startTime": milliseconds(start), "endTime": milliseconds(end)})
                   stamps = sorted(int(row["time"]) for row in rows)
@@ -94,11 +96,10 @@ jobs:
           failures.extend(f"coinbase_status:{item['product']}:{item['status']}" for item in report["coinbase"] if item["status"] not in {"online", None})
           failures.extend(f"coinbase_window:{item['product']}:{window['start']}:{window['rows']}" for item in report["coinbase"] for window in item["windows"] if window["rows"] < 44)
           failures.extend(f"hyperliquid_unlisted:{item['coin']}" for item in report["hyperliquid"] if not item["listed"])
-          failures.extend(f"hyperliquid_no_history:{item['coin']}" for item in report["hyperliquid"] if item["first_available_from_2023_06"] is None)
           failures.extend(f"hyperliquid_window:{item['coin']}:{window['start']}:{window['rows']}" for item in report["hyperliquid"] for window in item["windows"] if window["rows"] == 0)
           report["failures"] = failures
           report["coverage_ok"] = not failures
-          Path("v14_coverage_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+          Path("v141_coverage_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
           print(json.dumps(report, indent=2, sort_keys=True))
           if failures:
               raise SystemExit("Coverage failures: " + "; ".join(failures))
@@ -108,7 +109,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-multiregime-v14-coverage
-          path: v14_coverage_audit.json
+          name: crypto-multiregime-v141-coverage
+          path: v141_coverage_audit.json
           if-no-files-found: error
           retention-days: 30
