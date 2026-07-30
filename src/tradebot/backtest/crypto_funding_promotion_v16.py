@@ -13,7 +13,7 @@ from tradebot.backtest import crypto_multiregime_4h_calendar_funding as calendar
 from tradebot.backtest.research_gate import dataset_fingerprint
 from tradebot.models import Market
 
-SCHEMA_VERSION = "1.6.0"
+SCHEMA_VERSION = "1.6.1"
 STANDARD_COST_PER_TURNOVER = 0.0015
 DOUBLE_COST_PER_TURNOVER = 0.0030
 
@@ -33,7 +33,7 @@ ORIGINAL_CONFIG = base.MultiRegimeConfig(
 )
 DEFENSIVE_CONFIG = base.MultiRegimeConfig(
     max_positions=2,
-    max_asset_weight=0.20,
+    max_asset_weight=0.125,
     min_cash_reserve=0.75,
     target_volatility=0.20,
     max_drawdown=0.08,
@@ -191,7 +191,7 @@ def evaluate_promotion_audit(
     market: Market = Market.CRYPTO,
 ) -> FundingPromotionReport:
     if market != Market.CRYPTO:
-        raise ValueError("v1.6 is frozen to crypto")
+        raise ValueError("v1.6.1 is frozen to crypto")
     histories = base.load_exact_histories(price_folder, PRIMARY_CONFIG)
     store = base.load_external_store(external_folder)
     profiles = [
@@ -283,16 +283,16 @@ def evaluate_holdout(
     market: Market = Market.CRYPTO,
 ) -> FundingPromotionReport:
     if market != Market.CRYPTO:
-        raise ValueError("v1.6 is frozen to crypto")
+        raise ValueError("v1.6.1 is frozen to crypto")
     promotion = json.loads(Path(promotion_json).read_text(encoding="utf-8"))
     if promotion.get("accepted") is not True or promotion.get("eligible_for_holdout") is not True:
-        raise ValueError("v1.6 holdout is locked because promotion audit did not pass")
+        raise ValueError("v1.6.1 holdout is locked because promotion audit did not pass")
     histories = base.load_exact_histories(price_folder, PRIMARY_CONFIG)
     store = base.load_external_store(external_folder)
     if promotion.get("price_dataset_fingerprint") != dataset_fingerprint(histories):
-        raise ValueError("v1.6 holdout price fingerprint changed")
+        raise ValueError("v1.6.1 holdout price fingerprint changed")
     if promotion.get("external_manifest_fingerprint") != store.manifest_fingerprint:
-        raise ValueError("v1.6 holdout external fingerprint changed")
+        raise ValueError("v1.6.1 holdout external fingerprint changed")
 
     primary = _profile_summary(
         histories,
@@ -342,7 +342,7 @@ def evaluate_holdout(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Audit frozen v1.6 funding candidate promotion"
+        description="Audit frozen v1.6.1 funding candidate promotion"
     )
     parser.add_argument("--price-folder", required=True)
     parser.add_argument("--external-folder", required=True)
