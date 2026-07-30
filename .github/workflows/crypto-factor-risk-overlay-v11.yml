@@ -1,0 +1,171 @@
+name: Crypto Factor Risk Overlay v1.1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-factor-risk-overlay-v11.yml"
+      - "docs/CRYPTO_FACTOR_RISK_OVERLAY_V11_PROTOCOL.md"
+      - "src/tradebot/backtest/crypto_factor_risk_overlay.py"
+      - "src/tradebot/backtest/crypto_multifactor.py"
+      - "tests/test_crypto_factor_risk_overlay.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-factor-risk-overlay-v11-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocols and v1.0 engine
+        shell: bash
+        run: |
+          git fetch origin research/v1.0-crypto-multifactor
+          git diff --exit-code origin/research/v1.0-crypto-multifactor -- \
+            docs/CRYPTO_MULTIFACTOR_V10_PROTOCOL.md \
+            src/tradebot/backtest/crypto_multifactor.py \
+            tests/test_crypto_multifactor.py
+          git show 06bd6fd7a9ee05274a351c981ea4dc3b5c8ed904:docs/CRYPTO_FACTOR_RISK_OVERLAY_V11_PROTOCOL.md \
+            > /tmp/frozen-v11.md
+          cmp /tmp/frozen-v11.md docs/CRYPTO_FACTOR_RISK_OVERLAY_V11_PROTOCOL.md
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/crypto-factor-risk-overlay reports/crypto-factor-risk-overlay
+
+      - name: Fetch exactly 1800 paginated daily candles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
+
+          symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"]
+          out = Path("data/crypto-factor-risk-overlay")
+          client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
+          for symbol in symbols:
+              candles = client.fetch_symbol(symbol, interval="1d", days=1800)
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} returned {len(candles)} candles; exactly 1800 required")
+              save_candles_csv(symbol, candles, out)
+              print(f"{symbol}: {len(candles)} candles")
+          PY
+
+      - name: Require complete aligned histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT"}
+          files = {path.stem: path for path in Path("data/crypto-factor-risk-overlay").glob("*.csv")}
+          if set(files) != expected:
+              raise SystemExit(f"Unexpected history set: {sorted(files)}")
+          timestamp_sets = []
+          for symbol in sorted(expected):
+              candles = load_candles(files[symbol])
+              if len(candles) != 1800:
+                  raise SystemExit(f"{symbol} does not contain exactly 1800 candles")
+              timestamp_sets.append({candle.timestamp for candle in candles})
+          common = set.intersection(*timestamp_sets)
+          if len(common) != 1800:
+              raise SystemExit(f"Only {len(common)} timestamps align across all assets")
+          PY
+
+      - name: Run frozen factor-risk overlay
+        id: overlay
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-factor-risk-overlay \
+            --folder data/crypto-factor-risk-overlay \
+            --market crypto \
+            --json-out reports/crypto-factor-risk-overlay/factor_risk_overlay.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "v1.1 evaluation failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate evidence and write report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/crypto-factor-risk-overlay/factor_risk_overlay.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema_version"] == "1.1"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert len(payload["variants"]) == 5
+          assert all(len(item["periods"]) == 12 for item in payload["variants"])
+          assert payload["raw_baseline_reproduction_max_abs_error"] <= 1e-12
+
+          lines = [
+              "# Crypto Factor Risk Overlay v1.1",
+              "",
+              f"- Accepted for independent replication: **{payload['accepted']}**",
+              f"- Raw baseline reproduction error: `{payload['raw_baseline_reproduction_max_abs_error']:.3g}`",
+              f"- Primary return retention: **{payload['primary_return_retention']:.1%}**",
+              f"- Primary efficiency improvement: **{payload['primary_efficiency_improvement']:.1%}**",
+              f"- Factor value beyond risk-only: **{payload['factor_value_condition_passed']}**",
+              "",
+              "| Variant | Active | Average | Compounded | Early | Late | Stressed | Worst DD | Turnover |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/12 | "
+                  f"{item['average_return']:.3%} | {item['compounded_return']:.3%} | "
+                  f"{item['early_average_return']:.3%} | {item['late_average_return']:.3%} | "
+                  f"{item['average_stressed_return']:.3%} | "
+                  f"{item['worst_drawdown']:.3%} | {item['average_turnover']:.2f}x |"
+              )
+          lines.extend([
+              "",
+              f"Leave-one-out positive fraction: **{payload['leave_one_out_positive_fraction']:.0%}**",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "This secondary discovery result cannot authorise forward paper or live trading.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/crypto-factor-risk-overlay/factor_risk_overlay.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/crypto-factor-risk-overlay/factor_risk_overlay.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete v1.1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-factor-risk-overlay-v11
+          path: |
+            reports/crypto-factor-risk-overlay/
+            data/crypto-factor-risk-overlay/
+          retention-days: 30
