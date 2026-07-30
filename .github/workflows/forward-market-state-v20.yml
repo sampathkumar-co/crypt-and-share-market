@@ -1,0 +1,107 @@
+name: Forward Market State v2.0
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  pull_request:
+    paths:
+      - ".github/workflows/forward-market-state-v20.yml"
+      - "research/V20_FORWARD_MARKET_STATE_PROTOCOL.md"
+      - "src/tradebot/data/forward_market_state.py"
+      - "tests/test_forward_market_state.py"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forward-market-state-v20-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collect-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test collector
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest tests/test_forward_market_state.py -q
+          mkdir -p evidence/forward-market-state
+
+      - name: Collect public forward snapshot
+        run: |
+          tradebot-forward-state \
+            --out evidence/forward-market-state \
+            --assets BTC,ETH,SOL,AVAX,LINK,DOGE \
+            --external \
+            --timeout 20 \
+            --retries 3
+
+      - name: Validate immutable evidence contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("evidence/forward-market-state")
+          normalized = list((root / "normalized").glob("*.json"))
+          manifests = list((root / "manifests").glob("*.json"))
+          assert len(normalized) == 1, normalized
+          assert len(manifests) == 1, manifests
+
+          snapshot = json.loads(normalized[0].read_text(encoding="utf-8"))
+          manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+          assert snapshot["schema_version"] == "2.0"
+          assert snapshot["paper_only"] is True
+          assert snapshot["authorizes_trading"] is False
+          assert set(snapshot["assets"]) == {"BTC", "ETH", "SOL", "AVAX", "LINK", "DOGE"}
+          assert snapshot["liquidation_events"]["available"] is False
+          assert snapshot["liquidation_events"]["events"] == []
+          assert snapshot["source_errors"] == {}, snapshot["source_errors"]
+
+          for asset, record in snapshot["assets"].items():
+              for family in ("spot_quote", "spot_book", "spot_trade_flow", "perp_state", "perp_book", "perp_trade_flow", "cross_venue"):
+                  assert record[family]["available"] is True, (asset, family, record[family])
+          assert snapshot["global"]["available"] is True, snapshot["global"]
+
+          canonical = dict(snapshot)
+          expected_record_sha = canonical.pop("record_sha256")
+          encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected_record_sha
+          assert manifest["record_sha256"] == expected_record_sha
+          assert manifest["normalized_file_sha256"] == hashlib.sha256(normalized[0].read_bytes()).hexdigest()
+          assert len(manifest["sources"]) == 36, len(manifest["sources"])
+
+          for source in manifest["sources"]:
+              path = root / source["raw_path"]
+              assert path.is_file(), path
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == source["sha256"]
+          print(json.dumps({
+              "snapshot_id": snapshot["snapshot_id"],
+              "record_sha256": expected_record_sha,
+              "raw_sources": len(manifest["sources"]),
+              "assets": sorted(snapshot["assets"]),
+          }, indent=2))
+          PY
+
+      - name: Upload append-only evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-market-state-v20-${{ github.run_id }}
+          path: evidence/forward-market-state/
+          retention-days: 90
+          if-no-files-found: error
