@@ -86,6 +86,41 @@ def test_cross_venue_dislocation_candidate_is_selected_with_cash_cap() -> None:
     assert report["authorizes_trading"] is False
 
 
+def test_liquidity_vacuum_recovery_requires_completed_reversal() -> None:
+    prices = {
+        162: 100.0,
+        163: 98.0,
+        164: 96.0,
+        165: 94.0,
+        166: 92.0,
+        167: 90.0,
+        168: 91.0,
+    }
+
+    def mutate(index: int, assets: dict[str, dict[str, object]]) -> None:
+        if index >= 162:
+            assets["BTC"] = _asset_record(
+                mid=prices[index],
+                basis_bps=-8.0,
+                spot_flow=0.18 if index == 168 else 0.0,
+                book=0.08 if index == 168 else 0.0,
+                perp_flow=0.02 if index == 168 else 0.0,
+                funding=-0.00002,
+                open_interest=88.0 if index == 168 else 100.0,
+            )
+
+    report = evaluate_forward_alpha(_frames(mutate))
+
+    selected = report["selected_candidates"]
+    assert selected
+    assert selected[0]["asset"] == "BTC"
+    assert selected[0]["family"] == "liquidity_vacuum_recovery"
+    features = report["asset_diagnostics"]["BTC"]["features"]
+    assert features["spot_return_1h"] > 0.0
+    assert features["spot_return_6h"] < 0.0
+    assert features["open_interest_change_6h"] < 0.0
+
+
 def test_spot_led_flow_persistence_uses_completed_multi_hour_evidence() -> None:
     prices = {162: 100.0, 163: 100.2, 164: 100.4, 165: 101.0, 166: 101.4, 167: 102.0, 168: 103.0}
 
