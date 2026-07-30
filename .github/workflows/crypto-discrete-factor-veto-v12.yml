@@ -1,0 +1,191 @@
+name: Crypto Discrete Factor Veto v1.2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-discrete-factor-veto-v12.yml"
+      - "docs/CRYPTO_DISCRETE_FACTOR_VETO_V12_PROTOCOL.md"
+      - "src/tradebot/backtest/crypto_discrete_factor_veto.py"
+      - "src/tradebot/backtest/crypto_factor_risk_overlay.py"
+      - "src/tradebot/backtest/crypto_multifactor.py"
+      - "tests/test_crypto_discrete_factor_veto.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-discrete-factor-veto-v12-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocols and inherited engines
+        shell: bash
+        run: |
+          git fetch origin research/v1.1-crypto-factor-risk-overlay
+          git diff --exit-code origin/research/v1.1-crypto-factor-risk-overlay -- \
+            docs/CRYPTO_MULTIFACTOR_V10_PROTOCOL.md \
+            docs/CRYPTO_FACTOR_RISK_OVERLAY_V11_PROTOCOL.md \
+            src/tradebot/backtest/crypto_multifactor.py \
+            src/tradebot/backtest/crypto_factor_risk_overlay.py
+          git show 01e4559526ce945f0b9c7fa2fe83b90820a672ed:docs/CRYPTO_DISCRETE_FACTOR_VETO_V12_PROTOCOL.md \
+            > /tmp/frozen-v12.md
+          cmp /tmp/frozen-v12.md docs/CRYPTO_DISCRETE_FACTOR_VETO_V12_PROTOCOL.md
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/crypto-discrete-veto reports/crypto-discrete-veto
+
+      - name: Fetch exactly 2050 paginated daily candles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_provider import CoinbaseHistoricalClient, save_candles_csv
+
+          pairs = {
+              "LTCUSDT": "LTC-USD",
+              "BCHUSDT": "BCH-USD",
+              "LINKUSDT": "LINK-USD",
+              "XLMUSDT": "XLM-USD",
+              "ETCUSDT": "ETC-USD",
+              "ATOMUSDT": "ATOM-USD",
+              "UNIUSDT": "UNI-USD",
+              "AAVEUSDT": "AAVE-USD",
+          }
+          out = Path("data/crypto-discrete-veto")
+          client = CoinbaseHistoricalClient(timeout=30.0, retries=4, backoff_seconds=1.0)
+          client.symbol_to_product = pairs
+          for symbol in pairs:
+              candles = client.fetch_symbol(symbol, interval="1d", days=2050)
+              if len(candles) != 2050:
+                  raise SystemExit(f"{symbol} returned {len(candles)} candles; exactly 2050 required")
+              save_candles_csv(symbol, candles, out)
+              print(f"{symbol}: {len(candles)} candles")
+          PY
+
+      - name: Require complete aligned histories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.csv_loader import load_candles
+
+          expected = {"LTCUSDT", "BCHUSDT", "LINKUSDT", "XLMUSDT", "ETCUSDT", "ATOMUSDT", "UNIUSDT", "AAVEUSDT"}
+          files = {path.stem: path for path in Path("data/crypto-discrete-veto").glob("*.csv")}
+          if set(files) != expected:
+              raise SystemExit(f"Unexpected history set: {sorted(files)}")
+          timestamp_sets = []
+          for symbol in sorted(expected):
+              candles = load_candles(files[symbol])
+              if len(candles) != 2050:
+                  raise SystemExit(f"{symbol} does not contain exactly 2050 candles")
+              timestamp_sets.append({candle.timestamp for candle in candles})
+          common = set.intersection(*timestamp_sets)
+          if len(common) != 2050:
+              raise SystemExit(f"Only {len(common)} timestamps align across all assets")
+          PY
+
+      - name: Run frozen discovery without evaluating holdout
+        id: veto
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-discrete-factor-veto \
+            --folder data/crypto-discrete-veto \
+            --market crypto \
+            --json-out reports/crypto-discrete-veto/discrete_factor_veto.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "v1.2 discovery failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate evidence and holdout isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/crypto-discrete-veto/discrete_factor_veto.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema_version"] == "1.2"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert payload["discovery_end"] < payload["holdout_start"]
+          assert len(payload["variants"]) == 6
+          assert all(len(item["periods"]) == 12 for item in payload["variants"])
+          assert all(
+              period["test_end"] <= payload["discovery_end"]
+              for variant in payload["variants"]
+              for period in variant["periods"]
+          )
+          assert payload["raw_baseline_reproduction_max_abs_error"] <= 1e-12
+
+          lines = [
+              "# Crypto Discrete Factor Veto v1.2",
+              "",
+              f"- Accepted for barred-holdout replication: **{payload['accepted']}**",
+              f"- Discovery interval: `{payload['discovery_start']}` to `{payload['discovery_end']}`",
+              f"- Barred holdout: `{payload['holdout_start']}` to `{payload['holdout_end']}`",
+              f"- Return retention: **{payload['primary_return_retention']:.1%}**",
+              f"- Efficiency improvement: **{payload['primary_efficiency_improvement']:.1%}**",
+              f"- Drawdown reduction: **{payload['primary_drawdown_reduction']:.1%}**",
+              "",
+              "| Variant | Active | Average | Compounded | Early | Late | Stressed | Worst DD | Turnover |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/12 | "
+                  f"{item['average_return']:.3%} | {item['compounded_return']:.3%} | "
+                  f"{item['early_average_return']:.3%} | {item['late_average_return']:.3%} | "
+                  f"{item['average_stressed_return']:.3%} | "
+                  f"{item['worst_drawdown']:.3%} | {item['average_turnover']:.2f}x |"
+              )
+          lines.extend([
+              "",
+              f"Selected assets: `{', '.join(payload['primary_unique_selected_assets'])}`",
+              f"Leave-one-out positive fraction: **{payload['leave_one_out_positive_fraction']:.0%}**",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "The 250-candle holdout was fingerprinted for integrity but its returns were not evaluated.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/crypto-discrete-veto/discrete_factor_veto.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/crypto-discrete-veto/discrete_factor_veto.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete v1.2 discovery evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-discrete-factor-veto-v12
+          path: |
+            reports/crypto-discrete-veto/
+            data/crypto-discrete-veto/
+          retention-days: 30
