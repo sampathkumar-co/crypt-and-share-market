@@ -1,0 +1,100 @@
+name: Forward Evidence Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 * * * *"
+    - cron: "57 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/forward-evidence-watchdog-once.txt"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: forward-evidence-watchdog-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  recover-missing-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Inspect append-only evidence and dispatch only missing work
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-watchdog
+          git worktree add --detach /tmp/forward-data-watchdog origin/forward-data/v2
+
+          target=$(date -u +%Y-%m-%dT%H:00:00Z)
+          safe=$(date -u +%Y%m%dT%H0000Z)
+          phase="snapshot"
+          if [[ "$EVENT_SCHEDULE" == "57 * * * *" ]]; then
+            phase="decisions"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            phase="all"
+          fi
+
+          snapshot_present=$(TARGET="$target" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          target = os.environ["TARGET"]
+          found = False
+          for path in Path("/tmp/forward-data-watchdog/data/forward-market-state/normalized").glob("*.json"):
+              try:
+                  if json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc") == target:
+                      found = True
+                      break
+              except (OSError, json.JSONDecodeError):
+                  continue
+          print("true" if found else "false")
+          PY
+          )
+
+          active_v20=$(gh run list --workflow forward-market-state-v20.yml --limit 10 --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+
+          if [[ "$phase" != "decisions" && "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
+            echo "Missing snapshot for $target; dispatching frozen v2.0 collector."
+            gh workflow run forward-market-state-v20.yml --ref main
+          else
+            echo "Snapshot phase safe: target=$target present=$snapshot_present active_v20=$active_v20"
+          fi
+
+          if [[ "$phase" == "snapshot" ]]; then
+            exit 0
+          fi
+          if [[ "$snapshot_present" != "true" ]]; then
+            echo "Decision recovery waits for a canonical snapshot for $target."
+            exit 0
+          fi
+
+          v21="/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json"
+          v23="/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json"
+          active_v21=$(gh run list --workflow market-state-router-v21.yml --limit 10 --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+          active_v23=$(gh run list --workflow forward-alpha-decisions-v23.yml --limit 10 --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+
+          if [[ ! -f "$v21" && "$active_v21" == "0" ]]; then
+            echo "Missing v2.1 decision for $target; dispatching frozen router."
+            gh workflow run market-state-router-v21.yml --ref main
+          fi
+          if [[ ! -f "$v23" && "$active_v23" == "0" ]]; then
+            echo "Missing v2.3 decision for $target; dispatching frozen alpha router."
+            gh workflow run forward-alpha-decisions-v23.yml --ref main
+          fi
+
+          echo "Watchdog completed without modifying strategy or evidence bytes."
