@@ -1,0 +1,180 @@
+name: Future-Only Paper Evaluation v2.2
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "55 * * * *"
+  pull_request:
+    paths:
+      - ".github/workflows/forward-paper-evaluation-v22.yml"
+      - ".github/workflows/market-state-router-v21.yml"
+      - "research/V22_FORWARD_PAPER_EVALUATION_PROTOCOL.md"
+      - "src/tradebot/research/forward_paper_evaluation.py"
+      - "tests/test_forward_paper_evaluation.py"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forward-paper-evaluation-v22-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-evaluator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and run frozen evaluator tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest tests/test_forward_paper_evaluation.py -q
+
+  evaluate-status:
+    if: github.event_name != 'pull_request'
+    needs: test-evaluator
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p evidence/forward-paper-v22
+
+      - name: Check out append-only forward evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2
+          git worktree add --detach /tmp/forward-data-v2 origin/forward-data/v2
+          git -C /tmp/forward-data-v2 rev-parse HEAD > evidence/forward-paper-v22/forward_data_head.txt
+      - name: Evaluate frozen future-only status
+        shell: bash
+        run: |
+          set -euo pipefail
+          forward_head=$(cat evidence/forward-paper-v22/forward_data_head.txt)
+          tradebot-forward-paper-eval \
+            --store-root /tmp/forward-data-v2 \
+            --forward-data-head "$forward_head" \
+            --json-out evidence/forward-paper-v22/status.json \
+            --activation-out evidence/forward-paper-v22/activation.json
+
+      - name: Validate no-peeking and safety contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/forward-paper-v22/status.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "2.2"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+          assert hashlib.sha256(encoded).hexdigest() == expected
+
+          status = report["status"]
+          incomplete = {"WAITING_FOR_ACTIVATION", "COLLECTING_DISCOVERY"}
+          if status in incomplete:
+              forbidden = {
+                  "deployable_return", "economic_return", "worst_drawdown",
+                  "ledger", "entry_events", "active_hours",
+                  "benchmark", "sleeve_positive_gains",
+              }
+              def scan(value):
+                  if isinstance(value, dict):
+                      for key, child in value.items():
+                          assert key not in forbidden, key
+                          scan(child)
+                  elif isinstance(value, list):
+                      for child in value:
+                          scan(child)
+              scan(report)
+              assert "discovery" not in report
+              assert "holdout" not in report
+          if status == "DISCOVERY_REJECTED":
+              assert report["holdout_accessed"] is False
+              assert "holdout" not in report
+          if report.get("eligible_for_shadow_paper_review") is True:
+              assert status == "HOLDOUT_PASSED"
+              assert report["authorizes_shadow_paper"] is False
+              assert report["authorizes_trading"] is False
+          print(json.dumps({
+              "status": status,
+              "reason": report["reason"],
+              "report_sha256": expected,
+              "activation_candidate": Path("evidence/forward-paper-v22/activation.json").exists(),
+          }, indent=2))
+          PY
+
+      - name: Upload v2.2 status evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-paper-evaluation-v22-${{ github.run_id }}
+          path: evidence/forward-paper-v22/
+          retention-days: 90
+          if-no-files-found: error
+
+  persist-activation:
+    if: github.event_name != 'pull_request'
+    needs: evaluate-status
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download v2.2 status evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: forward-paper-evaluation-v22-${{ github.run_id }}
+          path: evidence/forward-paper-v22
+
+      - name: Append one-time activation lock when created
+        shell: bash
+        run: |
+          set -euo pipefail
+          activation_source=evidence/forward-paper-v22/activation.json
+          if [ ! -e "$activation_source" ]; then
+            echo "No new activation lock was created."
+            exit 0
+          fi
+
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2
+          git worktree add --detach /tmp/forward-data-v2 origin/forward-data/v2
+          activation_target=/tmp/forward-data-v2/data/forward-paper-v22/activation.json
+          mkdir -p "$(dirname "$activation_target")"
+          if [ -e "$activation_target" ]; then
+            cmp --silent "$activation_source" "$activation_target" || {
+              echo "Refusing to replace different v2.2 activation lock" >&2
+              exit 1
+            }
+            echo "Activation lock already preserved byte-for-byte."
+            exit 0
+          fi
+          cp "$activation_source" "$activation_target"
+          git -C /tmp/forward-data-v2 config user.name "github-actions[bot]"
+          git -C /tmp/forward-data-v2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/forward-data-v2 add data/forward-paper-v22/activation.json
+          git -C /tmp/forward-data-v2 commit -m "Freeze v2.2 forward evaluation activation"
+          git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2
