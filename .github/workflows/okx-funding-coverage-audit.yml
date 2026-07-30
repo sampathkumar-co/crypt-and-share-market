@@ -1,11 +1,6 @@
-name: OKX Funding Coverage Audit
+name: Bitget Funding Coverage Audit
 
 on:
-  push:
-    branches:
-      - research/v1.3.1-okx-coverage-audit
-    paths:
-      - ".github/workflows/okx-funding-coverage-audit.yml"
   pull_request:
     paths:
       - ".github/workflows/okx-funding-coverage-audit.yml"
@@ -18,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Audit public OKX funding coverage only
+      - name: Audit public Bitget funding coverage only
         shell: bash
         run: |
           python - <<'PY'
@@ -29,42 +24,38 @@ jobs:
           from urllib.parse import urlencode
           from urllib.request import Request, urlopen
 
-          endpoint = "https://www.okx.com/api/v5/public/funding-rate-history"
-          instruments = [
-              "LTC-USDT-SWAP",
-              "BCH-USDT-SWAP",
-              "LINK-USDT-SWAP",
-              "XLM-USDT-SWAP",
-              "ETC-USDT-SWAP",
-              "ATOM-USDT-SWAP",
-              "UNI-USDT-SWAP",
-              "AAVE-USDT-SWAP",
-          ]
+          endpoint = "https://api.bitget.com/api/v2/mix/market/history-fund-rate"
+          symbols = ["LTCUSDT", "BCHUSDT", "LINKUSDT", "XLMUSDT", "ETCUSDT", "ATOMUSDT", "UNIUSDT", "AAVEUSDT"]
           required = int(datetime(2025, 5, 27, tzinfo=timezone.utc).timestamp() * 1000)
           report = []
 
-          def fetch(params):
+          def fetch(symbol, page):
+              params = {
+                  "symbol": symbol,
+                  "productType": "usdt-futures",
+                  "pageSize": "100",
+                  "pageNo": str(page),
+              }
               url = endpoint + "?" + urlencode(params)
               request = Request(url, headers={"Accept": "application/json", "User-Agent": "crypt-and-share-market-coverage-audit/1.0"})
               with urlopen(request, timeout=30) as response:
                   payload = json.loads(response.read().decode("utf-8"))
-              if payload.get("code") != "0":
-                  raise RuntimeError(f"OKX error: {payload.get('code')} {payload.get('msg')}")
-              return payload.get("data", [])
+              if payload.get("code") != "00000":
+                  raise RuntimeError(f"Bitget error for {symbol}: {payload.get('code')} {payload.get('msg')}")
+              data = payload.get("data", [])
+              if isinstance(data, dict):
+                  data = data.get("resultList", [])
+              return data
 
-          for instrument in instruments:
+          for symbol in symbols:
               earliest = None
               latest = None
               records = 0
-              after = None
-              for page in range(30):
-                  params = {"instId": instrument, "limit": "100"}
-                  if after is not None:
-                      params["after"] = str(after)
-                  rows = fetch(params)
+              for page in range(1, 31):
+                  rows = fetch(symbol, page)
                   if not rows:
                       break
-                  stamps = [int(row["fundingTime"]) for row in rows]
+                  stamps = [int(row.get("fundingTime") or row.get("fundingRateTimestamp")) for row in rows]
                   page_earliest = min(stamps)
                   page_latest = max(stamps)
                   earliest = page_earliest if earliest is None else min(earliest, page_earliest)
@@ -72,14 +63,11 @@ jobs:
                   records += len(rows)
                   if earliest <= required:
                       break
-                  if after is not None and page_earliest >= after:
-                      raise RuntimeError(f"Pagination did not advance for {instrument}")
-                  after = page_earliest
                   time.sleep(0.05)
               if earliest is None or latest is None:
-                  raise RuntimeError(f"No OKX funding data for {instrument}")
+                  raise RuntimeError(f"No Bitget funding data for {symbol}")
               item = {
-                  "instrument": instrument,
+                  "symbol": symbol,
                   "records_scanned": records,
                   "earliest": datetime.fromtimestamp(earliest / 1000, timezone.utc).isoformat(),
                   "latest": datetime.fromtimestamp(latest / 1000, timezone.utc).isoformat(),
@@ -89,14 +77,14 @@ jobs:
               print(json.dumps(item, sort_keys=True))
 
           if not all(item["covers_required_start"] for item in report):
-              missing = [item["instrument"] for item in report if not item["covers_required_start"]]
-              raise SystemExit(f"Insufficient OKX funding coverage: {missing}")
-          Path("okx_funding_coverage.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+              missing = [item["symbol"] for item in report if not item["covers_required_start"]]
+              raise SystemExit(f"Insufficient Bitget funding coverage: {missing}")
+          Path("funding_coverage.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
           PY
 
       - name: Upload coverage metadata
         uses: actions/upload-artifact@v4
         with:
-          name: okx-funding-coverage-audit
-          path: okx_funding_coverage.json
+          name: bitget-funding-coverage-audit
+          path: funding_coverage.json
           retention-days: 7
