@@ -1,10 +1,12 @@
-# Crypto Funding Promotion Audit v1.6 — Frozen Protocol
+# Crypto Funding Promotion Audit v1.6.1 — Frozen Protocol
 
 ## Status and statistical role
 
-This protocol is frozen before any v1.6 audit return is calculated. It is paper-only, long-or-cash and unleveraged. It cannot authorise real-money trading.
+This protocol is frozen before any v1.6.1 audit return is calculated. It is paper-only, long-or-cash and unleveraged. It cannot authorise real-money trading.
 
-The candidate under audit is the exact unchanged v1.4.2 funding-exhaustion signal and exit. It was selected after observing positive diagnostic results in the v1.4.2 and v1.5 discovery datasets. Therefore, the six known discovery periods are not an independent performance test. v1.6 uses them only for promotion robustness checks. The unchanged final 720-bar holdout is the sole independent performance test.
+v1.6.1 is a pre-return consistency correction to v1.6: the defensive profile's per-asset cap is 12.5%, so two positions cannot violate the frozen 75% cash reserve. No return was calculated under the inconsistent v1.6 profile.
+
+The candidate under audit is the exact unchanged v1.4.2 funding-exhaustion signal and exit. It was selected after observing positive diagnostic results in the v1.4.2 and v1.5 discovery datasets. Therefore, the six known discovery periods are not an independent performance test. v1.6.1 uses them only for promotion robustness checks. The unchanged final 720-bar holdout is the sole independent performance test.
 
 No signal threshold, funding calculation, entry rule, exit rule, cost assumption or data value may be changed in this experiment.
 
@@ -72,7 +74,7 @@ Evaluate exactly three predeclared sizing profiles. They are robustness diagnost
 ### Defensive exposure diagnostic
 
 - Maximum positions: 2.
-- Maximum asset weight: 20%.
+- Maximum asset weight: 12.5%.
 - Minimum cash reserve: 75%.
 - Portfolio volatility target: 20% annualised.
 
