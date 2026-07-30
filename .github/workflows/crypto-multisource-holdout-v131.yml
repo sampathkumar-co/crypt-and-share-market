@@ -1,0 +1,238 @@
+name: Crypto Multi-Source Holdout v1.3.1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-multisource-holdout-v131.yml"
+      - "docs/CRYPTO_MULTISOURCE_HOLDOUT_V131_PROTOCOL.md"
+      - "src/tradebot/data/crypto_external_factors_hyperliquid.py"
+      - "tests/test_crypto_external_factors_hyperliquid.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-multisource-holdout-v131-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocols and unchanged evaluator
+        shell: bash
+        run: |
+          git fetch origin research/v1.3-crypto-multisource-holdout
+          git diff --exit-code origin/research/v1.3-crypto-multisource-holdout -- \
+            docs/CRYPTO_MULTISOURCE_HOLDOUT_V13_PROTOCOL.md \
+            src/tradebot/backtest/crypto_multisource_holdout.py \
+            src/tradebot/data/crypto_external_factors.py \
+            tests/test_crypto_external_factors.py \
+            tests/test_crypto_multisource_holdout.py
+          git show ed46aaf70711b8397868912c6500316aee10b733:docs/CRYPTO_MULTISOURCE_HOLDOUT_V131_PROTOCOL.md \
+            > /tmp/frozen-v131.md
+          cmp /tmp/frozen-v131.md docs/CRYPTO_MULTISOURCE_HOLDOUT_V131_PROTOCOL.md
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/v131-prices data/v131-external reports/v131 previous-v12
+
+      - name: Download immutable v1.2 price evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: crypto-discrete-factor-veto-v12
+          path: previous-v12
+          repository: sampathkumar-co/crypt-and-share-market
+          run-id: 30503333614
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore and verify exact sealed prices
+        shell: bash
+        run: |
+          cp previous-v12/data/crypto-discrete-veto/*.csv data/v131-prices/
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.backtest.crypto_multisource_holdout import (
+              EXPECTED_FULL_END,
+              EXPECTED_FULL_START,
+              EXPECTED_PRICE_FINGERPRINT,
+              MultiSourceHoldoutConfig,
+              _load_exact_prices,
+          )
+          from tradebot.backtest.research_gate import dataset_fingerprint
+
+          files = sorted(Path("data/v131-prices").glob("*.csv"))
+          if len(files) != 8:
+              raise SystemExit(f"Expected eight sealed price histories, found {len(files)}")
+          full, evaluation = _load_exact_prices(
+              "data/v131-prices", MultiSourceHoldoutConfig()
+          )
+          fingerprint = dataset_fingerprint(full)
+          if fingerprint != EXPECTED_PRICE_FINGERPRINT:
+              raise SystemExit("Sealed price fingerprint mismatch")
+          first = full[next(iter(full))][0].timestamp.isoformat()
+          last = full[next(iter(full))][-1].timestamp.isoformat()
+          if first != EXPECTED_FULL_START or last != EXPECTED_FULL_END:
+              raise SystemExit(f"Unexpected sealed interval: {first} to {last}")
+          if any(len(candles) != 2050 for candles in full.values()):
+              raise SystemExit("A sealed history does not contain exactly 2050 candles")
+          if any(len(candles) != 450 for candles in evaluation.values()):
+              raise SystemExit("Warm-up plus barred interval must contain exactly 450 candles")
+          print(f"sealed price fingerprint: {fingerprint}")
+          print(f"sealed price interval: {first} to {last}")
+          PY
+
+      - name: Fetch provenance-checked external factors with Hyperliquid
+        shell: bash
+        run: |
+          tradebot-crypto-external-factors-hyperliquid \
+            --out data/v131-external \
+            --start 2025-05-27 \
+            --end 2026-05-21 \
+            > reports/v131/external_factor_fetch.json
+          python - <<'PY'
+          from tradebot.data.crypto_external_factors import verify_external_manifest
+
+          payload = verify_external_manifest("data/v131-external")
+          providers = {item["provider"] for item in payload["files"]}
+          expected = {
+              "coinmetrics-community-archive",
+              "hyperliquid-public-info",
+              "fred-public-csv",
+          }
+          if providers != expected:
+              raise SystemExit(f"Unexpected provider set: {sorted(providers)}")
+          if payload["requested_start"] != "2025-05-27":
+              raise SystemExit("External-factor start changed")
+          if payload["requested_end"] != "2026-05-21":
+              raise SystemExit("External-factor end changed")
+          if payload["paper_only"] is not True:
+              raise SystemExit("External manifest is not paper-only")
+          funding = [
+              item
+              for item in payload["files"]
+              if item["provider"] == "hyperliquid-public-info"
+          ]
+          if len(funding) != 8:
+              raise SystemExit(f"Expected eight Hyperliquid files, found {len(funding)}")
+          if any(item["first_date"] > "2025-05-27" for item in funding):
+              raise SystemExit("A Hyperliquid file starts after the frozen interval")
+          if any(item["last_date"] < "2026-05-21" for item in funding):
+              raise SystemExit("A Hyperliquid file ends before the frozen interval")
+          print(f"external source files: {len(payload['files'])}")
+          print(f"Hyperliquid funding files: {len(funding)}")
+          PY
+
+      - name: Run the one-shot frozen holdout
+        id: holdout
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-multisource-holdout \
+            --price-folder data/v131-prices \
+            --external-folder data/v131-external \
+            --market crypto \
+            --json-out reports/v131/multisource_holdout.json
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "v1.3.1 holdout failed unexpectedly with status $status" >&2
+            exit "$status"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate evidence and embargo isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("reports/v131/multisource_holdout.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema_version"] == "1.3"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert payload["holdout_test_start"].startswith("2025-11-23")
+          assert payload["holdout_test_end"].startswith("2026-05-21")
+          assert payload["embargo_start"].startswith("2026-05-22")
+          assert payload["embargo_end"].startswith("2026-07-30")
+          assert payload["holdout_test_end"] < payload["embargo_start"]
+          assert len(payload["variants"]) == 6
+          assert all(len(item["periods"]) == 3 for item in payload["variants"])
+          assert all(
+              period["test_end"] <= payload["holdout_test_end"]
+              for variant in payload["variants"]
+              for period in variant["periods"]
+          )
+          assert len(payload["onchain_covered_assets"]) >= 5
+          providers = {item["provider"] for item in payload["external_sources"]}
+          assert "hyperliquid-public-info" in providers
+          assert "bybit-public-market" not in providers
+
+          lines = [
+              "# Crypto Multi-Source Holdout v1.3.1",
+              "",
+              f"- Accepted for shadow-paper follow-up: **{payload['accepted']}**",
+              f"- Holdout tests: `{payload['holdout_test_start']}` to `{payload['holdout_test_end']}`",
+              f"- Untouched final embargo: `{payload['embargo_start']}` to `{payload['embargo_end']}`",
+              f"- External manifest fingerprint: `{payload['external_manifest_fingerprint']}`",
+              f"- On-chain-covered assets: `{', '.join(payload['onchain_covered_assets'])}`",
+              "",
+              "| Variant | Active | Average | Compounded | Stressed | Positive | Worst DD | Turnover |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["variants"]:
+              lines.append(
+                  f"| {item['variant']} | {item['active_periods']}/3 | "
+                  f"{item['average_return']:.3%} | {item['compounded_return']:.3%} | "
+                  f"{item['average_stressed_return']:.3%} | "
+                  f"{item['positive_periods']}/3 | {item['worst_drawdown']:.3%} | "
+                  f"{item['average_turnover']:.2f}x |"
+              )
+          lines.extend([
+              "",
+              f"Primary beats raw average: **{payload['primary_average_improvement_vs_raw']:.3%}**",
+              f"Primary beats raw periods: **{payload['primary_beats_raw_periods']}/3**",
+              f"Positive leave-one-family-out variants: **{payload['positive_source_ablations']}/4**",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "The final 70-day embargo was not evaluated. This result cannot authorise live or continuous paper trading.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/v131/multisource_holdout.md").write_text(
+              report, encoding="utf-8"
+          )
+          print(report)
+          PY
+          cat reports/v131/multisource_holdout.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete v1.3.1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-multisource-holdout-v131
+          path: |
+            reports/v131/
+            data/v131-prices/
+            data/v131-external/
+          retention-days: 90
