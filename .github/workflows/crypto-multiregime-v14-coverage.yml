@@ -86,22 +86,34 @@ jobs:
                   time.sleep(1.1)
               report["hyperliquid"].append(item)
 
-          if any(item["status"] not in {"online", None} for item in report["coinbase"]):
-              raise SystemExit("A Coinbase product is not online")
-          if any(window["rows"] < 44 for item in report["coinbase"] for window in item["windows"]):
-              raise SystemExit("A Coinbase product lacks hourly endpoint coverage")
-          if any(not item["listed"] for item in report["hyperliquid"]):
-              raise SystemExit("A required Hyperliquid coin is not listed")
-          if any(window["rows"] == 0 for item in report["hyperliquid"] for window in item["windows"]):
-              raise SystemExit("A required Hyperliquid funding window is empty")
-
+          failures = []
+          failures.extend(f"coinbase_status:{item['product']}:{item['status']}" for item in report["coinbase"] if item["status"] not in {"online", None})
+          failures.extend(
+              f"coinbase_window:{item['product']}:{window['start']}:{window['rows']}"
+              for item in report["coinbase"]
+              for window in item["windows"]
+              if window["rows"] < 44
+          )
+          failures.extend(f"hyperliquid_unlisted:{item['coin']}" for item in report["hyperliquid"] if not item["listed"])
+          failures.extend(
+              f"hyperliquid_window:{item['coin']}:{window['start']}:{window['rows']}"
+              for item in report["hyperliquid"]
+              for window in item["windows"]
+              if window["rows"] == 0
+          )
+          report["failures"] = failures
+          report["coverage_ok"] = not failures
           Path("v14_coverage_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
           print(json.dumps(report, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit("Coverage failures: " + "; ".join(failures))
           PY
 
       - name: Upload coverage evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: crypto-multiregime-v14-coverage
           path: v14_coverage_audit.json
+          if-no-files-found: error
           retention-days: 30
