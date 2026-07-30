@@ -1,0 +1,241 @@
+name: Forward Alpha Decisions v2.3
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "52 * * * *"
+  pull_request:
+    paths:
+      - ".github/workflows/forward-alpha-decisions-v23.yml"
+      - ".github/workflows/forward-alpha-v23.yml"
+      - "research/V23_FORWARD_ALPHA_CANDIDATES_PROTOCOL.md"
+      - "src/tradebot/research/forward_alpha_candidates.py"
+      - "tests/test_forward_alpha_candidates.py"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forward-alpha-decisions-v23-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-frozen-router:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and test frozen v2.3 router
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest tests/test_forward_alpha_candidates.py -q
+
+  assemble-and-decide:
+    if: github.event_name != 'pull_request'
+    needs: test-frozen-router
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p evidence/v23-history evidence/v23-decision evidence/v23-compact/decisions evidence/v23-compact/manifests
+
+      - name: Assemble append-only normalized history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2-read
+          git worktree add --detach /tmp/forward-data-v2-read origin/forward-data/v2
+          source_dir=/tmp/forward-data-v2-read/data/forward-market-state/normalized
+          test -d "$source_dir"
+          cp "$source_dir"/*.json evidence/v23-history/
+          FORWARD_DATA_HEAD=$(git -C /tmp/forward-data-v2-read rev-parse HEAD)
+          echo "FORWARD_DATA_HEAD=$FORWARD_DATA_HEAD" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          files = sorted(Path("evidence/v23-history").glob("*.json"))
+          if not files:
+              raise SystemExit("No normalized v2.0 forward snapshots are available")
+          inventory = {
+              "schema_version": "2.3-history-inventory",
+              "paper_only": True,
+              "authorizes_trading": False,
+              "forward_data_branch": "forward-data/v2",
+              "forward_data_head": os.environ["FORWARD_DATA_HEAD"],
+              "snapshot_files": len(files),
+              "snapshots": [
+                  {
+                      "snapshot_file": path.name,
+                      "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                  }
+                  for path in files
+              ],
+          }
+          Path("evidence/v23-decision/history_inventory.json").write_text(
+              json.dumps(inventory, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Evaluate decision-only v2.3 router
+        run: |
+          tradebot-forward-alpha \
+            --folder evidence/v23-history \
+            --json-out evidence/v23-decision/forward_alpha_v23.json
+
+      - name: Validate and package canonical evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          decision_path = Path("evidence/v23-decision/forward_alpha_v23.json")
+          report = json.loads(decision_path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "2.3"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["candidate_state"] in {"CASH", "RESEARCH_CANDIDATES"}
+          assert len(report["selected_candidates"]) <= 2
+          assert report["minimum_cash_weight"] >= 0.60 - 1e-12
+          assert sum(report["target_weights"].values()) <= 0.40 + 1e-12
+          assert all(weight <= 0.20 + 1e-12 for weight in report["target_weights"].values())
+
+          canonical = dict(report)
+          expected_report_sha = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected_report_sha
+
+          forbidden = {"return", "pnl", "profit", "drawdown", "sharpe", "benchmark_return"}
+          assert forbidden.isdisjoint(report)
+
+          cutoff = report.get("data_cutoff_utc")
+          if cutoff is None:
+              raise SystemExit("Decision has no data cutoff")
+          safe_hour = cutoff.replace("-", "").replace(":", "").replace("Z", "Z")
+          decision_name = f"{safe_hour}.json"
+          packaged_decision = Path("evidence/v23-compact/decisions") / decision_name
+          packaged_decision.write_bytes(decision_path.read_bytes())
+
+          manifest = {
+              "schema_version": "2.3-decision-manifest",
+              "paper_only": True,
+              "authorizes_trading": False,
+              "decision_hour_utc": cutoff,
+              "decision_file": decision_name,
+              "decision_file_sha256": hashlib.sha256(packaged_decision.read_bytes()).hexdigest(),
+              "decision_report_sha256": expected_report_sha,
+              "forward_data_branch": "forward-data/v2",
+              "forward_data_head": os.environ["FORWARD_DATA_HEAD"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+          }
+          manifest_path = Path("evidence/v23-compact/manifests") / decision_name
+          manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+          if report["input_snapshot_count"] < 169:
+              assert report["candidate_state"] == "CASH"
+              assert report["decision_reason"] == "insufficient_contiguous_forward_history"
+              assert report["target_weights"] == {}
+              assert report["minimum_cash_weight"] == 1.0
+
+          print(json.dumps({
+              "state": report["candidate_state"],
+              "reason": report["decision_reason"],
+              "decision_hour_utc": cutoff,
+              "snapshots": report["input_snapshot_count"],
+              "selected": report["selected_candidates"],
+              "minimum_cash_weight": report["minimum_cash_weight"],
+              "report_sha256": expected_report_sha,
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload v2.3 decision evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-alpha-v23-${{ github.run_id }}
+          path: |
+            evidence/v23-decision/
+            evidence/v23-compact/
+          retention-days: 90
+          if-no-files-found: error
+
+  persist-decision:
+    if: github.event_name != 'pull_request'
+    needs: assemble-and-decide
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download compact decision evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: forward-alpha-v23-${{ github.run_id }}
+          path: evidence/downloaded
+
+      - name: Append canonical v2.3 decision and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2-write
+          git worktree add --detach /tmp/forward-data-v2-write origin/forward-data/v2
+
+          for kind in decisions manifests; do
+            mkdir -p "/tmp/forward-data-v2-write/data/forward-alpha-v23/$kind"
+            for source in "evidence/downloaded/v23-compact/$kind"/*.json; do
+              target="/tmp/forward-data-v2-write/data/forward-alpha-v23/$kind/$(basename "$source")"
+              if [ -e "$target" ]; then
+                cmp --silent "$source" "$target" || {
+                  echo "Refusing to replace different append-only v2.3 evidence: $target" >&2
+                  exit 1
+                }
+              else
+                cp "$source" "$target"
+              fi
+            done
+          done
+
+          git -C /tmp/forward-data-v2-write config user.name "github-actions[bot]"
+          git -C /tmp/forward-data-v2-write config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/forward-data-v2-write add data/forward-alpha-v23
+          if git -C /tmp/forward-data-v2-write diff --cached --quiet; then
+            echo "v2.3 decision already preserved byte-for-byte."
+            exit 0
+          fi
+
+          decision_file=$(basename "$(find evidence/downloaded/v23-compact/decisions -name '*.json' -print -quit)" .json)
+          git -C /tmp/forward-data-v2-write commit -m "Append v2.3 forward alpha decision $decision_file"
+          git -C /tmp/forward-data-v2-write pull --rebase origin forward-data/v2
+          git -C /tmp/forward-data-v2-write push origin HEAD:forward-data/v2
