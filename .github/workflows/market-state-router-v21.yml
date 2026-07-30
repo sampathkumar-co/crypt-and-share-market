@@ -210,4 +210,5 @@ jobs:
             exit 0
           fi
           git -C /tmp/forward-data-v2 commit -m "Append v2.1 router decision $stem"
+          git -C /tmp/forward-data-v2 pull --rebase origin forward-data/v2
           git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2

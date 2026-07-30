@@ -219,23 +219,35 @@ def _snapshot_filename_hour(path: Path) -> datetime:
     return datetime.strptime(match.group(1), "%Y%m%dT%H").replace(tzinfo=timezone.utc)
 
 
-def _index_hourly_files(folder: Path, *, label: str) -> dict[datetime, Path]:
+def _index_hourly_files(
+    folder: Path,
+    *,
+    label: str,
+) -> dict[datetime, tuple[Path, ...]]:
     grouped: dict[datetime, list[Path]] = {}
     if not folder.exists():
         return {}
     for path in sorted(folder.glob("*.json")):
         hour = _snapshot_filename_hour(path)
         grouped.setdefault(hour, []).append(path)
-    indexed: dict[datetime, Path] = {}
-    for hour, paths in grouped.items():
-        first = paths[0].read_bytes()
+    return {hour: tuple(paths) for hour, paths in grouped.items()}
+
+
+def _resolve_hourly_paths(
+    paths: tuple[Path, ...],
+    *,
+    label: str,
+    hour: datetime,
+) -> Path:
+    first = paths[0]
+    if len(paths) > 1:
+        first_bytes = first.read_bytes()
         for duplicate in paths[1:]:
-            if duplicate.read_bytes() != first:
+            if duplicate.read_bytes() != first_bytes:
                 raise ForwardPaperEvaluationError(
                     f"Non-identical duplicate {label} records for {_iso(hour)}"
                 )
-        indexed[hour] = paths[0]
-    return indexed
+    return first
 
 
 def _validate_snapshot(path: Path, root: Path) -> SnapshotPoint:
@@ -408,22 +420,29 @@ class ForwardEvidenceStore:
 
     def snapshot(self, hour: datetime) -> SnapshotPoint | None:
         target = _hour(hour)
-        path = self.snapshot_paths.get(target)
-        if path is None:
+        paths = self.snapshot_paths.get(target)
+        if paths is None:
             return None
         if target not in self._snapshots:
+            path = _resolve_hourly_paths(paths, label="snapshot", hour=target)
             self._snapshots[target] = _validate_snapshot(path, self.root)
         return self._snapshots[target]
 
     def decision(self, hour: datetime) -> DecisionPoint | None:
         target = _hour(hour)
-        path = self.decision_paths.get(target)
-        inventory_path = self.inventory_paths.get(target)
-        if path is None and inventory_path is None:
+        decision_paths = self.decision_paths.get(target)
+        inventory_paths = self.inventory_paths.get(target)
+        if decision_paths is None and inventory_paths is None:
             return None
-        if path is None or inventory_path is None:
+        if decision_paths is None or inventory_paths is None:
             raise ForwardPaperEvaluationError(f"Decision/inventory pair is incomplete for {_iso(target)}")
         if target not in self._decisions:
+            path = _resolve_hourly_paths(decision_paths, label="decision", hour=target)
+            inventory_path = _resolve_hourly_paths(
+                inventory_paths,
+                label="decision inventory",
+                hour=target,
+            )
             self._decisions[target] = _validate_decision(path, inventory_path, self.root)
         return self._decisions[target]
 
@@ -470,6 +489,40 @@ class ForwardEvidenceStore:
         lock = ActivationLock(**payload)
         _validate_activation_lock(lock)
         return lock
+
+    def terminal_result_path(self) -> Path:
+        return self.root / "data/forward-paper-v22/terminal.json"
+
+    def load_terminal_result(self, config: EvaluationConfig) -> dict[str, Any] | None:
+        path = self.terminal_result_path()
+        if not path.exists():
+            return None
+        payload = _read_json(path)
+        expected = str(payload.get("report_sha256", ""))
+        unhashed = dict(payload)
+        unhashed.pop("report_sha256", None)
+        actual = sha256_bytes(canonical_json(unhashed).encode("utf-8"))
+        if not expected or expected != actual:
+            raise ForwardPaperEvaluationError("Terminal result hash mismatch")
+        if payload.get("schema_version") != SCHEMA_VERSION:
+            raise ForwardPaperEvaluationError("Unsupported terminal-result schema")
+        if payload.get("paper_only") is not True:
+            raise ForwardPaperEvaluationError("Unsafe terminal paper-only flag")
+        if payload.get("authorizes_trading") is not False:
+            raise ForwardPaperEvaluationError("Unsafe terminal trading flag")
+        if payload.get("authorizes_shadow_paper") is not False:
+            raise ForwardPaperEvaluationError("Unsafe terminal shadow-paper flag")
+        if payload.get("status") not in {
+            "DISCOVERY_REJECTED",
+            "HOLDOUT_REJECTED",
+            "HOLDOUT_PASSED",
+        }:
+            raise ForwardPaperEvaluationError("Terminal result is not terminal")
+        if payload.get("evaluation_config") != asdict(config):
+            raise ForwardPaperEvaluationError("Terminal evaluation configuration mismatch")
+        if payload.get("fingerprints") != implementation_fingerprints():
+            raise ForwardPaperEvaluationError("Terminal implementation fingerprint mismatch")
+        return payload
 
 
 def _validate_activation_lock(lock: ActivationLock) -> None:
@@ -1145,6 +1198,9 @@ def evaluate_forward_paper(
     if not re.fullmatch(r"[0-9a-f]{40}", forward_data_head):
         raise ForwardPaperEvaluationError("forward_data_head must be a full commit SHA")
     store = ForwardEvidenceStore(store_root)
+    terminal = store.load_terminal_result(cfg)
+    if terminal is not None:
+        return terminal, None
     activation, activation_is_new = _find_or_validate_activation(store, cfg)
     if activation is None:
         report = _precompletion_report(
