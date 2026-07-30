@@ -270,8 +270,9 @@ def test_tampered_activation_lock_fails_closed(tmp_path):
 def test_nonidentical_duplicate_snapshot_hour_fails_closed(tmp_path):
     _write_snapshot(tmp_path, START)
     _write_snapshot(tmp_path, START, prices={"BTC": 101.0}, suffix="-duplicate")
+    store = ForwardEvidenceStore(tmp_path)
     with pytest.raises(ForwardPaperEvaluationError, match="Non-identical duplicate snapshot"):
-        ForwardEvidenceStore(tmp_path)
+        store.snapshot(START)
 
 
 def test_router_fingerprint_mismatch_fails_before_scoring(tmp_path):
@@ -290,7 +291,7 @@ def test_router_fingerprint_mismatch_fails_before_scoring(tmp_path):
         evaluate_forward_paper(tmp_path, forward_data_head=HEAD, config=_small_config())
 
 
-def test_failed_discovery_does_not_load_or_summarize_holdout(tmp_path):
+def test_failed_discovery_does_not_load_or_summarize_holdout(tmp_path, monkeypatch):
     activation = _build_store(tmp_path, decision_count=4, rising=False)
     malformed_hour = activation + timedelta(hours=6)
     captured = malformed_hour + timedelta(minutes=17)
@@ -300,6 +301,21 @@ def test_failed_discovery_does_not_load_or_summarize_holdout(tmp_path):
         / f"{captured.strftime('%Y%m%dT%H%M%S.%fZ')}.json"
     )
     malformed.write_text("not-json", encoding="utf-8")
+    original_read_text = Path.read_text
+    original_read_bytes = Path.read_bytes
+
+    def guarded_read_text(self, *args, **kwargs):
+        if self.resolve() == malformed.resolve():
+            raise AssertionError("holdout JSON was read before discovery passed")
+        return original_read_text(self, *args, **kwargs)
+
+    def guarded_read_bytes(self, *args, **kwargs):
+        if self.resolve() == malformed.resolve():
+            raise AssertionError("holdout bytes were read before discovery passed")
+        return original_read_bytes(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read_text)
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
     report, _ = evaluate_forward_paper(
         tmp_path,
         forward_data_head=HEAD,
@@ -340,6 +356,60 @@ def test_passing_holdout_only_marks_review_eligibility(tmp_path):
     assert report["eligible_for_shadow_paper_review"] is True
     assert report["authorizes_shadow_paper"] is False
     assert report["authorizes_trading"] is False
+
+
+def test_terminal_result_is_reused_without_reopening_holdout(tmp_path, monkeypatch):
+    activation = _build_store(tmp_path, decision_count=4, holdout_count=4, rising=True)
+    _write_decision(tmp_path, activation + timedelta(hours=5), target_weights={})
+    config = _small_config(holdout_intervals=4)
+    report, _ = evaluate_forward_paper(
+        tmp_path,
+        forward_data_head=HEAD,
+        config=config,
+    )
+    assert report["status"] == "HOLDOUT_PASSED"
+    terminal = tmp_path / "data/forward-paper-v22/terminal.json"
+    terminal.parent.mkdir(parents=True, exist_ok=True)
+    terminal.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    protected = _snapshot_path_for_hour(tmp_path, activation + timedelta(hours=1))
+    original_read_text = Path.read_text
+    original_read_bytes = Path.read_bytes
+
+    def guarded_read_text(self, *args, **kwargs):
+        if self.resolve() == protected.resolve():
+            raise AssertionError("terminal result reopened scored snapshot JSON")
+        return original_read_text(self, *args, **kwargs)
+
+    def guarded_read_bytes(self, *args, **kwargs):
+        if self.resolve() == protected.resolve():
+            raise AssertionError("terminal result reopened scored snapshot bytes")
+        return original_read_bytes(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read_text)
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+    repeated, activation_payload = evaluate_forward_paper(
+        tmp_path,
+        forward_data_head="b" * 40,
+        config=config,
+    )
+    assert repeated == report
+    assert activation_payload is None
+
+
+def test_tampered_terminal_result_fails_closed(tmp_path):
+    terminal = tmp_path / "data/forward-paper-v22/terminal.json"
+    terminal.parent.mkdir(parents=True, exist_ok=True)
+    terminal.write_text(json.dumps({
+        "schema_version": "2.2",
+        "paper_only": True,
+        "authorizes_trading": False,
+        "authorizes_shadow_paper": False,
+        "status": "DISCOVERY_REJECTED",
+        "report_sha256": "0" * 64,
+    }), encoding="utf-8")
+    with pytest.raises(ForwardPaperEvaluationError, match="Terminal result hash mismatch"):
+        evaluate_forward_paper(tmp_path, forward_data_head=HEAD, config=_small_config())
 
 
 def _direct_decision(hour: datetime, weights: dict[str, float]) -> DecisionPoint:
