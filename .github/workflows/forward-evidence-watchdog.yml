@@ -44,7 +44,7 @@ jobs:
           phase="snapshot"
           if [[ "$EVENT_SCHEDULE" == "57 * * * *" ]]; then
             phase="decisions"
-          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" || "$EVENT_NAME" == "push" ]]; then
             phase="all"
           fi
 
