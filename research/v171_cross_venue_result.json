@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "research_version": "1.7.1",
+  "workflow_run_id": 30522162989,
+  "artifact_id": 8751212257,
+  "artifact_name": "crypto-funding-v171-cross-venue-replication",
+  "artifact_digest": "sha256:272ddbd367a9790fd65ac6e508a3c6354d3601e47875185129102c05b51f3370",
+  "workflow_head": "652d5939952e41f1eb246b331ea1ef6a98589436",
+  "accepted": false,
+  "eligible_for_holdout": false,
+  "independent_holdout_evaluated": false,
+  "primary_balanced": {
+    "active_periods": 4,
+    "positive_periods": 2,
+    "average_return": 0.004016295926746949,
+    "median_return": 0.0,
+    "compounded_return": 0.019967180890908987,
+    "average_standard_stressed_return": 0.000879131108562497,
+    "average_double_cost_stressed_return": -0.0022580337096219554,
+    "first_block_average": 0.009755692803388227,
+    "second_block_average": 0.00019003134231942997,
+    "worst_drawdown": 0.05280707435380043,
+    "max_asset_notional_fraction": 0.3188139149836418,
+    "selected_assets": 7
+  },
+  "original_exposure": {
+    "average_return": 0.005217655052969073,
+    "average_standard_stressed_return": 0.0018818674048742038,
+    "average_double_cost_stressed_return": -0.0014539202432206646,
+    "worst_drawdown": 0.062216960310854066
+  },
+  "defensive_exposure": {
+    "average_return": -0.0005029833588652277,
+    "average_standard_stressed_return": -0.0023189547976314056,
+    "average_double_cost_stressed_return": -0.0041349262363975835,
+    "worst_drawdown": 0.04509804066853219
+  },
+  "equal_weight_buy_hold_average_return": 0.022998444159858977,
+  "positive_leave_one_asset_out_reruns": 7,
+  "positive_leave_one_period_out_checks": 4,
+  "positive_sizing_profiles_under_both_stresses": 0,
+  "rejection_reasons": [
+    "not_all_replication_periods_active",
+    "too_few_profitable_periods",
+    "median_return_not_positive",
+    "double_cost_stress_not_positive",
+    "does_not_beat_equal_weight_average",
+    "leave_one_period_out_not_robust",
+    "original_exposure_double_stress_not_positive",
+    "defensive_exposure_average_not_positive",
+    "defensive_exposure_standard_stress_not_positive",
+    "defensive_exposure_double_stress_not_positive"
+  ],
+  "paper_only": true
+}
