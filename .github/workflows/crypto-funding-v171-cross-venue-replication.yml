@@ -1,0 +1,254 @@
+name: Crypto Funding v1.7.1 Cross-Venue Replication
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-funding-v171-cross-venue-replication.yml"
+      - "docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md"
+      - "research/v171_replication_freeze.json"
+      - "research/v171_hyperliquid_price_freeze.json"
+      - "src/tradebot/backtest/crypto_funding_cross_venue_v17.py"
+      - "src/tradebot/data/hyperliquid_4h_provider_v17.py"
+      - "tests/test_crypto_funding_cross_venue_v17.py"
+      - "tests/test_hyperliquid_4h_provider_v17.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-funding-v171-cross-venue-replication-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol, evaluator and references
+        shell: bash
+        run: |
+          git diff --exit-code 713e29d24653bffe88d4d0957d6929e4cc689d3f -- \
+            src/tradebot/backtest/crypto_funding_cross_venue_v17.py \
+            src/tradebot/data/hyperliquid_4h_provider_v17.py \
+            tests/test_crypto_funding_cross_venue_v17.py \
+            tests/test_hyperliquid_4h_provider_v17.py \
+            pyproject.toml
+          git show e4a042605ca4a7402c78b053fb1b4f0f2e389871:docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md > /tmp/frozen-v171-protocol.md
+          cmp /tmp/frozen-v171-protocol.md docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md
+          git show d47b001b02a23c8b0153ff4d494c1038dfdbfaf6:research/v171_replication_freeze.json > /tmp/frozen-v171-replication.json
+          cmp /tmp/frozen-v171-replication.json research/v171_replication_freeze.json
+          git show 29365cbdec86ccaf2c5dc03b034b01204f09a160:research/v171_hyperliquid_price_freeze.json > /tmp/frozen-v171-price.json
+          cmp /tmp/frozen-v171-price.json research/v171_hyperliquid_price_freeze.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p frozen-hyperliquid frozen-v142 reports/v171-replication
+
+      - name: Download immutable Hyperliquid price artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: crypto-funding-v171-hyperliquid-price-freeze
+          path: frozen-hyperliquid
+          repository: sampathkumar-co/crypt-and-share-market
+          run-id: 30521617439
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download immutable external-factor artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: crypto-multiregime-v142-data-freeze
+          path: frozen-v142
+          repository: sampathkumar-co/crypt-and-share-market
+          run-id: 30516539776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify both artifacts byte-for-byte
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from tradebot.backtest.crypto_funding_cross_venue_v17 import load_cross_venue_histories
+          from tradebot.backtest.research_gate import dataset_fingerprint
+          from tradebot.data.crypto_external_factors import verify_external_manifest
+          from tradebot.data.hyperliquid_4h_provider_v17 import verify_hyperliquid_4h_manifest
+
+          frozen = json.loads(Path("research/v171_replication_freeze.json").read_text(encoding="utf-8"))
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with Path(path).open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          price_root = Path("frozen-hyperliquid/data/v171-hyperliquid")
+          external_root = Path("frozen-v142/data/v142-external")
+          price_manifest = price_root / "manifest.json"
+          external_manifest = external_root / "manifest.json"
+          assert sha256(price_manifest) == frozen["hyperliquid_price_manifest_sha256"]
+          assert sha256(external_manifest) == frozen["external_manifest_sha256"]
+          price = verify_hyperliquid_4h_manifest(price_root)
+          external = verify_external_manifest(external_root)
+          assert price["dataset_fingerprint"] == frozen["hyperliquid_price_fingerprint"]
+          histories = load_cross_venue_histories(price_root / "four_hour")
+          assert dataset_fingerprint(histories) == frozen["hyperliquid_price_fingerprint"]
+          assert set(histories) == set(frozen["symbols"])
+          assert all(len(candles) == frozen["rows_per_asset"] for candles in histories.values())
+          assert external["requested_start"] == "2023-11-15"
+          assert external["requested_end"] == "2025-11-22"
+          assert frozen["candidate_selected_from_coinbase_diagnostics"] is True
+          assert frozen["replication_returns_calculated"] is False
+          assert frozen["independent_holdout_accessed"] is False
+          print("verified Hyperliquid fingerprint:", frozen["hyperliquid_price_fingerprint"])
+          print("verified external manifest:", frozen["external_manifest_sha256"])
+          PY
+
+      - name: Run frozen replication periods only
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-funding-cross-venue-v17 \
+            --price-folder frozen-hyperliquid/data/v171-hyperliquid/four_hour \
+            --external-folder frozen-v142/data/v142-external \
+            --json-out reports/v171-replication/replication.json \
+            --mode replication \
+            > reports/v171-replication/replication_stdout.json
+          status=$?
+          set -e
+          echo "$status" > reports/v171-replication/exit_status.txt
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Unexpected v1.7.1 replication software failure: $status" >&2
+            exit "$status"
+          fi
+          echo "v1.7.1 replication completed with research status $status"
+
+      - name: Validate replication evidence and holdout isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("reports/v171-replication/replication.json").read_text(encoding="utf-8"))
+          frozen = json.loads(Path("research/v171_replication_freeze.json").read_text(encoding="utf-8"))
+          status = int(Path("reports/v171-replication/exit_status.txt").read_text(encoding="utf-8").strip())
+
+          assert payload["schema_version"] == "1.7.1"
+          assert payload["mode"] == "replication"
+          assert payload["market"] == "crypto"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_shadow_paper"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert payload["price_dataset_fingerprint"] == frozen["hyperliquid_price_fingerprint"]
+          assert payload["external_manifest_fingerprint"] == frozen["external_manifest_sha256"]
+          assert payload["dataset_start"] == "2024-04-18T00:00:00"
+          assert payload["dataset_end"] == "2025-11-22T20:00:00"
+          assert payload["replication_test_start"] == "2024-07-27T00:00:00"
+          assert payload["replication_test_end"] == "2025-06-16T20:00:00"
+          assert payload["embargo_start"] == "2025-06-17T00:00:00"
+          assert payload["embargo_end"] == "2025-07-25T20:00:00"
+          assert payload["holdout_start"] == "2025-07-26T00:00:00"
+          assert payload["holdout_end"] == "2025-11-22T20:00:00"
+          assert set(payload["symbols"]) == set(frozen["symbols"])
+          by_profile = {item["profile"]: item for item in payload["profiles"]}
+          assert set(by_profile) == {
+              "primary_balanced",
+              "original_exposure",
+              "defensive_exposure",
+          }
+          assert all(len(item["summary"]["periods"]) == 5 for item in payload["profiles"])
+          assert all(
+              period["mode"] == "discovery"
+              and period["test_end"] <= payload["replication_test_end"]
+              and period["test_start"] < payload["embargo_start"]
+              for item in payload["profiles"]
+              for period in item["summary"]["periods"]
+          )
+          assert {item["variant"] for item in payload["baselines"]} == {"cash", "equal_weight_buy_hold"}
+          assert set(payload["leave_one_asset_out_average_returns"]) == set(frozen["symbols"])
+          assert set(payload["leave_one_period_out_average_returns"]) == {
+              "period_1", "period_2", "period_3", "period_4", "period_5"
+          }
+          assert payload["accepted"] is (status == 0)
+          assert payload["eligible_for_holdout"] is payload["accepted"]
+          assert (not payload["accepted"]) or not payload["reasons"]
+          assert payload["accepted"] or payload["reasons"]
+
+          lines = [
+              "# Crypto Funding v1.7.1 Cross-Venue Replication",
+              "",
+              "The candidate was selected on Coinbase-price diagnostics; this is a Hyperliquid price-source replication, not an independent time test.",
+              "",
+              f"- Accepted for dual-venue one-shot holdout: **{payload['accepted']}**",
+              f"- Hyperliquid price fingerprint: `{payload['price_dataset_fingerprint']}`",
+              f"- External manifest: `{payload['external_manifest_fingerprint']}`",
+              f"- Replication interval: `{payload['replication_test_start']}` to `{payload['replication_test_end']}`",
+              f"- Locked independent holdout: `{payload['holdout_start']}` to `{payload['holdout_end']}`",
+              "- Independent holdout returns evaluated: **False**",
+              "",
+              "| Profile | Active | Positive | Average | Median | Compounded | Standard stress | Double stress | First block | Second block | Worst DD | Max asset share | Assets |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["profiles"]:
+              summary = item["summary"]
+              lines.append(
+                  f"| {item['profile']} | {summary['active_periods']}/5 | {summary['positive_periods']}/5 | "
+                  f"{summary['average_return']:.3%} | {summary['median_return']:.3%} | "
+                  f"{summary['compounded_return']:.3%} | {summary['average_stressed_return']:.3%} | "
+                  f"{item['average_double_cost_stressed_return']:.3%} | {item['first_block_average']:.3%} | "
+                  f"{item['second_block_average']:.3%} | {summary['worst_drawdown']:.3%} | "
+                  f"{summary['max_asset_notional_fraction']:.2%} | {len(summary['selected_symbols'])} |"
+              )
+          primary = by_profile["primary_balanced"]["summary"]
+          lines.extend([
+              "",
+              f"- Positive sizing profiles under both stresses: **{payload['positive_sizing_profiles']}/3**",
+              f"- Positive leave-one-period-out checks: **{payload['leave_one_period_out_positive_count']}/5**",
+              f"- Positive leave-one-asset-out reruns: **{payload['leave_one_asset_out_positive_count']}/8**",
+              f"- Primary selected assets: `{', '.join(primary['selected_symbols']) or 'none'}`",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "This workflow did not evaluate the independent final holdout and cannot authorise real-money trading.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/v171-replication/replication.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/v171-replication/replication.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete replication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-funding-v171-cross-venue-replication
+          path: |
+            reports/v171-replication
+            docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md
+            research/v171_replication_freeze.json
+            research/v171_hyperliquid_price_freeze.json
+            frozen-hyperliquid/data/v171-hyperliquid/manifest.json
+            frozen-v142/data/v142-external/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
