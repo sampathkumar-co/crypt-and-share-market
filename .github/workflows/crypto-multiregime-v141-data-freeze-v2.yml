@@ -1,0 +1,190 @@
+name: Crypto Multi-Regime v1.4.1 Data Freeze v2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-multiregime-v141-data-freeze-v2.yml"
+      - "docs/CRYPTO_MULTIREGIME_4H_V141_PROTOCOL.md"
+      - "src/tradebot/data/crypto_4h_provider.py"
+      - "src/tradebot/data/crypto_v14_external_factors.py"
+      - "tests/test_crypto_4h_provider.py"
+      - "tests/test_crypto_v14_external_factors.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-multiregime-v141-data-freeze-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol document
+        shell: bash
+        run: |
+          git show c5c448dae68f05b28cdb449aebb76f3ed1abdbff:docs/CRYPTO_MULTIREGIME_4H_V141_PROTOCOL.md > /tmp/frozen-v141.md
+          cmp /tmp/frozen-v141.md docs/CRYPTO_MULTIREGIME_4H_V141_PROTOCOL.md
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/v141-market data/v141-external reports/v141
+
+      - name: Verify frozen Python contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from tradebot.data.crypto_4h_provider import (
+              EXPECTED_END_EXCLUSIVE,
+              EXPECTED_FOUR_HOUR_BARS,
+              EXPECTED_HOURLY_BARS,
+              EXPECTED_START,
+              REQUIRED_SYMBOLS,
+          )
+          assert EXPECTED_START.isoformat() == "2023-11-15T00:00:00"
+          assert EXPECTED_END_EXCLUSIVE.isoformat() == "2025-11-23T00:00:00"
+          assert EXPECTED_HOURLY_BARS == 17_736
+          assert EXPECTED_FOUR_HOUR_BARS == 4_434
+          assert set(REQUIRED_SYMBOLS) == {
+              "AVAXUSDT", "DOTUSDT", "NEARUSDT", "FILUSDT",
+              "APTUSDT", "OPUSDT", "ARBUSDT", "SUIUSDT",
+          }
+          PY
+
+      - name: Fetch exact Coinbase hourly and four-hour bundle
+        run: |
+          tradebot-crypto-4h-provider \
+            --out data/v141-market \
+            > reports/v141/price_fetch.json
+
+      - name: Verify exact market-data contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.data.crypto_4h_provider import (
+              EXPECTED_END_EXCLUSIVE,
+              EXPECTED_FOUR_HOUR_BARS,
+              EXPECTED_HOURLY_BARS,
+              EXPECTED_START,
+              REQUIRED_SYMBOLS,
+              verify_v14_four_hour_manifest,
+          )
+          payload = verify_v14_four_hour_manifest("data/v141-market")
+          assert payload["requested_start"] == EXPECTED_START.isoformat()
+          assert payload["requested_end_exclusive"] == EXPECTED_END_EXCLUSIVE.isoformat()
+          assert {item["symbol"] for item in payload["sources"]} == set(REQUIRED_SYMBOLS)
+          assert all(item["hourly_rows"] == EXPECTED_HOURLY_BARS for item in payload["sources"])
+          assert all(item["four_hour_rows"] == EXPECTED_FOUR_HOUR_BARS for item in payload["sources"])
+          assert all(item["first_four_hour"] == "2023-11-15T00:00:00" for item in payload["sources"])
+          assert all(item["last_four_hour"] == "2025-11-22T20:00:00" for item in payload["sources"])
+          assert len(list(Path("data/v141-market/hourly").glob("*.csv"))) == 8
+          assert len(list(Path("data/v141-market/four_hour").glob("*.csv"))) == 8
+          print("price dataset fingerprint:", payload["dataset_fingerprint"])
+          PY
+
+      - name: Fetch provenance-checked external factors
+        run: |
+          tradebot-crypto-v14-external-factors \
+            --out data/v141-external \
+            --start 2023-11-15 \
+            --end 2025-11-22 \
+            > reports/v141/external_fetch.json
+
+      - name: Verify exact external-data contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from tradebot.data.crypto_external_factors import verify_external_manifest
+          from tradebot.data.crypto_v14_external_factors import V14_HYPERLIQUID_COINS
+          payload = verify_external_manifest("data/v141-external")
+          providers = {item["provider"] for item in payload["files"]}
+          assert providers == {
+              "coinmetrics-community-archive",
+              "hyperliquid-public-info",
+              "fred-public-csv",
+          }
+          assert payload["requested_start"] == "2023-11-15"
+          assert payload["requested_end"] == "2025-11-22"
+          assert payload["paper_only"] is True
+          funding = [item for item in payload["files"] if item["provider"] == "hyperliquid-public-info"]
+          assert len(funding) == 8
+          assert {item["source_id"] for item in funding} == set(V14_HYPERLIQUID_COINS)
+          assert all(item["first_date"] <= "2023-11-15" for item in funding)
+          assert all(item["last_date"] >= "2025-11-22" for item in funding)
+          assert all(item["rows"] > 0 for item in funding)
+          print("external source files:", len(payload["files"]))
+          PY
+
+      - name: Write immutable freeze summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with Path(path).open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          price = json.loads(Path("data/v141-market/manifest.json").read_text(encoding="utf-8"))
+          external = json.loads(Path("data/v141-external/manifest.json").read_text(encoding="utf-8"))
+          summary = {
+              "schema_version": "1.0",
+              "created_at": datetime.now(timezone.utc).isoformat(),
+              "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "protocol_commit": "c5c448dae68f05b28cdb449aebb76f3ed1abdbff",
+              "price_dataset_fingerprint": price["dataset_fingerprint"],
+              "price_manifest_sha256": sha256("data/v141-market/manifest.json"),
+              "external_manifest_sha256": sha256("data/v141-external/manifest.json"),
+              "market_start": price["requested_start"],
+              "market_end_exclusive": price["requested_end_exclusive"],
+              "external_start": external["requested_start"],
+              "external_end": external["requested_end"],
+              "symbols": sorted(item["symbol"] for item in price["sources"]),
+              "strategy_returns_calculated": False,
+              "holdout_returns_calculated": False,
+              "paper_only": True,
+              "authorizes_real_trading": False,
+          }
+          Path("reports/v141/data_freeze_summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8"
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload immutable v1.4.1 data freeze
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-multiregime-v141-data-freeze
+          path: |
+            data/v141-market
+            data/v141-external
+            reports/v141
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
