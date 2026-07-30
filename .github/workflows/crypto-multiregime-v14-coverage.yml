@@ -32,6 +32,11 @@ jobs:
               ("2023-06-07T00:00:00Z", "2023-06-09T00:00:00Z"),
               ("2025-11-21T00:00:00Z", "2025-11-23T00:00:00Z"),
           ]
+          broad_start = "2023-06-07T00:00:00Z"
+          broad_end = "2024-12-31T00:00:00Z"
+
+          def milliseconds(value):
+              return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
 
           def get_json(url):
               request = Request(url, headers={"Accept": "application/json", "User-Agent": "v14-coverage-audit/1.0"})
@@ -73,14 +78,13 @@ jobs:
           listed = {entry["name"] for entry in meta.get("universe", [])}
           for coin in coins:
               item = {"coin": coin, "listed": coin in listed, "windows": []}
+              broad = post_json({"type": "fundingHistory", "coin": coin, "startTime": milliseconds(broad_start), "endTime": milliseconds(broad_end)})
+              broad_stamps = sorted(int(row["time"]) for row in broad)
+              item["first_available_from_2023_06"] = broad_stamps[0] if broad_stamps else None
+              item["first_page_rows"] = len(broad)
+              time.sleep(1.1)
               for start, end in windows:
-                  body = {
-                      "type": "fundingHistory",
-                      "coin": coin,
-                      "startTime": int(datetime.fromisoformat(start.replace("Z", "+00:00")).timestamp() * 1000),
-                      "endTime": int(datetime.fromisoformat(end.replace("Z", "+00:00")).timestamp() * 1000),
-                  }
-                  rows = post_json(body)
+                  rows = post_json({"type": "fundingHistory", "coin": coin, "startTime": milliseconds(start), "endTime": milliseconds(end)})
                   stamps = sorted(int(row["time"]) for row in rows)
                   item["windows"].append({"start": start, "end": end, "rows": len(rows), "first": stamps[0] if stamps else None, "last": stamps[-1] if stamps else None})
                   time.sleep(1.1)
@@ -88,19 +92,10 @@ jobs:
 
           failures = []
           failures.extend(f"coinbase_status:{item['product']}:{item['status']}" for item in report["coinbase"] if item["status"] not in {"online", None})
-          failures.extend(
-              f"coinbase_window:{item['product']}:{window['start']}:{window['rows']}"
-              for item in report["coinbase"]
-              for window in item["windows"]
-              if window["rows"] < 44
-          )
+          failures.extend(f"coinbase_window:{item['product']}:{window['start']}:{window['rows']}" for item in report["coinbase"] for window in item["windows"] if window["rows"] < 44)
           failures.extend(f"hyperliquid_unlisted:{item['coin']}" for item in report["hyperliquid"] if not item["listed"])
-          failures.extend(
-              f"hyperliquid_window:{item['coin']}:{window['start']}:{window['rows']}"
-              for item in report["hyperliquid"]
-              for window in item["windows"]
-              if window["rows"] == 0
-          )
+          failures.extend(f"hyperliquid_no_history:{item['coin']}" for item in report["hyperliquid"] if item["first_available_from_2023_06"] is None)
+          failures.extend(f"hyperliquid_window:{item['coin']}:{window['start']}:{window['rows']}" for item in report["hyperliquid"] for window in item["windows"] if window["rows"] == 0)
           report["failures"] = failures
           report["coverage_ok"] = not failures
           Path("v14_coverage_audit.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
