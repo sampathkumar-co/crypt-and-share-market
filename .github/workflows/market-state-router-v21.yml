@@ -146,3 +146,68 @@ jobs:
           path: evidence/router-decision/
           retention-days: 90
           if-no-files-found: error
+
+  persist-router-decision:
+    if: github.event_name != 'pull_request'
+    needs: assemble-and-decide
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download router decision evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: market-state-router-v21-${{ github.run_id }}
+          path: evidence/router-decision
+
+      - name: Append decision and inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          stem=$(python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/router-decision/market_state_router.json").read_text())
+          cutoff = datetime.fromisoformat(report["data_cutoff_utc"].replace("Z", "+00:00"))
+          print(cutoff.strftime("%Y%m%dT%H0000Z"))
+          PY
+          )
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2
+          git worktree add --detach /tmp/forward-data-v2 origin/forward-data/v2
+          mkdir -p /tmp/forward-data-v2/data/market-state-router/decisions
+          mkdir -p /tmp/forward-data-v2/data/market-state-router/inventories
+
+          decision_target="/tmp/forward-data-v2/data/market-state-router/decisions/${stem}.json"
+          inventory_target="/tmp/forward-data-v2/data/market-state-router/inventories/${stem}.json"
+          for pair in \
+            "evidence/router-decision/market_state_router.json:$decision_target" \
+            "evidence/router-decision/history_inventory.json:$inventory_target"; do
+            source=${pair%%:*}
+            target=${pair#*:}
+            if [ -e "$target" ]; then
+              cmp --silent "$source" "$target" || {
+                echo "Refusing to replace different append-only router evidence: $target" >&2
+                exit 1
+              }
+            else
+              cp "$source" "$target"
+            fi
+          done
+
+          git -C /tmp/forward-data-v2 config user.name "github-actions[bot]"
+          git -C /tmp/forward-data-v2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/forward-data-v2 add data/market-state-router
+          if git -C /tmp/forward-data-v2 diff --cached --quiet; then
+            echo "Router decision already preserved byte-for-byte."
+            exit 0
+          fi
+          git -C /tmp/forward-data-v2 commit -m "Append v2.1 router decision $stem"
+          git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2
