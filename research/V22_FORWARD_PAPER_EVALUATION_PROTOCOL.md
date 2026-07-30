@@ -151,3 +151,16 @@ Every output is canonical-hashed. Existing evaluation records cannot be replaced
 - A failed discovery permanently retires this exact v2.1 router on the accumulated block.
 - A failed holdout permanently rejects promotion.
 - A green workflow means correct execution, not profitability.
+
+## Pre-implementation accounting clarification
+
+Frozen before evaluator code and before any future decision is scored:
+
+- Each discovery, stress, ablation, benchmark and holdout simulation forcibly liquidates all remaining holdings at the final block snapshot mid.
+- Final liquidation receives the same sell friction, positive-gain tax and TDS treatment as any other disposal.
+- An entry event is counted only when actual portfolio exposure moves from zero to positive after an hourly rebalance.
+- Holdings are tracked as asset-and-sleeve lots.
+- Asset reductions sell all outstanding sleeve lots proportionally by quantity and allocated basis.
+- Positive taxable gain and no-loss-setoff treatment are calculated separately for each proportional lot disposal.
+- Positive realized pre-tax sleeve contribution is the sum of positive lot gains before income tax, TDS and sell friction.
+- The equal-weight benchmark invests one sixth of deployable starting capital in each frozen asset at the activation fill, then forcibly liquidates at the block end.
