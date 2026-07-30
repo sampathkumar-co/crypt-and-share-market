@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "research_version": "1.5.0",
+  "workflow_run_id": 30519887872,
+  "artifact_id": 8750340647,
+  "artifact_name": "crypto-funding-state-v15-discovery",
+  "artifact_digest": "sha256:ed19fa422a325288d345fc0eee926528a0862950544036e2f12ba662fa8f6c42",
+  "workflow_head": "634289598f092bf7f4843a9f9b1c6b4ae72bc77f",
+  "accepted": false,
+  "eligible_for_holdout": false,
+  "holdout_evaluated": false,
+  "primary_consensus": {
+    "active_periods": 6,
+    "positive_periods": 2,
+    "average_return": -0.01287,
+    "median_return": -0.01078,
+    "compounded_return": -0.07619,
+    "average_stressed_return": -0.02631,
+    "worst_drawdown": 0.08206
+  },
+  "legacy_funding_only": {
+    "active_periods": 6,
+    "positive_periods": 4,
+    "average_return": 0.00843,
+    "median_return": 0.00842,
+    "compounded_return": 0.04993,
+    "average_stressed_return": 0.00496,
+    "first_half_average": 0.01224,
+    "second_half_average": 0.00462,
+    "worst_drawdown": 0.04908,
+    "max_asset_notional_fraction": 0.26292
+  },
+  "primary_beats_legacy_periods": 1,
+  "positive_structural_diagnostics": 0,
+  "positive_leave_one_asset_out_reruns": 0,
+  "rejection_reasons": [
+    "too_few_profitable_periods",
+    "average_return_not_positive",
+    "median_return_not_positive",
+    "compounded_return_not_positive",
+    "extra_cost_stressed_return_not_positive",
+    "first_half_not_positive",
+    "second_half_not_positive",
+    "does_not_beat_legacy_funding_average",
+    "does_not_beat_legacy_funding_often_enough",
+    "structural_diagnostics_not_robust",
+    "leave_one_asset_out_not_robust"
+  ],
+  "paper_only": true
+}
