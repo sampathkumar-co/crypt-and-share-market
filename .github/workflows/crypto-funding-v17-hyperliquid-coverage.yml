@@ -1,0 +1,215 @@
+name: Crypto Funding v1.7 Hyperliquid Coverage
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/v1.7-funding-cross-venue-replication"
+    paths:
+      - ".github/workflows/crypto-funding-v17-hyperliquid-coverage.yml"
+      - "docs/CRYPTO_FUNDING_V17_CROSS_VENUE_COVERAGE_PLAN.md"
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-funding-v17-hyperliquid-coverage.yml"
+      - "docs/CRYPTO_FUNDING_V17_CROSS_VENUE_COVERAGE_PLAN.md"
+
+concurrency:
+  group: crypto-funding-v17-hyperliquid-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Audit exact Hyperliquid candle timestamps only
+        shell: bash
+        run: |
+          mkdir -p reports/v17-hyperliquid-coverage
+          python - <<'PY'
+          import json
+          import time
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          endpoint = "https://api.hyperliquid.xyz/info"
+          symbols = {
+              "APTUSDT": "APT",
+              "ARBUSDT": "ARB",
+              "AVAXUSDT": "AVAX",
+              "DOTUSDT": "DOT",
+              "FILUSDT": "FIL",
+              "NEARUSDT": "NEAR",
+              "OPUSDT": "OP",
+              "SUIUSDT": "SUI",
+          }
+          start = datetime(2023, 11, 15, tzinfo=timezone.utc)
+          end_exclusive = datetime(2025, 11, 23, tzinfo=timezone.utc)
+          start_ms = int(start.timestamp() * 1000)
+          end_ms = int(end_exclusive.timestamp() * 1000) - 1
+          step = timedelta(hours=4)
+          expected = []
+          cursor = start
+          while cursor < end_exclusive:
+              expected.append(int(cursor.timestamp() * 1000))
+              cursor += step
+          expected_set = set(expected)
+          assert len(expected) == 4434
+
+          def post(body):
+              payload = json.dumps(body, separators=(",", ":")).encode("utf-8")
+              last = None
+              for attempt in range(1, 7):
+                  time.sleep(1.10)
+                  request = Request(
+                      endpoint,
+                      data=payload,
+                      headers={
+                          "Accept": "application/json",
+                          "Content-Type": "application/json",
+                          "User-Agent": "crypt-and-share-market-paper-research/1.0",
+                      },
+                      method="POST",
+                  )
+                  try:
+                      with urlopen(request, timeout=60) as response:
+                          if response.status != 200:
+                              raise RuntimeError(f"HTTP {response.status}")
+                          return json.loads(response.read().decode("utf-8"))
+                  except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, RuntimeError) as exc:
+                      last = exc
+                      if attempt < 6:
+                          time.sleep(min(5.0 * attempt, 30.0))
+              raise RuntimeError(f"Hyperliquid request failed: {last}")
+
+          def longest_run(missing):
+              if not missing:
+                  return 0
+              longest = current = 1
+              for left, right in zip(missing, missing[1:]):
+                  if right - left == 4 * 60 * 60 * 1000:
+                      current += 1
+                      longest = max(longest, current)
+                  else:
+                      current = 1
+              return longest
+
+          assets = []
+          for symbol, coin in symbols.items():
+              rows = post({
+                  "type": "candleSnapshot",
+                  "req": {
+                      "coin": coin,
+                      "interval": "4h",
+                      "startTime": start_ms,
+                      "endTime": end_ms,
+                  },
+              })
+              if not isinstance(rows, list):
+                  raise RuntimeError(f"Unexpected candle response for {symbol}: {type(rows).__name__}")
+              raw_stamps = []
+              for row in rows:
+                  try:
+                      stamp = int(row["t"])
+                  except (KeyError, TypeError, ValueError) as exc:
+                      raise RuntimeError(f"Malformed candle row for {symbol}: {row}") from exc
+                  if start_ms <= stamp <= end_ms:
+                      raw_stamps.append(stamp)
+              unique = sorted(set(raw_stamps))
+              missing = sorted(expected_set - set(unique))
+              unexpected = sorted(set(unique) - expected_set)
+              record = {
+                  "symbol": symbol,
+                  "coin": coin,
+                  "requested_start": start.isoformat(),
+                  "requested_end_exclusive": end_exclusive.isoformat(),
+                  "response_rows": len(rows),
+                  "filtered_rows": len(raw_stamps),
+                  "unique_rows": len(unique),
+                  "expected_rows": len(expected),
+                  "duplicate_rows": len(raw_stamps) - len(unique),
+                  "first_timestamp": datetime.fromtimestamp(unique[0] / 1000, tz=timezone.utc).isoformat() if unique else None,
+                  "last_timestamp": datetime.fromtimestamp(unique[-1] / 1000, tz=timezone.utc).isoformat() if unique else None,
+                  "missing_rows": len(missing),
+                  "longest_missing_run": longest_run(missing),
+                  "unexpected_rows": len(unexpected),
+                  "complete": len(unique) == len(expected) and not missing and not unexpected,
+                  "timestamps": [datetime.fromtimestamp(stamp / 1000, tz=timezone.utc).isoformat() for stamp in unique],
+                  "missing_timestamps": [datetime.fromtimestamp(stamp / 1000, tz=timezone.utc).isoformat() for stamp in missing],
+              }
+              Path(f"reports/v17-hyperliquid-coverage/{symbol}.json").write_text(
+                  json.dumps(record, indent=2, sort_keys=True), encoding="utf-8"
+              )
+              assets.append({key: value for key, value in record.items() if key not in {"timestamps", "missing_timestamps"}})
+
+          summary = {
+              "schema_version": "1.0",
+              "created_at": datetime.now(timezone.utc).isoformat(),
+              "provider": "hyperliquid-public-info",
+              "endpoint": endpoint,
+              "interval": "4h",
+              "requested_start": start.isoformat(),
+              "requested_end_exclusive": end_exclusive.isoformat(),
+              "expected_rows_per_asset": len(expected),
+              "assets": assets,
+              "complete_assets": sum(item["complete"] for item in assets),
+              "all_complete": all(item["complete"] for item in assets),
+              "strategy_returns_calculated": False,
+              "holdout_returns_calculated": False,
+              "paper_only": True,
+          }
+          Path("reports/v17-hyperliquid-coverage/summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8"
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Publish coverage summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path("reports/v17-hyperliquid-coverage/summary.json").read_text(encoding="utf-8"))
+          lines = [
+              "# v1.7 Hyperliquid Four-Hour Coverage",
+              "",
+              f"- Complete assets: **{payload['complete_assets']}/8**",
+              f"- Exact full interval available: **{payload['all_complete']}**",
+              "- Strategy returns calculated: **False**",
+              "- Holdout returns calculated: **False**",
+              "",
+              "| Asset | Rows | First | Last | Missing | Longest gap | Complete |",
+              "|---|---:|---|---|---:|---:|---:|",
+          ]
+          for item in payload["assets"]:
+              lines.append(
+                  f"| {item['symbol']} | {item['unique_rows']} | {item['first_timestamp']} | "
+                  f"{item['last_timestamp']} | {item['missing_rows']} | "
+                  f"{item['longest_missing_run']} | {item['complete']} |"
+              )
+          report = "\n".join(lines) + "\n"
+          Path("reports/v17-hyperliquid-coverage/summary.md").write_text(report, encoding="utf-8")
+          print(report)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write(report)
+          PY
+
+      - name: Upload metadata-only coverage evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-funding-v17-hyperliquid-coverage
+          path: reports/v17-hyperliquid-coverage
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
