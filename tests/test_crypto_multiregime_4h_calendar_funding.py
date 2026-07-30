@@ -77,3 +77,12 @@ def test_runtime_snapshot_uses_completed_four_hour_bucket() -> None:
         store.funding["APTUSDT"]
     )[base._four_hour_bucket(anchor)]
     assert result == expected
+
+
+def test_report_is_labelled_v142() -> None:
+    class StubReport:
+        schema_version = "old"
+
+    report = StubReport()
+    labelled = calendar._label_report(report)  # type: ignore[arg-type]
+    assert labelled.schema_version == "1.4.2"
