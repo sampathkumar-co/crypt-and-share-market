@@ -38,7 +38,8 @@ jobs:
           rm -rf /tmp/forward-data-watchdog
           git worktree add --detach /tmp/forward-data-watchdog origin/forward-data/v2
 
-          target=$(date -u +%Y-%m-%dT%H:00:00Z)
+          current_target=$(date -u +%Y-%m-%dT%H:00:00Z)
+          target="$current_target"
           safe=$(date -u +%Y%m%dT%H0000Z)
           phase="snapshot"
           if [[ "$EVENT_SCHEDULE" == "57 * * * *" ]]; then
@@ -47,9 +48,11 @@ jobs:
             phase="all"
           fi
 
-          snapshot_present=$(TARGET="$target" python - <<'PY'
-          import json, os
+          snapshot_present=$(TARGET="$current_target" python - <<'PY'
+          import json
+          import os
           from pathlib import Path
+
           target = os.environ["TARGET"]
           found = False
           for path in Path("/tmp/forward-data-watchdog/data/forward-market-state/normalized").glob("*.json"):
@@ -67,19 +70,50 @@ jobs:
             --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
 
           if [[ "$phase" != "decisions" && "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
-            echo "Missing snapshot for $target; dispatching frozen v2.0 collector."
+            echo "Missing snapshot for $current_target; dispatching frozen v2.0 collector."
             gh workflow run forward-market-state-v20.yml --ref main
           else
-            echo "Snapshot phase safe: target=$target present=$snapshot_present active_v20=$active_v20"
+            echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20"
           fi
 
           if [[ "$phase" == "snapshot" ]]; then
             exit 0
           fi
-          if [[ "$snapshot_present" != "true" ]]; then
-            echo "Decision recovery waits for a canonical snapshot for $target."
+          if [[ "$phase" == "all" && "$snapshot_present" != "true" ]]; then
+            echo "Manual all-phase waits for the dispatched canonical snapshot."
             exit 0
           fi
+
+          mapfile -t latest_info < <(python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          hours = []
+          root = Path("/tmp/forward-data-watchdog/data/forward-market-state/normalized")
+          for path in root.glob("*.json"):
+              try:
+                  raw = json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc")
+                  parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+              except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                  continue
+              if parsed.tzinfo is None:
+                  continue
+              parsed = parsed.astimezone(timezone.utc)
+              if parsed.minute or parsed.second or parsed.microsecond:
+                  continue
+              hours.append(parsed)
+          if not hours:
+              raise SystemExit("No canonical snapshot hour is available for decision recovery")
+          latest = max(hours)
+          print(latest.strftime("%Y-%m-%dT%H:00:00Z"))
+          print(latest.strftime("%Y%m%dT%H0000Z"))
+          PY
+          )
+          test "${#latest_info[@]}" -eq 2
+          target="${latest_info[0]}"
+          safe="${latest_info[1]}"
+          echo "Decision recovery anchored to latest canonical snapshot: $target"
 
           v21="/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json"
           v23="/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json"

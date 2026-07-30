@@ -136,6 +136,9 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: evaluate-status
     runs-on: ubuntu-latest
+    concurrency:
+      group: forward-data-v2-writer
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
