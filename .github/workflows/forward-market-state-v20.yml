@@ -110,6 +110,57 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: forward-market-state-v20-normalized-${{ github.run_id }}
-          path: evidence/forward-market-state/normalized/
+          path: |
+            evidence/forward-market-state/normalized/
+            evidence/forward-market-state/manifests/
           retention-days: 90
           if-no-files-found: error
+  persist-normalized-history:
+    if: github.event_name != 'pull_request'
+    needs: collect-and-verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download compact snapshot evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: forward-market-state-v20-normalized-${{ github.run_id }}
+          path: evidence/compact
+
+      - name: Append normalized snapshot and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2
+          git worktree add --detach /tmp/forward-data-v2 origin/forward-data/v2
+          for kind in normalized manifests; do
+            mkdir -p "/tmp/forward-data-v2/data/forward-market-state/$kind"
+            for source in "evidence/compact/$kind"/*.json; do
+              target="/tmp/forward-data-v2/data/forward-market-state/$kind/$(basename "$source")"
+              if [ -e "$target" ]; then
+                cmp --silent "$source" "$target" || {
+                  echo "Refusing to replace different append-only evidence: $target" >&2
+                  exit 1
+                }
+              else
+                cp "$source" "$target"
+              fi
+            done
+          done
+          git -C /tmp/forward-data-v2 config user.name "github-actions[bot]"
+          git -C /tmp/forward-data-v2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/forward-data-v2 add data/forward-market-state
+          if git -C /tmp/forward-data-v2 diff --cached --quiet; then
+            echo "Snapshot already preserved byte-for-byte."
+            exit 0
+          fi
+          snapshot_id=$(basename "$(find evidence/compact/normalized -name '*.json' -print -quit)" .json)
+          git -C /tmp/forward-data-v2 commit -m "Append forward market-state snapshot $snapshot_id"
+          git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2
