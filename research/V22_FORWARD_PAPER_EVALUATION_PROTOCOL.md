@@ -175,3 +175,20 @@ Frozen before evaluator code and before any decision is scored:
 - Therefore 2,160 scored discovery intervals require 2,160 consecutive decisions and 2,161 consecutive post-decision hourly snapshots, from activation fill through final mark.
 - The final forced liquidation occurs at the last mark, after the final scored holding interval.
 - The equal-weight benchmark buys at the activation fill and liquidates at the same final mark.
+
+## Pre-implementation simulation clarification
+
+Frozen before evaluator code and before any decision is scored:
+
+- The accepted v2.1 router fingerprints are exactly:
+  - source SHA-256 `afae56619ede5c6e459f826b6709be3b918c51a7c2fb3321d23305a0cfa17fae`;
+  - protocol SHA-256 `1c77b0974f784e59e4c7d916db9dae74b5f25ad742f3fc761fca7010d2f5519d`.
+- Discovery first-half, second-half, leave-one-asset and leave-one-sleeve runs are independent INR 100,000 simulations over their own frozen intervals.
+- Omitted asset or sleeve target weight remains cash and is never redistributed.
+- Target asset value is its router weight multiplied by deployable marked equity immediately before that hour's rebalance.
+- Existing lots are not sold merely because the router's retained sleeve label changes; only quantity needed to reach the frozen asset target is traded.
+- New purchases are attributed to the sleeve named by that hour's selected candidate.
+- The equal-weight benchmark divides starting deployable cash into six inclusive-cost budgets; each one-sixth budget covers both consideration and buy friction.
+- Taxable lot gain is sale consideration minus allocated acquisition consideration and buy-side friction. Sell friction is charged separately and is not used to reduce taxable gain.
+- A missing required decision makes the frozen block incomplete. The router's operational cash fallback is not a substitute for a missing scored input record.
+- Until a block is complete, no simulation helper is called and no partial performance field is written or printed.
