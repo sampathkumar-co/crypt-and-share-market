@@ -126,3 +126,12 @@ The final 336 hours are opened once only after discovery passes. Holdout require
 - no single day contributes more than 50% of positive P&L.
 
 Passing authorizes only a later time-limited shadow-paper observation design. It does not authorize continuous paper positions or real-money trading.
+
+## Implementation sequence
+
+1. Commit this protocol before implementation or outcome access.
+2. Implement the deterministic decision-only router and its frozen fingerprints.
+3. Verify it on synthetic fixtures and ordinary repository CI.
+4. Collect canonical v2.3 decisions from append-only forward snapshots without calculating returns.
+5. Implement readiness-only verification before any outcome attachment.
+6. Attach outcomes only after 1,440 eligible decisions exist and permanently record discovery before opening the holdout.
