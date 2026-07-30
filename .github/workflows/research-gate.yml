@@ -4,17 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 4 * * 1"
-  pull_request:
-    paths:
-      - ".github/workflows/research-gate.yml"
-      - "src/**"
-      - "pyproject.toml"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/research-gate.yml"
-      - "src/**"
-      - "pyproject.toml"
 
 concurrency:
   group: research-gate-${{ github.ref }}

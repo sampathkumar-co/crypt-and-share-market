@@ -5,19 +5,6 @@ on:
   schedule:
     # 09:00 Asia/Kolkata. Scheduled workflows run from the default branch.
     - cron: "30 3 * * *"
-  push:
-    branches:
-      - main
-      - profitability/current-paper-eval-v1
-    paths:
-      - ".github/workflows/paper-profit-evaluation.yml"
-      - "src/**"
-      - "pyproject.toml"
-  pull_request:
-    paths:
-      - ".github/workflows/paper-profit-evaluation.yml"
-      - "src/**"
-      - "pyproject.toml"
 
 concurrency:
   group: paper-profit-evaluation-${{ github.ref }}
