@@ -1,0 +1,50 @@
+name: Forward Router Readiness v2.2
+
+on:
+  pull_request:
+    paths:
+      - "research/V22_FORWARD_EVALUATION_PROTOCOL.md"
+      - "src/tradebot/research/forward_router_readiness.py"
+      - "src/tradebot/research/market_state_router.py"
+      - "tests/test_forward_router_readiness.py"
+      - "tests/test_market_state_router.py"
+      - "pyproject.toml"
+      - ".github/workflows/forward-router-readiness-v22.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sealed-readiness-gate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Compile readiness boundary
+        run: python -m compileall -q src/tradebot/research/forward_router_readiness.py src/tradebot/research/market_state_router.py
+      - name: Verify frozen protocol exists
+        run: test -s research/V22_FORWARD_EVALUATION_PROTOCOL.md
+      - name: Run sealed evaluator tests
+        run: python -m pytest -q tests/test_forward_router_readiness.py tests/test_market_state_router.py
+      - name: Reject accidental performance vocabulary in readiness output contract
+        run: |
+          python - <<'PY'
+          from tradebot.research import forward_router_readiness as module
+          assert module.REQUIRED_ELIGIBLE_HOURS == 1440
+          assert module.DISCOVERY_HOURS == 1104
+          assert module.HOLDOUT_HOURS == 336
+          source = open(module.__file__, encoding='utf-8').read()
+          assert 'performance_calculated": False' in source
+          assert 'holdout_unlocked": False' in source
+          assert 'authorizes_trading": False' in source
+          PY
