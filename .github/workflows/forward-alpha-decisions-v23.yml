@@ -213,20 +213,51 @@ jobs:
           rm -rf /tmp/forward-data-v2-write
           git worktree add --detach /tmp/forward-data-v2-write origin/forward-data/v2
 
-          for kind in decisions manifests; do
-            mkdir -p "/tmp/forward-data-v2-write/data/forward-alpha-v23/$kind"
-            for source in "evidence/downloaded/v23-compact/$kind"/*.json; do
-              target="/tmp/forward-data-v2-write/data/forward-alpha-v23/$kind/$(basename "$source")"
-              if [ -e "$target" ]; then
-                cmp --silent "$source" "$target" || {
-                  echo "Refusing to replace different append-only v2.3 evidence: $target" >&2
-                  exit 1
-                }
-              else
-                cp "$source" "$target"
-              fi
-            done
-          done
+          decision_source=$(find evidence/downloaded/v23-compact/decisions -name '*.json' -print -quit)
+          manifest_source=$(find evidence/downloaded/v23-compact/manifests -name '*.json' -print -quit)
+          test -n "$decision_source"
+          test -n "$manifest_source"
+          decision_name=$(basename "$decision_source")
+          test "$(basename "$manifest_source")" = "$decision_name"
+
+          root=/tmp/forward-data-v2-write/data/forward-alpha-v23
+          mkdir -p "$root/decisions" "$root/manifests"
+          decision_target="$root/decisions/$decision_name"
+          manifest_target="$root/manifests/$decision_name"
+
+          if [ -e "$decision_target" ]; then
+            cmp --silent "$decision_source" "$decision_target" || {
+              echo "Refusing to replace a different same-hour v2.3 decision: $decision_target" >&2
+              exit 1
+            }
+            test -e "$manifest_target" || {
+              echo "Existing v2.3 decision has no preserved manifest: $decision_name" >&2
+              exit 1
+            }
+            python - "$decision_target" "$manifest_target" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          decision_path = Path(sys.argv[1])
+          manifest_path = Path(sys.argv[2])
+          decision = json.loads(decision_path.read_text())
+          manifest = json.loads(manifest_path.read_text())
+          assert manifest["decision_file"] == decision_path.name
+          assert manifest["decision_file_sha256"] == hashlib.sha256(decision_path.read_bytes()).hexdigest()
+          assert manifest["decision_report_sha256"] == decision["report_sha256"]
+          PY
+            echo "Identical same-hour v2.3 decision already preserved; retaining its first manifest."
+            exit 0
+          fi
+
+          if [ -e "$manifest_target" ]; then
+            echo "Refusing orphaned same-hour v2.3 manifest: $manifest_target" >&2
+            exit 1
+          fi
+          cp "$decision_source" "$decision_target"
+          cp "$manifest_source" "$manifest_target"
 
           git -C /tmp/forward-data-v2-write config user.name "github-actions[bot]"
           git -C /tmp/forward-data-v2-write config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -236,7 +267,7 @@ jobs:
             exit 0
           fi
 
-          decision_file=$(basename "$(find evidence/downloaded/v23-compact/decisions -name '*.json' -print -quit)" .json)
+          decision_file=${decision_name%.json}
           git -C /tmp/forward-data-v2-write commit -m "Append v2.3 forward alpha decision $decision_file"
           git -C /tmp/forward-data-v2-write pull --rebase origin forward-data/v2
           git -C /tmp/forward-data-v2-write push origin HEAD:forward-data/v2
