@@ -43,17 +43,17 @@ def neutral_store(symbols: tuple[str, ...] = engine.REQUIRED_SYMBOLS) -> engine.
 
 def test_frozen_split_and_period_boundaries() -> None:
     config = engine.MultiRegimeConfig()
-    assert config.discovery_end_exclusive == 4_440
-    assert config.embargo_start == 4_440
-    assert config.holdout_start == 4_680
+    assert config.discovery_end_exclusive == 3_480
+    assert config.embargo_start == 3_480
+    assert config.holdout_start == 3_714
     assert engine._period_bounds(1, config, "discovery") == (600, 1_079)
-    assert engine._period_bounds(8, config, "discovery") == (3_960, 4_439)
-    assert engine._period_bounds(1, config, "holdout") == (4_680, 4_919)
-    assert engine._period_bounds(3, config, "holdout") == (5_160, 5_399)
+    assert engine._period_bounds(6, config, "discovery") == (3_000, 3_479)
+    assert engine._period_bounds(1, config, "holdout") == (3_714, 3_953)
+    assert engine._period_bounds(3, config, "holdout") == (4_194, 4_433)
 
 
 def test_invalid_split_fails_closed() -> None:
-    with pytest.raises(ValueError, match="5,400"):
+    with pytest.raises(ValueError, match="4,434"):
         engine.MultiRegimeConfig(holdout_bars=719)
 
 
@@ -111,3 +111,21 @@ def test_drawdown_brake_is_frozen() -> None:
     assert engine._drawdown_multiplier(0.05) == 0.65
     assert engine._drawdown_multiplier(0.10) == 0.25
     assert engine._drawdown_multiplier(0.15) == 0.0
+
+
+def test_v141_calendar_boundaries_are_frozen() -> None:
+    config = engine.MultiRegimeConfig()
+    start = datetime(2023, 11, 15)
+    candles = candles_from_closes(
+        [100.0] * config.total_bars,
+        start=start,
+    )
+    bounds = engine._date_boundaries({"AVAXUSDT": candles}, config)
+    assert bounds == {
+        "discovery_test_start": "2024-02-23T00:00:00",
+        "discovery_test_end": "2025-06-16T20:00:00",
+        "embargo_start": "2025-06-17T00:00:00",
+        "embargo_end": "2025-07-25T20:00:00",
+        "holdout_start": "2025-07-26T00:00:00",
+        "holdout_end": "2025-11-22T20:00:00",
+    }

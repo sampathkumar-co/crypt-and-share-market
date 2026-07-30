@@ -27,7 +27,7 @@ from tradebot.models import Candle, Market
 from tradebot.risk.cost_engine import CostEngine
 from tradebot.risk.tax_engine import TaxEngine
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.4.1"
 SLEEVES = ("trend", "range", "funding")
 PRIORITY = {"funding": 3, "trend": 2, "range": 1}
 
@@ -51,11 +51,11 @@ VARIANTS = (
 
 @dataclass(frozen=True)
 class MultiRegimeConfig:
-    total_bars: int = 5_400
+    total_bars: int = 4_434
     warmup_bars: int = 600
-    discovery_periods: int = 8
+    discovery_periods: int = 6
     discovery_test_bars: int = 480
-    embargo_bars: int = 240
+    embargo_bars: int = 234
     holdout_bars: int = 720
     holdout_periods: int = 3
     holdout_test_bars: int = 240
@@ -71,7 +71,7 @@ class MultiRegimeConfig:
     def __post_init__(self) -> None:
         discovery_used = self.warmup_bars + self.discovery_periods * self.discovery_test_bars
         if discovery_used + self.embargo_bars + self.holdout_bars != self.total_bars:
-            raise ValueError("v1.4 split must consume exactly 5,400 bars")
+            raise ValueError("v1.4.1 split must consume exactly 4,434 bars")
         if self.holdout_periods * self.holdout_test_bars != self.holdout_bars:
             raise ValueError("v1.4 holdout must be three 240-bar periods")
         if self.max_positions * self.max_asset_weight > 1.0 - self.min_cash_reserve + 1e-12:
@@ -914,9 +914,9 @@ def evaluate_discovery(
     reasons: list[str] = []
     if len(primary.periods) != config.discovery_periods:
         reasons.append("incomplete_discovery_periods")
-    if primary.active_periods < 6:
+    if primary.active_periods < 5:
         reasons.append("too_few_active_periods")
-    if primary.positive_periods < 5:
+    if primary.positive_periods < 4:
         reasons.append("too_few_profitable_periods")
     if primary.average_return <= 0:
         reasons.append("average_return_not_positive")
@@ -934,7 +934,7 @@ def evaluate_discovery(
         reasons.append("does_not_beat_equal_weight_average")
     if primary.average_return <= trend.average_return:
         reasons.append("does_not_beat_trend_only_average")
-    if beats_trend < 5:
+    if beats_trend < 4:
         reasons.append("does_not_beat_trend_often_enough")
     if primary.worst_drawdown > config.max_drawdown:
         reasons.append("drawdown_too_high")

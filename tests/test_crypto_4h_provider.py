@@ -51,6 +51,6 @@ def test_frozen_fetch_interval_cannot_change(tmp_path) -> None:
         fetch_v14_four_hour_bundle(tmp_path, EXPECTED_START + timedelta(hours=4), EXPECTED_END_EXCLUSIVE)
 
 
-def test_frozen_bar_count_is_5400() -> None:
-    assert EXPECTED_FOUR_HOUR_BARS == 5_400
-    assert EXPECTED_END_EXCLUSIVE - EXPECTED_START == timedelta(hours=5_400 * 4)
+def test_frozen_bar_count_is_4434() -> None:
+    assert EXPECTED_FOUR_HOUR_BARS == 4_434
+    assert EXPECTED_END_EXCLUSIVE - EXPECTED_START == timedelta(hours=4_434 * 4)

@@ -29,7 +29,7 @@ V14_HYPERLIQUID_COINS = {
     "DOTUSDT": "DOT",
     "NEARUSDT": "NEAR",
     "FILUSDT": "FIL",
-    "ICPUSDT": "ICP",
+    "APTUSDT": "APT",
     "OPUSDT": "OP",
     "ARBUSDT": "ARB",
     "SUIUSDT": "SUI",

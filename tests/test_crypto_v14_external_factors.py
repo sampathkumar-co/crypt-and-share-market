@@ -12,7 +12,7 @@ def test_v14_funding_symbol_mapping_is_frozen() -> None:
         "DOTUSDT": "DOT",
         "NEARUSDT": "NEAR",
         "FILUSDT": "FIL",
-        "ICPUSDT": "ICP",
+        "APTUSDT": "APT",
         "OPUSDT": "OP",
         "ARBUSDT": "ARB",
         "SUIUSDT": "SUI",
