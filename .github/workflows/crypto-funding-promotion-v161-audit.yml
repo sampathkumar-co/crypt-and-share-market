@@ -1,0 +1,242 @@
+name: Crypto Funding Promotion v1.6.1 Audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-funding-promotion-v161-audit.yml"
+      - "docs/CRYPTO_FUNDING_PROMOTION_V16_PROTOCOL.md"
+      - "research/v161_promotion_freeze.json"
+      - "src/tradebot/backtest/crypto_funding_promotion_v16.py"
+      - "tests/test_crypto_funding_promotion_v16.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-funding-promotion-v161-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol, source and references
+        shell: bash
+        run: |
+          git diff --exit-code 4c252141fb76529aa0029514f6f6e36175d8d0d8 -- \
+            src/tradebot/backtest/crypto_funding_promotion_v16.py \
+            tests/test_crypto_funding_promotion_v16.py \
+            pyproject.toml
+          git show 3e4b0fa118c7ca26d0c9f9196dc099550a952e27:docs/CRYPTO_FUNDING_PROMOTION_V16_PROTOCOL.md > /tmp/frozen-v161-protocol.md
+          cmp /tmp/frozen-v161-protocol.md docs/CRYPTO_FUNDING_PROMOTION_V16_PROTOCOL.md
+          git show a72563cbad51415d450b52cfddcad680f1baf429:research/v161_promotion_freeze.json > /tmp/frozen-v161-reference.json
+          cmp /tmp/frozen-v161-reference.json research/v161_promotion_freeze.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p frozen-v142 reports/v161-promotion
+
+      - name: Download immutable market and factor data
+        uses: actions/download-artifact@v4
+        with:
+          name: crypto-multiregime-v142-data-freeze
+          path: frozen-v142
+          repository: sampathkumar-co/crypt-and-share-market
+          run-id: 30516539776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify immutable data byte-for-byte
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from tradebot.backtest.crypto_multiregime_4h import load_exact_histories
+          from tradebot.backtest.research_gate import dataset_fingerprint
+          from tradebot.data.crypto_4h_provider_bounded_continuity import verify_v142_manifest
+          from tradebot.data.crypto_external_factors import verify_external_manifest
+
+          frozen = json.loads(Path("research/v161_promotion_freeze.json").read_text(encoding="utf-8"))
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with Path(path).open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          price_manifest = Path("frozen-v142/data/v142-market/manifest.json")
+          external_manifest = Path("frozen-v142/data/v142-external/manifest.json")
+          assert sha256(price_manifest) == frozen["price_manifest_sha256"]
+          assert sha256(external_manifest) == frozen["external_manifest_sha256"]
+          price = verify_v142_manifest("frozen-v142/data/v142-market")
+          external = verify_external_manifest("frozen-v142/data/v142-external")
+          assert price["dataset_fingerprint"] == frozen["acquisition_price_fingerprint"]
+          assert price["requested_start"] == frozen["market_start"]
+          assert price["requested_end_exclusive"] == frozen["market_end_exclusive"]
+          assert sum(item["synthetic_hourly_rows"] for item in price["sources"]) == frozen["synthetic_hourly_rows"] == 43
+          assert external["requested_start"] == frozen["external_start"]
+          assert external["requested_end"] == frozen["external_end"]
+          histories = load_exact_histories("frozen-v142/data/v142-market/four_hour")
+          assert dataset_fingerprint(histories) == frozen["canonical_csv_price_fingerprint"]
+          assert set(histories) == set(frozen["symbols"])
+          assert all(len(candles) == frozen["four_hour_rows_per_asset"] for candles in histories.values())
+          assert frozen["candidate_selected_from_known_diagnostics"] is True
+          assert frozen["promotion_audit_returns_calculated"] is False
+          assert frozen["independent_holdout_accessed"] is False
+          print("verified canonical price fingerprint:", frozen["canonical_csv_price_fingerprint"])
+          print("verified external manifest:", frozen["external_manifest_sha256"])
+          PY
+
+      - name: Run frozen promotion audit only
+        shell: bash
+        run: |
+          set +e
+          tradebot-crypto-funding-promotion-v16 \
+            --price-folder frozen-v142/data/v142-market/four_hour \
+            --external-folder frozen-v142/data/v142-external \
+            --json-out reports/v161-promotion/promotion.json \
+            --mode promotion_audit \
+            > reports/v161-promotion/promotion_stdout.json
+          status=$?
+          set -e
+          echo "$status" > reports/v161-promotion/exit_status.txt
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Unexpected v1.6.1 audit software failure: $status" >&2
+            exit "$status"
+          fi
+          echo "v1.6.1 promotion audit completed with research status $status"
+
+      - name: Validate evidence and holdout isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("reports/v161-promotion/promotion.json").read_text(encoding="utf-8"))
+          frozen = json.loads(Path("research/v161_promotion_freeze.json").read_text(encoding="utf-8"))
+          status = int(Path("reports/v161-promotion/exit_status.txt").read_text(encoding="utf-8").strip())
+
+          assert payload["schema_version"] == "1.6.1"
+          assert payload["mode"] == "promotion_audit"
+          assert payload["market"] == "crypto"
+          assert payload["paper_only"] is True
+          assert payload["authorizes_real_trading"] is False
+          assert payload["eligible_for_shadow_paper"] is False
+          assert payload["eligible_for_forward_paper"] is False
+          assert payload["price_dataset_fingerprint"] == frozen["canonical_csv_price_fingerprint"]
+          assert payload["external_manifest_fingerprint"] == frozen["external_manifest_sha256"]
+          assert payload["dataset_start"] == "2023-11-15T00:00:00"
+          assert payload["dataset_end"] == "2025-11-22T20:00:00"
+          assert payload["discovery_test_start"] == "2024-02-23T00:00:00"
+          assert payload["discovery_test_end"] == "2025-06-16T20:00:00"
+          assert payload["embargo_start"] == "2025-06-17T00:00:00"
+          assert payload["embargo_end"] == "2025-07-25T20:00:00"
+          assert payload["holdout_start"] == "2025-07-26T00:00:00"
+          assert payload["holdout_end"] == "2025-11-22T20:00:00"
+          assert set(payload["symbols"]) == set(frozen["symbols"])
+          by_profile = {item["profile"]: item for item in payload["profiles"]}
+          assert set(by_profile) == {
+              "primary_balanced",
+              "original_exposure",
+              "defensive_exposure",
+          }
+          assert by_profile["primary_balanced"]["config"]["max_positions"] == 2
+          assert by_profile["primary_balanced"]["config"]["min_cash_reserve"] == 0.50
+          assert by_profile["defensive_exposure"]["config"]["max_asset_weight"] == 0.125
+          assert by_profile["defensive_exposure"]["config"]["min_cash_reserve"] == 0.75
+          assert all(len(item["summary"]["periods"]) == 6 for item in payload["profiles"])
+          assert all(
+              period["mode"] == "discovery"
+              and period["test_end"] <= payload["discovery_test_end"]
+              and period["test_start"] < payload["embargo_start"]
+              for item in payload["profiles"]
+              for period in item["summary"]["periods"]
+          )
+          assert {item["variant"] for item in payload["baselines"]} == {"cash", "equal_weight_buy_hold"}
+          assert set(payload["leave_one_asset_out_average_returns"]) == set(frozen["symbols"])
+          assert set(payload["leave_one_period_out_average_returns"]) == {
+              "period_1", "period_2", "period_3", "period_4", "period_5", "period_6"
+          }
+          assert payload["accepted"] is (status == 0)
+          assert payload["eligible_for_holdout"] is payload["accepted"]
+          assert (not payload["accepted"]) or not payload["reasons"]
+          assert payload["accepted"] or payload["reasons"]
+
+          lines = [
+              "# Crypto Funding Promotion v1.6.1 Audit",
+              "",
+              "This is a promotion audit on known periods, not an independent performance test.",
+              "",
+              f"- Promoted to one-shot independent holdout: **{payload['accepted']}**",
+              f"- Canonical price fingerprint: `{payload['price_dataset_fingerprint']}`",
+              f"- External manifest: `{payload['external_manifest_fingerprint']}`",
+              f"- Known audit interval: `{payload['discovery_test_start']}` to `{payload['discovery_test_end']}`",
+              f"- Locked independent holdout: `{payload['holdout_start']}` to `{payload['holdout_end']}`",
+              "- Independent holdout returns evaluated: **False**",
+              "",
+              "| Profile | Active | Positive | Average | Median | Compounded | Standard stress | Double stress | Worst DD | Max asset share | Assets |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+          ]
+          for item in payload["profiles"]:
+              summary = item["summary"]
+              lines.append(
+                  f"| {item['profile']} | {summary['active_periods']}/6 | {summary['positive_periods']}/6 | "
+                  f"{summary['average_return']:.3%} | {summary['median_return']:.3%} | "
+                  f"{summary['compounded_return']:.3%} | {summary['average_stressed_return']:.3%} | "
+                  f"{item['average_double_cost_stressed_return']:.3%} | {summary['worst_drawdown']:.3%} | "
+                  f"{summary['max_asset_notional_fraction']:.2%} | {len(summary['selected_symbols'])} |"
+              )
+          primary = by_profile["primary_balanced"]["summary"]
+          lines.extend([
+              "",
+              f"- Positive sizing profiles under both stresses: **{payload['positive_sizing_profiles']}/3**",
+              f"- Positive leave-one-period-out checks: **{payload['leave_one_period_out_positive_count']}/6**",
+              f"- Positive leave-one-asset-out reruns: **{payload['leave_one_asset_out_positive_count']}/8**",
+              f"- Primary selected assets: `{', '.join(primary['selected_symbols']) or 'none'}`",
+              "",
+              "Reasons: " + (", ".join(payload["reasons"]) if payload["reasons"] else "none"),
+              "",
+              "This workflow did not evaluate the independent final holdout and cannot authorise real-money trading.",
+          ])
+          report = "\n".join(lines) + "\n"
+          Path("reports/v161-promotion/promotion.md").write_text(report, encoding="utf-8")
+          print(report)
+          PY
+          cat reports/v161-promotion/promotion.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete promotion audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-funding-promotion-v161-audit
+          path: |
+            reports/v161-promotion
+            docs/CRYPTO_FUNDING_PROMOTION_V16_PROTOCOL.md
+            research/v161_promotion_freeze.json
+            frozen-v142/reports/v142/data_freeze_summary.json
+            frozen-v142/data/v142-market/manifest.json
+            frozen-v142/data/v142-external/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
