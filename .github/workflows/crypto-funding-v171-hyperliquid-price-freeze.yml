@@ -1,0 +1,142 @@
+name: Crypto Funding v1.7.1 Hyperliquid Price Freeze
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/crypto-funding-v171-hyperliquid-price-freeze.yml"
+      - "docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md"
+      - "research/v17_hyperliquid_coverage_result.json"
+      - "src/tradebot/data/hyperliquid_4h_provider_v17.py"
+      - "tests/test_hyperliquid_4h_provider_v17.py"
+      - "pyproject.toml"
+
+concurrency:
+  group: crypto-funding-v171-hyperliquid-price-freeze-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen protocol, provider and coverage evidence
+        shell: bash
+        run: |
+          git diff --exit-code 94c072b1d942967faba458ddb892197f7cf397ea -- \
+            src/tradebot/data/hyperliquid_4h_provider_v17.py \
+            tests/test_hyperliquid_4h_provider_v17.py \
+            pyproject.toml
+          git show e4a042605ca4a7402c78b053fb1b4f0f2e389871:docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md > /tmp/frozen-v171-protocol.md
+          cmp /tmp/frozen-v171-protocol.md docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md
+          git show 7946cc05078ac243ff84942470393f45efbc529d:research/v17_hyperliquid_coverage_result.json > /tmp/frozen-v17-coverage.json
+          cmp /tmp/frozen-v17-coverage.json research/v17_hyperliquid_coverage_result.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test complete repository
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+          mkdir -p data/v171-hyperliquid reports/v171-freeze
+
+      - name: Fetch exact Hyperliquid raw and CSV bundle
+        run: |
+          tradebot-hyperliquid-4h-provider-v17 \
+            --out data/v171-hyperliquid \
+            > reports/v171-freeze/fetch_stdout.json
+
+      - name: Verify exact price contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tradebot.data.hyperliquid_4h_provider_v17 import (
+              EXPECTED_END_EXCLUSIVE,
+              EXPECTED_ROWS,
+              EXPECTED_START,
+              SYMBOL_TO_COIN,
+              verify_hyperliquid_4h_manifest,
+          )
+
+          payload = verify_hyperliquid_4h_manifest("data/v171-hyperliquid")
+          assert payload["requested_start"] == EXPECTED_START.isoformat()
+          assert payload["requested_end_exclusive"] == EXPECTED_END_EXCLUSIVE.isoformat()
+          assert payload["expected_rows_per_asset"] == EXPECTED_ROWS == 3504
+          assert {item["symbol"] for item in payload["sources"]} == set(SYMBOL_TO_COIN)
+          assert all(item["rows"] == EXPECTED_ROWS for item in payload["sources"])
+          assert len(list(Path("data/v171-hyperliquid/raw").glob("*.json"))) == 8
+          assert len(list(Path("data/v171-hyperliquid/four_hour").glob("*.csv"))) == 8
+          print("Hyperliquid price fingerprint:", payload["dataset_fingerprint"])
+          PY
+
+      - name: Write immutable freeze summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with Path(path).open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          manifest_path = Path("data/v171-hyperliquid/manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          summary = {
+              "schema_version": "1.0",
+              "research_version": "1.7.1",
+              "created_at": datetime.now(timezone.utc).isoformat(),
+              "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "protocol_commit": "e4a042605ca4a7402c78b053fb1b4f0f2e389871",
+              "provider_source_head": "94c072b1d942967faba458ddb892197f7cf397ea",
+              "coverage_run_id": 30521109767,
+              "manifest_sha256": sha256(manifest_path),
+              "dataset_fingerprint": manifest["dataset_fingerprint"],
+              "requested_start": manifest["requested_start"],
+              "requested_end_exclusive": manifest["requested_end_exclusive"],
+              "symbols": sorted(item["symbol"] for item in manifest["sources"]),
+              "rows_per_asset": 3504,
+              "strategy_returns_calculated": False,
+              "holdout_returns_calculated": False,
+              "paper_only": True,
+              "authorizes_real_trading": False,
+          }
+          Path("reports/v171-freeze/freeze_summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8"
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload immutable Hyperliquid price freeze
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-funding-v171-hyperliquid-price-freeze
+          path: |
+            data/v171-hyperliquid
+            reports/v171-freeze
+            docs/CRYPTO_FUNDING_V171_CROSS_VENUE_PROTOCOL.md
+            research/v17_hyperliquid_coverage_result.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
