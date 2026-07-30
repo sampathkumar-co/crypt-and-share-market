@@ -132,7 +132,7 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
-  persist-activation:
+  persist-terminal-locks:
     if: github.event_name != 'pull_request'
     needs: evaluate-status
     runs-on: ubuntu-latest
@@ -149,32 +149,63 @@ jobs:
           name: forward-paper-evaluation-v22-${{ github.run_id }}
           path: evidence/forward-paper-v22
 
-      - name: Append one-time activation lock when created
+      - name: Append one-time activation or terminal result
         shell: bash
         run: |
           set -euo pipefail
           activation_source=evidence/forward-paper-v22/activation.json
-          if [ ! -e "$activation_source" ]; then
-            echo "No new activation lock was created."
+          status_source=evidence/forward-paper-v22/status.json
+          terminal_status=$(python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("evidence/forward-paper-v22/status.json").read_text())
+          print("true" if report["status"] in {
+              "DISCOVERY_REJECTED", "HOLDOUT_REJECTED", "HOLDOUT_PASSED"
+          } else "false")
+          PY
+          )
+          if [ ! -e "$activation_source" ] && [ "$terminal_status" != "true" ]; then
+            echo "No new immutable v2.2 lock was created."
             exit 0
           fi
 
           git fetch origin forward-data/v2
           rm -rf /tmp/forward-data-v2
           git worktree add --detach /tmp/forward-data-v2 origin/forward-data/v2
-          activation_target=/tmp/forward-data-v2/data/forward-paper-v22/activation.json
-          mkdir -p "$(dirname "$activation_target")"
-          if [ -e "$activation_target" ]; then
-            cmp --silent "$activation_source" "$activation_target" || {
-              echo "Refusing to replace different v2.2 activation lock" >&2
-              exit 1
-            }
-            echo "Activation lock already preserved byte-for-byte."
-            exit 0
+          root=/tmp/forward-data-v2/data/forward-paper-v22
+          mkdir -p "$root"
+
+          if [ -e "$activation_source" ]; then
+            activation_target="$root/activation.json"
+            if [ -e "$activation_target" ]; then
+              cmp --silent "$activation_source" "$activation_target" || {
+                echo "Refusing to replace different v2.2 activation lock" >&2
+                exit 1
+              }
+            else
+              cp "$activation_source" "$activation_target"
+            fi
           fi
-          cp "$activation_source" "$activation_target"
+
+          if [ "$terminal_status" = "true" ]; then
+            terminal_target="$root/terminal.json"
+            if [ -e "$terminal_target" ]; then
+              cmp --silent "$status_source" "$terminal_target" || {
+                echo "Refusing to replace different v2.2 terminal result" >&2
+                exit 1
+              }
+            else
+              cp "$status_source" "$terminal_target"
+            fi
+          fi
+
           git -C /tmp/forward-data-v2 config user.name "github-actions[bot]"
           git -C /tmp/forward-data-v2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C /tmp/forward-data-v2 add data/forward-paper-v22/activation.json
-          git -C /tmp/forward-data-v2 commit -m "Freeze v2.2 forward evaluation activation"
+          git -C /tmp/forward-data-v2 add data/forward-paper-v22
+          if git -C /tmp/forward-data-v2 diff --cached --quiet; then
+            echo "v2.2 immutable locks already preserved byte-for-byte."
+            exit 0
+          fi
+          git -C /tmp/forward-data-v2 commit -m "Append immutable v2.2 evaluation lock"
+          git -C /tmp/forward-data-v2 pull --rebase origin forward-data/v2
           git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2
