@@ -155,3 +155,22 @@ shadow paper, continuous paper positions or real-money trading.
 4. Implement discovery accounting without any holdout byte access.
 5. Implement one-shot holdout and immutable terminal-result persistence.
 6. Run only against `forward-data/v2`; never backfill historical outcomes.
+
+## v2.4.1 pre-implementation purge clarification
+
+Frozen before evaluator code and before any outcome access:
+
+- The frozen eight-hour sensitivity exits at `t+9` would otherwise overlap the
+  first eight holdout decision outcomes.
+- Therefore eight decision hours after discovery are a purge/embargo and are
+  never scored in either discovery or holdout.
+- The campaign requires 1,448 contiguous decision hours:
+  - decisions 1–1,104: discovery;
+  - decisions 1,105–1,112: purge/embargo;
+  - decisions 1,113–1,448: untouched 336-hour holdout.
+- Discovery outcome snapshots through its final `t+9` end at the last embargo
+  hour, before the first holdout decision's next-hour entry.
+- Readiness remains non-performance-only until all 1,448 decisions and required
+  snapshots exist.
+- The discovery and holdout gates, thresholds, costs, families and universe are
+  unchanged. This clarification only prevents label overlap.
