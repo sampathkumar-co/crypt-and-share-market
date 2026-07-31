@@ -1,0 +1,43 @@
+name: Forward Evidence Cadence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5,25,45 * * * *"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: forward-evidence-cadence
+  cancel-in-progress: false
+
+jobs:
+  dispatch-watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch fail-closed evidence watchdog when idle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          active=$(gh run list \
+            --repo "$repo" \
+            --workflow forward-evidence-watchdog.yml \
+            --limit 20 \
+            --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 1800 | todateiso8601)))] | length')
+
+          if [[ "$active" != "0" ]]; then
+            echo "A recent watchdog is already active; no duplicate dispatch is needed."
+            exit 0
+          fi
+
+          gh workflow run forward-evidence-watchdog.yml \
+            --repo "$repo" \
+            --ref main
+          echo "Dispatched the existing fail-closed watchdog; no evidence or strategy bytes were modified here."
