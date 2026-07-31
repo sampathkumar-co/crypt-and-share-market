@@ -7,6 +7,7 @@ on:
       - "research/V25_HISTORICAL_PROXY_SCREEN_PROTOCOL.md"
       - "src/tradebot/research/historical_proxy_screen_v25.py"
       - "tests/test_historical_proxy_screen_v25.py"
+      - "tests/test_historical_proxy_result_persistence.py"
       - ".github/workflows/v25-historical-proxy-screen.yml"
       - "pyproject.toml"
   push:
@@ -16,6 +17,7 @@ on:
       - "research/V25_HISTORICAL_PROXY_SCREEN_PROTOCOL.md"
       - "src/tradebot/research/historical_proxy_screen_v25.py"
       - "tests/test_historical_proxy_screen_v25.py"
+      - "tests/test_historical_proxy_result_persistence.py"
       - ".github/workflows/v25-historical-proxy-screen.yml"
       - "pyproject.toml"
 
@@ -59,7 +61,9 @@ jobs:
             src/tradebot/backtest/profit_quality_gate.py \
             src/tradebot/backtest/selection_stability.py
       - name: Run focused tests
-        run: python -m pytest tests/test_historical_proxy_screen_v25.py -q
+        run: |
+          python -m pytest tests/test_historical_proxy_screen_v25.py -q
+          python -m pytest tests/test_historical_proxy_result_persistence.py -q
       - name: Run complete repository suite
         run: python -m pytest -q
       - name: Enforce isolated paper-only boundary
@@ -77,8 +81,12 @@ jobs:
     needs: verify-track-b
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -128,6 +136,28 @@ jobs:
               "report_sha256": expected,
           }, indent=2, sort_keys=True))
           PY
+      - name: Persist auditable report on isolated results branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin historical-results/v25
+          rm -rf /tmp/v25-historical-results
+          git worktree add --detach /tmp/v25-historical-results origin/historical-results/v25
+          mkdir -p /tmp/v25-historical-results/results
+          cp evidence/v25-historical-proxy/report.json \
+            /tmp/v25-historical-results/results/latest.json
+          cp evidence/v25-historical-proxy/report.json \
+            "/tmp/v25-historical-results/results/run-${GITHUB_RUN_ID}.json"
+          git -C /tmp/v25-historical-results config user.name github-actions[bot]
+          git -C /tmp/v25-historical-results config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C /tmp/v25-historical-results add results/latest.json "results/run-${GITHUB_RUN_ID}.json"
+          if git -C /tmp/v25-historical-results diff --cached --quiet; then
+            echo "Identical Track B report already persisted."
+            exit 0
+          fi
+          git -C /tmp/v25-historical-results commit \
+            -m "Persist v2.5 historical proxy report ${GITHUB_RUN_ID}"
+          git -C /tmp/v25-historical-results push origin HEAD:historical-results/v25
       - name: Upload Track B report
         uses: actions/upload-artifact@v4
         with:
