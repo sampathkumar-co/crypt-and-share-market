@@ -1,0 +1,28 @@
+name: Dispatch Forward Market-State Router v2.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/market-state-router-v21-once.txt"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: dispatch-market-state-router-v21
+  cancel-in-progress: false
+
+jobs:
+  dispatch-frozen-router:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch the frozen v2.1 workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run market-state-router-v21.yml --ref main
+          echo "Dispatched the existing frozen v2.1 router; no strategy bytes were changed."
