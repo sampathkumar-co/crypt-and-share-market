@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from tradebot.research import historical_monthly_ensemble_v30 as v30
 
@@ -72,11 +72,32 @@ def test_trend_sleeve_respects_20_percent_cap() -> None:
 
 def test_fixed_recovery_holds_for_exact_additional_day() -> None:
     payload = {
-        asset: feature(return_20=-0.1, return_60=-0.1, close=70.0)
+        asset: feature(
+            return_20=-0.1,
+            return_60=-0.1,
+            close=70.0,
+            drawdown_20=-0.12,
+        )
         for asset in v30.ASSETS
     }
-    payload["BTC"] = feature(return_5=-0.10, return_1=0.02, return_20=-0.1, return_60=-0.1, close=70.0, sma_200=80.0)
-    payload["ETH"] = feature(return_5=-0.11, return_1=0.03, return_20=-0.1, return_60=-0.1, close=70.0, sma_200=80.0)
+    payload["BTC"] = feature(
+        return_5=-0.10,
+        return_1=0.02,
+        return_20=-0.1,
+        return_60=-0.1,
+        close=70.0,
+        sma_200=80.0,
+        drawdown_20=-0.12,
+    )
+    payload["ETH"] = feature(
+        return_5=-0.11,
+        return_1=0.03,
+        return_20=-0.1,
+        return_60=-0.1,
+        close=70.0,
+        sma_200=80.0,
+        drawdown_20=-0.13,
+    )
 
     weights, selected, sleeve, _, remaining = v30._target(
         model(recovery_holding_days=2), payload, (), "cash", 0, 0, False
@@ -87,7 +108,13 @@ def test_fixed_recovery_holds_for_exact_additional_day() -> None:
     assert sum(weights.values()) == 0.20
 
     held, held_assets, held_sleeve, _, held_remaining = v30._target(
-        model(recovery_holding_days=2), payload, selected, sleeve, 0, remaining, False
+        model(recovery_holding_days=2),
+        payload,
+        selected,
+        sleeve,
+        0,
+        remaining,
+        False,
     )
     assert held == weights
     assert held_assets == selected
@@ -109,10 +136,25 @@ def test_monthly_brake_forces_cash_even_during_recovery() -> None:
 
 def test_defensive_btc_core_is_only_five_percent() -> None:
     payload = {
-        asset: feature(return_20=-0.1, return_60=-0.1, return_120=-0.1, return_180=-0.1, close=70.0)
+        asset: feature(
+            return_20=-0.1,
+            return_60=-0.1,
+            return_120=-0.1,
+            return_180=-0.1,
+            close=70.0,
+        )
         for asset in v30.ASSETS
     }
-    payload["BTC"] = feature(return_1=0.01, return_20=0.03, return_60=-0.02, return_120=-0.02, return_180=-0.02, close=100.0, sma_50=110.0, sma_200=90.0)
+    payload["BTC"] = feature(
+        return_1=0.01,
+        return_20=0.03,
+        return_60=-0.02,
+        return_120=-0.02,
+        return_180=-0.02,
+        close=100.0,
+        sma_50=110.0,
+        sma_200=90.0,
+    )
     weights, selected, sleeve, _, _ = v30._target(
         model(), payload, (), "cash", 0, 0, False
     )
@@ -123,9 +165,16 @@ def test_defensive_btc_core_is_only_five_percent() -> None:
 
 def test_five_verification_months_are_sequential() -> None:
     assert [window.name for window in v30.VERIFICATION_WINDOWS] == [
-        "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
     ]
-    for left, right in zip(v30.VERIFICATION_WINDOWS, v30.VERIFICATION_WINDOWS[1:]):
+    for left, right in zip(
+        v30.VERIFICATION_WINDOWS,
+        v30.VERIFICATION_WINDOWS[1:],
+    ):
         assert left.end + timedelta(days=1) == right.start
 
 
