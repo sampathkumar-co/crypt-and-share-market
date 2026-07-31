@@ -10,6 +10,7 @@ on:
       - "src/tradebot/research/historical_yield_trend_v31_runner.py"
       - "tests/test_historical_yield_trend_v31.py"
       - "tests/test_historical_yield_trend_v31_accounting.py"
+      - "tests/test_historical_yield_trend_v31_transport.py"
       - ".github/workflows/v31-yield-trend-overlay.yml"
       - "pyproject.toml"
   push:
@@ -21,6 +22,7 @@ on:
       - "src/tradebot/research/historical_yield_trend_v31_runner.py"
       - "tests/test_historical_yield_trend_v31.py"
       - "tests/test_historical_yield_trend_v31_accounting.py"
+      - "tests/test_historical_yield_trend_v31_transport.py"
       - ".github/workflows/v31-yield-trend-overlay.yml"
       - "pyproject.toml"
 
@@ -83,7 +85,8 @@ jobs:
         run: |
           python -m pytest \
             tests/test_historical_yield_trend_v31.py \
-            tests/test_historical_yield_trend_v31_accounting.py -q
+            tests/test_historical_yield_trend_v31_accounting.py \
+            tests/test_historical_yield_trend_v31_transport.py -q
       - name: Run complete repository suite
         run: python -m pytest -q
       - name: Enforce isolated paper-only boundary
@@ -96,6 +99,8 @@ jobs:
           grep -q 'cash_series.*DGS3MO' \
             src/tradebot/research/historical_yield_trend_v31.py
           grep -q 'fred_dgs3mo_accept_DATE_or_observation_date' \
+            src/tradebot/research/historical_yield_trend_v31_runner.py
+          grep -q 'retry_frozen_fred_graph_url_then_equivalent_full_series_url' \
             src/tradebot/research/historical_yield_trend_v31_runner.py
           ! grep -q 'forward-data/v2' \
             src/tradebot/research/historical_yield_trend_v31.py
@@ -153,9 +158,16 @@ jobs:
           assert report["cash_source_policy"] == (
               "fred_dgs3mo_accept_DATE_or_observation_date_skip_only_missing_values"
           )
+          assert report["cash_transport_policy"] == (
+              "retry_frozen_fred_graph_url_then_equivalent_full_series_url"
+          )
+          audit = report["cash_transport_audit"]
+          assert audit["attempt_count"] >= 1
+          assert audit["selected_url"] in audit["attempted_urls"]
           assert report["fingerprints"]["protocol_sha256"]
           assert report["fingerprints"]["addendum_sha256"]
           assert report["fingerprints"]["runner_sha256"]
+          assert report["fingerprints"]["cash_transport_sha256"]
           assert any(item["key"] == "cash:DGS3MO" for item in report["source_inventory"])
           canonical = dict(report)
           expected = canonical.pop("report_sha256")
@@ -180,6 +192,7 @@ jobs:
               "stress_excess_years": verification["stress"]["excess_window_returns"],
               "action_days": verification["standard"]["window_action_days"],
               "maximum_drawdown": verification["standard"]["maximum_drawdown"],
+              "cash_transport_audit": audit,
               "report_sha256": expected,
           }, indent=2, sort_keys=True))
           PY
