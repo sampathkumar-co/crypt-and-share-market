@@ -1,0 +1,106 @@
+{
+  "action": "CASH_NO_TRADE",
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_evidence": {
+    "latest_known_annual_rate": 0.0383,
+    "latest_known_date": "2026-07-29",
+    "normalized_sha256": "c9bb3c15373f863900f3e485402a0ec887ebbfb8f923a51260cbb896fe471f7a",
+    "observation_count": 11226,
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "changes_track_a": false,
+  "completed_candle_date_utc": "2026-07-30",
+  "continuity": {
+    "gap_reset": false,
+    "has_prior_observation": false,
+    "prior_calendar_day_present": true
+  },
+  "data_cutoff_utc": "2026-07-30T23:59:59.999999Z",
+  "decision_reason": "risk_conditions_not_qualified",
+  "earliest_eligible_effective_open_utc": "2026-08-01T00:00:00Z",
+  "features": {
+    "BTC": {
+      "close": 64721.9,
+      "drawdown_20": -0.026975090872626617,
+      "return_1": 0.01292347237250957,
+      "return_120": -0.04977731644848549,
+      "return_20": 0.009253453496254282,
+      "return_200": -0.28776858792933047,
+      "return_5": 0.006630157175583129,
+      "return_60": -0.12032958945252858,
+      "sma_100": 69201.5854,
+      "sma_200": 71597.7553,
+      "sma_50": 63392.8632,
+      "trend_score": -2.6279826594379028,
+      "volatility_20": 0.015764036048163822
+    },
+    "ETH": {
+      "close": 1916.82,
+      "drawdown_20": -0.018490166058179325,
+      "return_1": 0.004369969818913466,
+      "return_120": -0.10437760780484162,
+      "return_20": 0.06742624210631831,
+      "return_200": -0.3853686691356838,
+      "return_5": 0.02336830303515658,
+      "return_60": -0.043502994011976104,
+      "sma_100": 1945.0335999999998,
+      "sma_200": 2116.2417499999997,
+      "sma_50": 1769.2828,
+      "trend_score": -0.009384343401346001,
+      "volatility_20": 0.022729209948924446
+    }
+  },
+  "fingerprints": {
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "cf1dc9c096fa9eb29467cd4c324798c519a7d68eeca13112a34c0cd7215c1a68",
+    "protocol_sha256": "b75cde366a938cb6c14b30029b06996c3979022d84ecf69c93d8ac5439adf266",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "source_implementation_sha256": "c37209fa243ce0e8e069eee128fe62aa13f85f49def340ef7cd4bb679658bfc8"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "historical_promotion_evidence": {
+    "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+    "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+  },
+  "history_days": 260,
+  "minimum_cash_target": null,
+  "mode": "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY",
+  "operational_latency_days": 1,
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "recommended_target_weights": null,
+  "report_sha256": "f0bdf1b7bcd5a24af3757e340323fae13e3ca8ea203271988e435e0a1af7c304",
+  "schema_version": "3.3-daily-forward-observation",
+  "source_fingerprints": {
+    "coinbase_btc_normalized_sha256": "c260f5870f48470c07ad6d4cfa390ed8cd939b4e14cf0e8273faf24701914afe",
+    "coinbase_eth_normalized_sha256": "58a0c4169f0c3d7dd82a0689bd2169af7a316c32f2baf1666ac88339dade4077",
+    "h15_normalized_sha256": "c9bb3c15373f863900f3e485402a0ec887ebbfb8f923a51260cbb896fe471f7a",
+    "prior_observation_file_sha256": null
+  },
+  "state_after": {
+    "age": 0,
+    "selected_assets": [],
+    "sleeve": "cash"
+  },
+  "state_before": {
+    "age": 0,
+    "selected_assets": [],
+    "sleeve": "cash"
+  },
+  "target_changing_action": false,
+  "trade_required": false
+}
