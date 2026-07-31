@@ -64,9 +64,15 @@ def test_closed_simulation_charges_entry_and_final_exit(monkeypatch) -> None:
         0.002,
     )
 
-    assert abs(result.turnover - 0.60) < 1e-12
-    assert abs(result.net_return - ((1.0 - 0.0003) * (1.0 - 0.0003) - 1.0)) < 1e-12
-    assert result.sleeve_contribution["final_liquidation"] == -0.0003
+    entry_cost = 0.5 * 0.002 * 0.30
+    drifted_weight = 0.30 / (1.0 - entry_cost)
+    exit_cost = 0.5 * 0.002 * drifted_weight
+    expected_turnover = 0.30 + drifted_weight
+    expected_return = (1.0 - entry_cost) * (1.0 - exit_cost) - 1.0
+
+    assert abs(result.turnover - expected_turnover) < 1e-12
+    assert abs(result.net_return - expected_return) < 1e-12
+    assert abs(result.sleeve_contribution["final_liquidation"] + exit_cost) < 1e-12
     assert result.non_cash_action_days == 1
 
 
