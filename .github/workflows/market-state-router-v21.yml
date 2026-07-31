@@ -188,22 +188,49 @@ jobs:
           mkdir -p /tmp/forward-data-v2/data/market-state-router/decisions
           mkdir -p /tmp/forward-data-v2/data/market-state-router/inventories
 
+          decision_source="evidence/router-decision/market_state_router.json"
+          inventory_source="evidence/router-decision/history_inventory.json"
           decision_target="/tmp/forward-data-v2/data/market-state-router/decisions/${stem}.json"
           inventory_target="/tmp/forward-data-v2/data/market-state-router/inventories/${stem}.json"
-          for pair in \
-            "evidence/router-decision/market_state_router.json:$decision_target" \
-            "evidence/router-decision/history_inventory.json:$inventory_target"; do
-            source=${pair%%:*}
-            target=${pair#*:}
-            if [ -e "$target" ]; then
-              cmp --silent "$source" "$target" || {
-                echo "Refusing to replace different append-only router evidence: $target" >&2
-                exit 1
-              }
-            else
-              cp "$source" "$target"
-            fi
-          done
+
+          if [ -e "$decision_target" ]; then
+            cmp --silent "$decision_source" "$decision_target" || {
+              echo "Refusing to replace a different same-hour v2.1 decision: $decision_target" >&2
+              exit 1
+            }
+            test -e "$inventory_target" || {
+              echo "Existing v2.1 decision has no preserved inventory: $stem" >&2
+              exit 1
+            }
+            python - "$decision_target" "$inventory_target" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          decision_path = Path(sys.argv[1])
+          inventory_path = Path(sys.argv[2])
+          decision = json.loads(decision_path.read_text(encoding="utf-8"))
+          inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+          assert decision["paper_only"] is True
+          assert decision["authorizes_trading"] is False
+          assert inventory["forward_data_branch"] == "forward-data/v2"
+          assert isinstance(inventory["forward_data_head"], str) and len(inventory["forward_data_head"]) == 40
+          snapshots = inventory["snapshots"]
+          assert inventory["snapshot_files"] == len(snapshots)
+          names = {item["snapshot_file"] for item in snapshots}
+          required = {f"{item['snapshot_id']}.json" for item in decision["input_snapshots"]}
+          assert required.issubset(names)
+          PY
+            echo "Identical same-hour v2.1 decision already preserved; retaining its first valid inventory."
+            exit 0
+          fi
+
+          if [ -e "$inventory_target" ]; then
+            echo "Refusing orphaned same-hour v2.1 inventory: $inventory_target" >&2
+            exit 1
+          fi
+          cp "$decision_source" "$decision_target"
+          cp "$inventory_source" "$inventory_target"
 
           git -C /tmp/forward-data-v2 config user.name "github-actions[bot]"
           git -C /tmp/forward-data-v2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
