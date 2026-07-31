@@ -1,0 +1,83 @@
+name: Forward Alpha v2.5 Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "49,59 * * * *"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: forward-alpha-v25-watchdog
+  cancel-in-progress: false
+
+jobs:
+  recover-missing-v25-decision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dispatch only a missing latest-hour v2.5 decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v25-watchdog
+          git worktree add --detach /tmp/forward-data-v25-watchdog origin/forward-data/v2
+
+          mapfile -t latest_info < <(python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          hours = []
+          root = Path("/tmp/forward-data-v25-watchdog/data/forward-market-state/normalized")
+          for path in root.glob("*.json"):
+              try:
+                  raw = json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc")
+                  parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+              except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                  continue
+              if parsed.tzinfo is None:
+                  continue
+              parsed = parsed.astimezone(timezone.utc)
+              if parsed.minute or parsed.second or parsed.microsecond:
+                  continue
+              hours.append(parsed)
+          if not hours:
+              raise SystemExit("No canonical snapshot is available for v2.5 recovery")
+          latest = max(hours)
+          print(latest.strftime("%Y-%m-%dT%H:00:00Z"))
+          print(latest.strftime("%Y%m%dT%H0000Z"))
+          PY
+          )
+          test "${#latest_info[@]}" -eq 2
+          target="${latest_info[0]}"
+          safe="${latest_info[1]}"
+          decision="/tmp/forward-data-v25-watchdog/data/forward-alpha-v25/decisions/$safe.json"
+
+          if [[ -f "$decision" ]]; then
+            echo "v2.5 decision already exists for $target; no dispatch needed."
+            exit 0
+          fi
+
+          active=$(gh run list \
+            --workflow forward-alpha-decisions-v25.yml \
+            --limit 20 \
+            --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+          if [[ "$active" != "0" ]]; then
+            echo "A recent v2.5 decision run is already active; no duplicate dispatch."
+            exit 0
+          fi
+
+          gh workflow run forward-alpha-decisions-v25.yml --ref main
+          echo "Dispatched frozen v2.5 router for latest canonical snapshot $target."
+          echo "No market snapshot, decision byte, strategy threshold or evaluation gate was modified."
