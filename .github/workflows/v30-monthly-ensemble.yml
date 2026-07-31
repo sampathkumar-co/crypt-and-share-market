@@ -1,0 +1,205 @@
+name: v3.0 Monthly Trend-Recovery Ensemble
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V30_MONTHLY_TREND_RECOVERY_ENSEMBLE_PROTOCOL.md"
+      - "src/tradebot/research/historical_monthly_ensemble_v30.py"
+      - "src/tradebot/research/historical_monthly_ensemble_v30_runner.py"
+      - "tests/test_historical_monthly_ensemble_v30.py"
+      - "tests/test_historical_monthly_ensemble_v30_accounting.py"
+      - ".github/workflows/v30-monthly-ensemble.yml"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - "research/V30_MONTHLY_TREND_RECOVERY_ENSEMBLE_PROTOCOL.md"
+      - "src/tradebot/research/historical_monthly_ensemble_v30.py"
+      - "src/tradebot/research/historical_monthly_ensemble_v30_runner.py"
+      - "tests/test_historical_monthly_ensemble_v30.py"
+      - "tests/test_historical_monthly_ensemble_v30_accounting.py"
+      - ".github/workflows/v30-monthly-ensemble.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v30-monthly-ensemble-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-v30:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile v3.0
+        run: |
+          python -m py_compile src/tradebot/research/historical_monthly_ensemble_v30.py
+          python -m py_compile src/tradebot/research/historical_monthly_ensemble_v30_runner.py
+      - name: Verify frozen campaigns and gates are unchanged
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git diff --exit-code "${{ github.event.pull_request.base.sha }}" -- \
+            src/tradebot/research/forward_alpha_v25.py \
+            src/tradebot/research/forward_alpha_v25_readiness.py \
+            research/V25_HIGH_CONVICTION_ALPHA_PROTOCOL.md \
+            src/tradebot/research/historical_proxy_screen_v25.py \
+            research/V25_HISTORICAL_PROXY_SCREEN_PROTOCOL.md \
+            src/tradebot/research/historical_discovery_v26.py \
+            research/V26_COST_AWARE_HISTORICAL_DISCOVERY_PROTOCOL.md \
+            src/tradebot/research/historical_discovery_v27.py \
+            src/tradebot/research/historical_discovery_v27_runner.py \
+            research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md \
+            src/tradebot/research/historical_rotation_v28.py \
+            src/tradebot/research/historical_rotation_v28_runner.py \
+            research/V28_REGIME_ADAPTIVE_ROTATION_PROTOCOL.md \
+            src/tradebot/research/historical_trend_rotation_v29.py \
+            research/V29_RISK_SCALED_TREND_ROTATION_PROTOCOL.md \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py
+      - name: Run focused v3.0 tests
+        run: |
+          python -m pytest \
+            tests/test_historical_monthly_ensemble_v30.py \
+            tests/test_historical_monthly_ensemble_v30_accounting.py -q
+      - name: Run complete repository suite
+        run: python -m pytest -q
+      - name: Enforce isolated paper-only boundary
+        shell: bash
+        run: |
+          grep -q 'MODE = "HISTORICAL_MONTHLY_TREND_RECOVERY_ENSEMBLE_ONLY"' \
+            src/tradebot/research/historical_monthly_ensemble_v30.py
+          grep -q 'if len(MODEL_GRID) != 64' \
+            src/tradebot/research/historical_monthly_ensemble_v30.py
+          grep -q 'MONTHLY_LOSS_BRAKE = -0.015' \
+            src/tradebot/research/historical_monthly_ensemble_v30.py
+          grep -q 'fixed_recovery_exit_trend_regime_separation_natural_drift_costed_next_open' \
+            src/tradebot/research/historical_monthly_ensemble_v30_runner.py
+          ! grep -q 'forward-data/v2' \
+            src/tradebot/research/historical_monthly_ensemble_v30.py
+          ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order)' \
+            src/tradebot/research/historical_monthly_ensemble_v30.py \
+            src/tradebot/research/historical_monthly_ensemble_v30_runner.py
+
+  run-fixed-v30:
+    if: github.event_name != 'pull_request'
+    needs: verify-v30
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run frozen v3.0 verification
+        run: |
+          mkdir -p evidence/v30-monthly-ensemble
+          tradebot-v30-monthly-ensemble \
+            --json-out evidence/v30-monthly-ensemble/report.json \
+            --max-workers 20
+      - name: Validate deterministic five-month report
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/v30-monthly-ensemble/report.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "3.0-monthly-trend-recovery-ensemble"
+          assert report["mode"] == "HISTORICAL_MONTHLY_TREND_RECOVERY_ENSEMBLE_ONLY"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["changes_track_a"] is False
+          assert report["cannot_replace_forward_evidence"] is True
+          assert report["model_grid_size"] == 64
+          assert len(report["discovery_windows"]) == 54
+          assert report["execution_policy"] == (
+              "fixed_recovery_exit_trend_regime_separation_natural_drift_costed_next_open"
+          )
+          assert report["fingerprints"]["runner_sha256"]
+          assert [item["name"] for item in report["verification_windows"]] == [
+              "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"
+          ]
+          assert report["source_inventory"]
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected
+          verification = report["verification"]
+          print(json.dumps({
+              "status": report["screening_status"],
+              "chosen_model": report["chosen_model"],
+              "discovery_gates": report["discovery"]["gates"],
+              "standard_return": verification["standard"]["net_compounded_return"],
+              "stress_return": verification["stress"]["net_compounded_return"],
+              "standard_months": verification["standard"]["window_returns"],
+              "stress_months": verification["stress"]["window_returns"],
+              "action_days": verification["standard"]["window_action_days"],
+              "brake_months": verification["standard"]["brake_triggered_windows"],
+              "maximum_drawdown": verification["standard"]["maximum_drawdown"],
+              "report_sha256": expected,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Persist immutable v3.0 result
+        shell: bash
+        run: |
+          git fetch origin historical-results/v30
+          git worktree add result-branch origin/historical-results/v30
+          mkdir -p result-branch/results
+          cp evidence/v30-monthly-ensemble/report.json result-branch/results/latest.json
+          cp evidence/v30-monthly-ensemble/report.json \
+            "result-branch/results/run-${GITHUB_RUN_ID}.json"
+          cd result-branch
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add results/latest.json "results/run-${GITHUB_RUN_ID}.json"
+          git commit -m "Append v3.0 monthly ensemble result ${GITHUB_RUN_ID}"
+          for attempt in 1 2 3; do
+            git fetch origin historical-results/v30
+            git rebase origin/historical-results/v30
+            if git push origin HEAD:historical-results/v30; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          exit 1
+      - name: Upload v3.0 report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v30-monthly-ensemble-${{ github.run_id }}
+          path: evidence/v30-monthly-ensemble/report.json
+          retention-days: 90
+          if-no-files-found: error
