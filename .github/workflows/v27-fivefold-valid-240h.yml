@@ -101,15 +101,26 @@ jobs:
           git fetch origin historical-results/v27
           git worktree add result-branch origin/historical-results/v27
           mkdir -p result-branch/results
-          cp evidence/v27-fivefold-valid-240h/report.json result-branch/results/latest.json
+          cp evidence/v27-fivefold-valid-240h/report.json \
+            result-branch/results/latest-valid-240h.json
           cp evidence/v27-fivefold-valid-240h/report.json \
             "result-branch/results/valid-240h-run-${GITHUB_RUN_ID}.json"
           cd result-branch
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add results/latest.json "results/valid-240h-run-${GITHUB_RUN_ID}.json"
+          git add results/latest-valid-240h.json \
+            "results/valid-240h-run-${GITHUB_RUN_ID}.json"
           git commit -m "Append valid v2.7 240h result ${GITHUB_RUN_ID}"
-          git push origin HEAD:historical-results/v27
+          for attempt in 1 2 3; do
+            git fetch origin historical-results/v27
+            git rebase origin/historical-results/v27
+            if git push origin HEAD:historical-results/v27; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "Unable to persist protocol-valid v2.7 result after three attempts" >&2
+          exit 1
       - name: Upload valid report
         uses: actions/upload-artifact@v4
         with:
