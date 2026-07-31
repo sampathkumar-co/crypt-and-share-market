@@ -1,0 +1,119 @@
+name: v2.7 Valid 240h Fivefold Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/v27-fivefold-valid-240h.yml"
+      - ".github/triggers/v27-valid-240h-once.txt"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v27-fivefold-valid-240h-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run-valid-240h-screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and verify frozen implementation
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m py_compile src/tradebot/research/historical_discovery_v27.py
+          python -m py_compile src/tradebot/research/historical_discovery_v27_runner.py
+          python -m pytest \
+            tests/test_historical_discovery_v27.py \
+            tests/test_historical_discovery_v27_warmup_guard.py -q
+          test "$(git hash-object research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md)" = \
+            "$(git rev-parse HEAD:research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md)"
+          test "$(git hash-object src/tradebot/research/historical_discovery_v27.py)" = \
+            "$(git rev-parse HEAD:src/tradebot/research/historical_discovery_v27.py)"
+      - name: Run protocol-correct v2.7 screen
+        run: |
+          mkdir -p evidence/v27-fivefold-valid-240h
+          tradebot-v27-fivefold-discovery \
+            --json-out evidence/v27-fivefold-valid-240h/report.json \
+            --max-workers 24
+      - name: Validate fivefold report and provenance
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/v27-fivefold-valid-240h/report.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "2.7-fivefold-mechanism-discovery"
+          assert report["mode"] == "HISTORICAL_FIVEFOLD_MECHANISM_DISCOVERY_ONLY"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["changes_track_a"] is False
+          assert report["cannot_replace_forward_evidence"] is True
+          assert report["effective_state_assembly_warmup_hours"] == 240
+          assert report["fingerprints"]["runtime_guard_sha256"]
+          windows = report["windows"]
+          assert [item["name"] for item in windows] == [
+              "2024-07", "2024-12", "2025-03", "2025-06",
+              "2025-09", "2025-12", "2026-04"
+          ]
+          assert [item["phase"] for item in windows].count("validation") == 5
+          assert report["source_inventory"]
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected
+          print(json.dumps({
+              "status": report["screening_status"],
+              "events": report["event_count"],
+              "validation_events": report["validation_event_count"],
+              "validation_returns": {
+                  name: report["results"]["8"]["standard"]["window_returns"][name]
+                  for name in ("2025-03", "2025-06", "2025-09", "2025-12", "2026-04")
+              },
+              "net_return": report["results"]["8"]["standard"]["net_compounded_return"],
+              "stress_return": report["results"]["8"]["stress"]["net_compounded_return"],
+              "report_sha256": expected,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Persist only protocol-valid evidence
+        shell: bash
+        run: |
+          git fetch origin historical-results/v27
+          git worktree add result-branch origin/historical-results/v27
+          mkdir -p result-branch/results
+          cp evidence/v27-fivefold-valid-240h/report.json result-branch/results/latest.json
+          cp evidence/v27-fivefold-valid-240h/report.json \
+            "result-branch/results/valid-240h-run-${GITHUB_RUN_ID}.json"
+          cd result-branch
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add results/latest.json "results/valid-240h-run-${GITHUB_RUN_ID}.json"
+          git commit -m "Append valid v2.7 240h result ${GITHUB_RUN_ID}"
+          git push origin HEAD:historical-results/v27
+      - name: Upload valid report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v27-valid-240h-${{ github.run_id }}
+          path: evidence/v27-fivefold-valid-240h/report.json
+          retention-days: 90
+          if-no-files-found: error
