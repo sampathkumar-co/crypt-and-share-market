@@ -1,0 +1,429 @@
+{
+  "assets": [
+    "BTC",
+    "ETH"
+  ],
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_series": "DGS3MO",
+  "cash_source_policy": "federal_reserve_h15_3_month_constant_maturity_exact_series",
+  "cash_transport_audit": {
+    "attempt_count": 3,
+    "attempted_urls": [
+      "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO&cosd=2017-08-31&coed=2025-12-31",
+      "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO",
+      "https://www.federalreserve.gov/datadownload/Output.aspx?filetype=csv&from=&label=include&lastobs=&layout=seriescolumn&rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&to=&type=package"
+    ],
+    "attempts": [
+      {
+        "detail": "HTTP Error 504: Gateway Time-out",
+        "source": "fred_dated_dgs3mo",
+        "status": "failure",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO&cosd=2017-08-31&coed=2025-12-31"
+      },
+      {
+        "detail": "The read operation timed out",
+        "source": "fred_full_dgs3mo",
+        "status": "failure",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO"
+      },
+      {
+        "source": "federal_reserve_h15",
+        "status": "success",
+        "url": "https://www.federalreserve.gov/datadownload/Output.aspx?filetype=csv&from=&label=include&lastobs=&layout=seriescolumn&rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&to=&type=package"
+      }
+    ],
+    "first_date": "2017-08-31",
+    "last_date": "2025-12-31",
+    "normalized_sha256": "96ad148374d9ee385b1cc9e594da8ff63afcf4ce62bc90d21f83025d0406834c",
+    "observation_count": 2082,
+    "raw_sha256": "e6f07c7e068fbc42ccfd41bc3b578c7b4640204f0ade49162ac1034db71f0535",
+    "selected_source": "federal_reserve_h15",
+    "selected_url": "https://www.federalreserve.gov/datadownload/Output.aspx?filetype=csv&from=&label=include&lastobs=&layout=seriescolumn&rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&to=&type=package",
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "cash_transport_policy": "fred_once_each_then_federal_reserve_h15_package_twice",
+  "changes_track_a": false,
+  "execution_policy": "daily_risk_exit_entry_or_due_rebalance_only_natural_drift",
+  "fingerprints": {
+    "cash_transport_sha256": "5759fa326732c3df546768fa82e2e15446ccdc0e7397ae54f6ba830ede492ab2",
+    "dependency_addendum_sha256": "f7de16fb1d791734b185b585a980e5a318f58b8bedd332119d2d460875630dc1",
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "fc1bca029647a411a94da4e797434f55e7e2e8a4fbff9a247b636741dac5f1e5",
+    "protocol_sha256": "627fa55fc2fb8920e7c55e24b3a074675e5cb7e2959d34c3821ff32af1799ba8",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "v31_engine_sha256": "02b379b3b19cab868376d53ed73d08bc52a947b48de47332166a22ead82321e0"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "gates": {
+    "all_inputs_complete": true,
+    "asset_concentration": true,
+    "both_assets_selected": true,
+    "drawdown_cap": true,
+    "every_active_standard_year_beats_cash": true,
+    "every_active_stress_year_beats_cash": true,
+    "five_positive_standard_years": true,
+    "five_positive_stress_years": true,
+    "four_active_years": true,
+    "inactive_years_are_exact_cash": true,
+    "positive_standard_excess": true,
+    "positive_stress_excess": true,
+    "twenty_actions": true,
+    "year_concentration": true
+  },
+  "mode": "HISTORICAL_COINBASE_EXACT_MODEL_REPLICATION_ONLY",
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+  "schema_version": "3.2-coinbase-exact-replication",
+  "screening_status": "VERIFIED_FIVE_YEAR_COINBASE_REPLICATION",
+  "source_inventory": [
+    {
+      "key": "cash:DGS3MO",
+      "normalized_sha256": "96ad148374d9ee385b1cc9e594da8ff63afcf4ce62bc90d21f83025d0406834c",
+      "provider": "federal_reserve_h15",
+      "rows": 2082,
+      "series_id": "H15/H15/RIFLGFCM03_N.B",
+      "sha256": "e6f07c7e068fbc42ccfd41bc3b578c7b4640204f0ade49162ac1034db71f0535",
+      "url": "https://www.federalreserve.gov/datadownload/Output.aspx?filetype=csv&from=&label=include&lastobs=&layout=seriescolumn&rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&to=&type=package"
+    },
+    {
+      "end": "2021-02-18",
+      "key": "coinbase:BTC:00",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "4c894c8d58210b94f60d1b3c67e4c8c58360cc9ca1e4d8cddac2d7d025ad5085",
+      "start": "2020-06-14",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2020-06-14T00%3A00%3A00Z&end=2021-02-19T00%3A00%3A00Z"
+    },
+    {
+      "end": "2021-10-26",
+      "key": "coinbase:BTC:01",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "4f5e0959545bc14f95129f508207c5820345039f1716c03d47e2311c697e6451",
+      "start": "2021-02-19",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2021-02-19T00%3A00%3A00Z&end=2021-10-27T00%3A00%3A00Z"
+    },
+    {
+      "end": "2022-07-03",
+      "key": "coinbase:BTC:02",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "4e6161784ddc7dfe51a4a6aa249a6c1d6546ac4353d931ca2917111f4ec63a71",
+      "start": "2021-10-27",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2021-10-27T00%3A00%3A00Z&end=2022-07-04T00%3A00%3A00Z"
+    },
+    {
+      "end": "2023-03-10",
+      "key": "coinbase:BTC:03",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "9ec5f15727ef2a9ba14366987bec2697f76f3358c9eb94e1ee81676d701fc255",
+      "start": "2022-07-04",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2022-07-04T00%3A00%3A00Z&end=2023-03-11T00%3A00%3A00Z"
+    },
+    {
+      "end": "2023-11-15",
+      "key": "coinbase:BTC:04",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "1a9308cf49ab8c09a99d46c9c062af2bda0c1b1b48a0412be35c4d53b14cc7c3",
+      "start": "2023-03-11",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2023-03-11T00%3A00%3A00Z&end=2023-11-16T00%3A00%3A00Z"
+    },
+    {
+      "end": "2024-07-22",
+      "key": "coinbase:BTC:05",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "21833379338c7dbeec8fa7e554ddfe15969b77f43374a6407a4c578ff3643e85",
+      "start": "2023-11-16",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2023-11-16T00%3A00%3A00Z&end=2024-07-23T00%3A00%3A00Z"
+    },
+    {
+      "end": "2025-03-29",
+      "key": "coinbase:BTC:06",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "aaee81d2732f37025c4e5478b9480e9c2e95011eba1f1ef72bbf2853965aad24",
+      "start": "2024-07-23",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2024-07-23T00%3A00%3A00Z&end=2025-03-30T00%3A00%3A00Z"
+    },
+    {
+      "end": "2025-12-04",
+      "key": "coinbase:BTC:07",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "e0e6f6b6c20604acd1ccdd7729c71b5c789910762e5d3428a0ac32ce711b3dc6",
+      "start": "2025-03-30",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2025-03-30T00%3A00%3A00Z&end=2025-12-05T00%3A00%3A00Z"
+    },
+    {
+      "end": "2026-01-01",
+      "key": "coinbase:BTC:08",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 28,
+      "sha256": "4f54cf9510775af551f6d8d74b3711363d7318e13cf43ed2a4b7c969b3c2c86d",
+      "start": "2025-12-05",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2025-12-05T00%3A00%3A00Z&end=2026-01-02T00%3A00%3A00Z"
+    },
+    {
+      "end": "2021-02-18",
+      "key": "coinbase:ETH:00",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "50857f69d235edd23c35eebba9099075ec1b6656727bee4705728126d0839ce5",
+      "start": "2020-06-14",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2020-06-14T00%3A00%3A00Z&end=2021-02-19T00%3A00%3A00Z"
+    },
+    {
+      "end": "2021-10-26",
+      "key": "coinbase:ETH:01",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "d54958392a5b30f1466dcb3b5267d5997e388382542f08e8da2fff949a76a778",
+      "start": "2021-02-19",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2021-02-19T00%3A00%3A00Z&end=2021-10-27T00%3A00%3A00Z"
+    },
+    {
+      "end": "2022-07-03",
+      "key": "coinbase:ETH:02",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "6850ac55f1fa08c455e52f2d436e7d6e7a09ffb4247a768f88d11859d7b27c31",
+      "start": "2021-10-27",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2021-10-27T00%3A00%3A00Z&end=2022-07-04T00%3A00%3A00Z"
+    },
+    {
+      "end": "2023-03-10",
+      "key": "coinbase:ETH:03",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "75c3048a4a0258d0fb1c1a36032b6c12f4cb3d1cb192199fb82ec8f7a1c8e2b8",
+      "start": "2022-07-04",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2022-07-04T00%3A00%3A00Z&end=2023-03-11T00%3A00%3A00Z"
+    },
+    {
+      "end": "2023-11-15",
+      "key": "coinbase:ETH:04",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "c411c601c9dff99a62b2684ad042bedd462abecd7da8ff8f23fee55d4319401b",
+      "start": "2023-03-11",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2023-03-11T00%3A00%3A00Z&end=2023-11-16T00%3A00%3A00Z"
+    },
+    {
+      "end": "2024-07-22",
+      "key": "coinbase:ETH:05",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "7956ad7be5a821d85c1377ad0393772ec96b79bfbae33b771d304c85b7b9468a",
+      "start": "2023-11-16",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2023-11-16T00%3A00%3A00Z&end=2024-07-23T00%3A00%3A00Z"
+    },
+    {
+      "end": "2025-03-29",
+      "key": "coinbase:ETH:06",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "9b09abbe6890abf1cf4cdbf8e5a9c2aadfc9f23ceb7c252e6b0da07a97a6a726",
+      "start": "2024-07-23",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2024-07-23T00%3A00%3A00Z&end=2025-03-30T00%3A00%3A00Z"
+    },
+    {
+      "end": "2025-12-04",
+      "key": "coinbase:ETH:07",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 250,
+      "sha256": "275dc69da8deb6fca8cb6124a28f06ef5f27ee4db677f8483abf7308b2251ede",
+      "start": "2025-03-30",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2025-03-30T00%3A00%3A00Z&end=2025-12-05T00%3A00%3A00Z"
+    },
+    {
+      "end": "2026-01-01",
+      "key": "coinbase:ETH:08",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "rows": 28,
+      "sha256": "c3a7762326bfdf20b44bc3909359ee82480f85f62b7c08983955651f9b9fda56",
+      "start": "2025-12-05",
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2025-12-05T00%3A00%3A00Z&end=2026-01-02T00%3A00%3A00Z"
+    }
+  ],
+  "source_inventory_sha256": "b40658b364f2d3750b04391d2179362f81fddaeecc08d18cff56c5c460fc3a2d",
+  "standard": {
+    "active_year_count": 4,
+    "active_years": [
+      "2021",
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "asset_net_contribution": {
+      "BTC": 0.07640143107852809,
+      "ETH": 0.03002750120514918
+    },
+    "cash_benchmark_compounded_return": 0.1782160320530093,
+    "cash_contribution": 0.1581580032063731,
+    "cash_window_returns": {
+      "2021": 0.00045258350223709165,
+      "2022": 0.02055378228919791,
+      "2023": 0.05269777257262742,
+      "2024": 0.05194304044117515,
+      "2025": 0.042069278517140374
+    },
+    "crypto_action_days": 128,
+    "crypto_contribution": 0.10642893228367731,
+    "crypto_turnover": 7.19891111014209,
+    "excess_compounded_return": 0.12254466498571825,
+    "excess_window_returns": {
+      "2021": 0.027696820918446052,
+      "2022": 0.0,
+      "2023": 0.015297614488613887,
+      "2024": 0.04079480174382377,
+      "2025": 0.020164043745534155
+    },
+    "inactive_years": [
+      "2022"
+    ],
+    "maximum_drawdown": 0.018591397898902406,
+    "maximum_positive_asset_share": 0.7178633613920561,
+    "maximum_positive_year_share": 0.39243399911997895,
+    "net_compounded_return": 0.30076069703872754,
+    "selected_assets": [
+      "BTC",
+      "ETH"
+    ],
+    "window_action_days": {
+      "2021": 31,
+      "2022": 0,
+      "2023": 28,
+      "2024": 38,
+      "2025": 31
+    },
+    "window_returns": {
+      "2021": 0.028149404420683144,
+      "2022": 0.02055378228919791,
+      "2023": 0.06799538706124131,
+      "2024": 0.09273784218499892,
+      "2025": 0.06223332226267453
+    }
+  },
+  "stress": {
+    "active_year_count": 4,
+    "active_years": [
+      "2021",
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "asset_net_contribution": {
+      "BTC": 0.07128608283510472,
+      "ETH": 0.02795224083487837
+    },
+    "cash_benchmark_compounded_return": 0.1782160320530093,
+    "cash_contribution": 0.15815770585568176,
+    "cash_window_returns": {
+      "2021": 0.00045258350223709165,
+      "2022": 0.02055378228919791,
+      "2023": 0.05269777257262742,
+      "2024": 0.05194304044117515,
+      "2025": 0.042069278517140374
+    },
+    "crypto_action_days": 128,
+    "crypto_contribution": 0.09923832366998306,
+    "crypto_turnover": 7.199193015080164,
+    "excess_compounded_return": 0.11322573374914757,
+    "excess_window_returns": {
+      "2021": 0.02657055490622895,
+      "2022": 0.0,
+      "2023": 0.013423382955484842,
+      "2024": 0.0381997460636494,
+      "2025": 0.018084232686767843
+    },
+    "inactive_years": [
+      "2022"
+    ],
+    "maximum_drawdown": 0.019685849847548065,
+    "maximum_positive_asset_share": 0.7183321946485764,
+    "maximum_positive_year_share": 0.39676539966628466,
+    "net_compounded_return": 0.29144176580215686,
+    "selected_assets": [
+      "BTC",
+      "ETH"
+    ],
+    "window_action_days": {
+      "2021": 31,
+      "2022": 0,
+      "2023": 28,
+      "2024": 38,
+      "2025": 31
+    },
+    "window_returns": {
+      "2021": 0.02702313840846604,
+      "2022": 0.02055378228919791,
+      "2023": 0.06612115552811226,
+      "2024": 0.09014278650482455,
+      "2025": 0.060153511203908216
+    }
+  },
+  "v312_dependency_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22",
+  "verification_periods": [
+    {
+      "end": "2021-12-31T00:00:00Z",
+      "name": "2021",
+      "start": "2021-01-01T00:00:00Z"
+    },
+    {
+      "end": "2022-12-31T00:00:00Z",
+      "name": "2022",
+      "start": "2022-01-01T00:00:00Z"
+    },
+    {
+      "end": "2023-12-31T00:00:00Z",
+      "name": "2023",
+      "start": "2023-01-01T00:00:00Z"
+    },
+    {
+      "end": "2024-12-31T00:00:00Z",
+      "name": "2024",
+      "start": "2024-01-01T00:00:00Z"
+    },
+    {
+      "end": "2025-12-31T00:00:00Z",
+      "name": "2025",
+      "start": "2025-01-01T00:00:00Z"
+    }
+  ]
+}
