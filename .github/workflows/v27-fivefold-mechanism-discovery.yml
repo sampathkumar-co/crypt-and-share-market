@@ -6,7 +6,9 @@ on:
     paths:
       - "research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md"
       - "src/tradebot/research/historical_discovery_v27.py"
+      - "src/tradebot/research/historical_discovery_v27_runner.py"
       - "tests/test_historical_discovery_v27.py"
+      - "tests/test_historical_discovery_v27_warmup_guard.py"
       - ".github/workflows/v27-fivefold-mechanism-discovery.yml"
       - "pyproject.toml"
   push:
@@ -15,7 +17,9 @@ on:
       - ".github/triggers/v27-fivefold-discovery-once.txt"
       - "research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md"
       - "src/tradebot/research/historical_discovery_v27.py"
+      - "src/tradebot/research/historical_discovery_v27_runner.py"
       - "tests/test_historical_discovery_v27.py"
+      - "tests/test_historical_discovery_v27_warmup_guard.py"
       - ".github/workflows/v27-fivefold-mechanism-discovery.yml"
       - "pyproject.toml"
 
@@ -46,7 +50,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: Compile v2.7
-        run: python -m py_compile src/tradebot/research/historical_discovery_v27.py
+        run: |
+          python -m py_compile src/tradebot/research/historical_discovery_v27.py
+          python -m py_compile src/tradebot/research/historical_discovery_v27_runner.py
       - name: Verify frozen campaigns and gates are unchanged
         if: github.event_name == 'pull_request'
         shell: bash
@@ -60,23 +66,29 @@ jobs:
             research/V25_HISTORICAL_PROXY_SCREEN_PROTOCOL.md \
             src/tradebot/research/historical_discovery_v26.py \
             research/V26_COST_AWARE_HISTORICAL_DISCOVERY_PROTOCOL.md \
+            research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md \
+            src/tradebot/research/historical_discovery_v27.py \
             src/tradebot/backtest/profit_quality_gate.py \
             src/tradebot/backtest/selection_stability.py
       - name: Run focused v2.7 tests
-        run: python -m pytest tests/test_historical_discovery_v27.py -q
+        run: python -m pytest tests/test_historical_discovery_v27.py tests/test_historical_discovery_v27_warmup_guard.py -q
       - name: Run complete repository suite
         run: python -m pytest -q
       - name: Enforce isolated paper-only boundary
         shell: bash
         run: |
           grep -q 'MODE = "HISTORICAL_FIVEFOLD_MECHANISM_DISCOVERY_ONLY"' src/tradebot/research/historical_discovery_v27.py
+          grep -q 'v26.WARMUP_HOURS = v27.WARMUP_HOURS' src/tradebot/research/historical_discovery_v27_runner.py
+          grep -q '10 \* 24' src/tradebot/research/historical_discovery_v27_runner.py
           grep -q '"authorizes_trading": False' src/tradebot/research/historical_discovery_v27.py
           grep -q '"authorizes_shadow_paper": False' src/tradebot/research/historical_discovery_v27.py
           grep -q '"changes_track_a": False' src/tradebot/research/historical_discovery_v27.py
           grep -q 'positive_five_validation_windows' src/tradebot/research/historical_discovery_v27.py
           ! grep -q 'forward-data/v2' src/tradebot/research/historical_discovery_v27.py
+          ! grep -q 'forward-data/v2' src/tradebot/research/historical_discovery_v27_runner.py
           ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order)' \
-            src/tradebot/research/historical_discovery_v27.py
+            src/tradebot/research/historical_discovery_v27.py \
+            src/tradebot/research/historical_discovery_v27_runner.py
 
   run-fixed-fivefold-screen:
     if: github.event_name != 'pull_request'
@@ -119,10 +131,17 @@ jobs:
           assert report["authorizes_shadow_paper"] is False
           assert report["changes_track_a"] is False
           assert report["cannot_replace_forward_evidence"] is True
+          assert report["effective_state_assembly_warmup_hours"] == 240
+          assert report["fingerprints"]["runtime_guard_sha256"]
           assert [item["name"] for item in report["windows"]] == [
               "2024-07", "2024-12", "2025-03", "2025-06",
               "2025-09", "2025-12", "2026-04"
           ]
+          assert all(
+              item["screen_start_utc"][:7] != item["warmup_start_utc"][:7]
+              or item["warmup_start_utc"] < item["screen_start_utc"]
+              for item in report["windows"]
+          )
           assert sum(item["phase"] == "validation" for item in report["windows"]) == 5
           assert report["source_inventory"]
           canonical = dict(report)
@@ -148,6 +167,7 @@ jobs:
               "eight_hour_net_return": primary["net_compounded_return"],
               "eight_hour_stress_return": report["results"]["8"]["stress"]["net_compounded_return"],
               "maximum_drawdown": primary["maximum_drawdown"],
+              "effective_state_assembly_warmup_hours": report["effective_state_assembly_warmup_hours"],
               "report_sha256": expected,
           }, indent=2, sort_keys=True))
           PY
