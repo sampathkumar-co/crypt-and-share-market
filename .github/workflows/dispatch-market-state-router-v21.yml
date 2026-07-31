@@ -24,5 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run market-state-router-v21.yml --ref main
+          gh workflow run market-state-router-v21.yml \
+            --repo sampathkumar-co/crypt-and-share-market \
+            --ref main
           echo "Dispatched the existing frozen v2.1 router; no strategy bytes were changed."
