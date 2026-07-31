@@ -119,7 +119,7 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
 
-          hours = []
+          captures = []
           root = Path("/tmp/forward-data-watchdog/data/forward-market-state/normalized")
           for path in root.glob("*.json"):
               try:
@@ -132,28 +132,33 @@ jobs:
               parsed = parsed.astimezone(timezone.utc)
               if parsed.minute or parsed.second or parsed.microsecond:
                   continue
-              hours.append(parsed)
-          if not hours:
+              captures.append((parsed, path.name))
+          if not captures:
               raise SystemExit("No canonical snapshot hour is available for decision recovery")
-          latest = max(hours)
-          print(latest.strftime("%Y-%m-%dT%H:00:00Z"))
-          print(latest.strftime("%Y%m%dT%H0000Z"))
+          latest_hour = max(item[0] for item in captures)
+          canonical_name = min(name for hour, name in captures if hour == latest_hour)
+          print(latest_hour.strftime("%Y-%m-%dT%H:00:00Z"))
+          print(latest_hour.strftime("%Y%m%dT%H0000Z"))
+          print(f"data/forward-market-state/normalized/{canonical_name}")
           PY
           )
-          test "${#latest_info[@]}" -eq 2
+          test "${#latest_info[@]}" -eq 3
           target="${latest_info[0]}"
           safe="${latest_info[1]}"
-          echo "Decision recovery anchored to latest canonical snapshot: $target"
+          canonical_snapshot_path="${latest_info[2]}"
+          snapshot_persisted_at=$(git -C /tmp/forward-data-watchdog log -1 --format=%cI -- "$canonical_snapshot_path")
+          test -n "$snapshot_persisted_at"
+          echo "Decision recovery anchored to latest canonical snapshot: $target persisted_at=$snapshot_persisted_at"
 
           v21="/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json"
           v23="/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json"
           v25="/tmp/forward-data-watchdog/data/forward-alpha-v25/decisions/$safe.json"
           active_v21=$(gh run list --workflow market-state-router-v21.yml --limit 10 --json status,createdAt \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
           active_v23=$(gh run list --workflow forward-alpha-decisions-v23.yml --limit 10 --json status,createdAt \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
           active_v25=$(gh run list --workflow forward-alpha-decisions-v25.yml --limit 10 --json status,createdAt \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
 
           if [[ ! -f "$v21" && "$active_v21" == "0" ]]; then
             echo "Missing v2.1 decision for $target; dispatching frozen router."
