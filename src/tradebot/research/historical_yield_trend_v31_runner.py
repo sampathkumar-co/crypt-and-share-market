@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -43,11 +44,14 @@ def parse_cash_rates_flexible(content: bytes) -> dict[datetime, float]:
         if not raw or raw == ".":
             continue
         try:
-            value = float(raw) / 100.0
+            # Parse the published decimal text exactly before converting the
+            # percentage to a fraction. This avoids binary multiplication
+            # artifacts such as 1.10 * 0.01 becoming 0.011000000000000001.
+            value = float(Decimal(raw) / Decimal("100"))
             day = datetime.fromisoformat(
                 str(row[date_column])
             ).replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError, InvalidOperation) as exc:
             raise v31.HistoricalYieldTrendV31Error(
                 f"Invalid FRED row: {row}"
             ) from exc
