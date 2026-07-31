@@ -21,6 +21,7 @@ concurrency:
 jobs:
   recover-missing-evidence:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,19 +70,48 @@ jobs:
           active_v20=$(gh run list --workflow forward-market-state-v20.yml --limit 10 --json status,createdAt \
             --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
 
+          dispatched_v20=false
           if [[ "$phase" != "decisions" && "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
             echo "Missing snapshot for $current_target; dispatching frozen v2.0 collector."
             gh workflow run forward-market-state-v20.yml --ref main
+            dispatched_v20=true
           else
             echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20"
           fi
 
-          if [[ "$phase" == "snapshot" ]]; then
-            exit 0
+          if [[ "$snapshot_present" != "true" && "$dispatched_v20" == "true" ]]; then
+            echo "Waiting for the dispatched canonical snapshot before checking decisions."
+            for attempt in $(seq 1 40); do
+              sleep 15
+              git fetch --quiet origin forward-data/v2
+              git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
+              snapshot_present=$(TARGET="$current_target" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          target = os.environ["TARGET"]
+          found = False
+          for path in Path("/tmp/forward-data-watchdog/data/forward-market-state/normalized").glob("*.json"):
+              try:
+                  if json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc") == target:
+                      found = True
+                      break
+              except (OSError, json.JSONDecodeError):
+                  continue
+          print("true" if found else "false")
+          PY
+              )
+              if [[ "$snapshot_present" == "true" ]]; then
+                echo "Canonical snapshot persisted for $current_target; continuing inline to decision recovery."
+                break
+              fi
+            done
           fi
-          if [[ "$phase" == "all" && "$snapshot_present" != "true" ]]; then
-            echo "Manual all-phase waits for the dispatched canonical snapshot."
-            exit 0
+
+          if [[ "$snapshot_present" != "true" ]]; then
+            echo "Snapshot for $current_target is still unavailable; failing closed without dispatching decisions." >&2
+            exit 1
           fi
 
           mapfile -t latest_info < <(python - <<'PY'
