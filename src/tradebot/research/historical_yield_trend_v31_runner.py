@@ -1,134 +1,30 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
-import io
 import json
-import time
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from tradebot.research.forward_alpha_v25 import canonical_json
 from tradebot.research import historical_yield_trend_v31 as v31
+from tradebot.research import historical_yield_trend_v311_transport as transport
 
-CASH_SOURCE_POLICY = (
-    "fred_dgs3mo_accept_DATE_or_observation_date_skip_only_missing_values"
+CASH_SOURCE_POLICY = transport.CASH_SOURCE_POLICY
+CASH_TRANSPORT_POLICY = transport.CASH_TRANSPORT_POLICY
+FRED_FALLBACK_URL = transport.FRED_FALLBACK_URL
+FED_H15_URL = transport.FED_H15_URL
+FED_H15_SERIES = transport.FED_H15_SERIES
+TRANSPORT_ADDENDUM_PATH = Path(
+    "research/V311_FEDERAL_RESERVE_H15_TRANSPORT_ADDENDUM.md"
 )
-CASH_TRANSPORT_POLICY = (
-    "retry_frozen_fred_graph_url_then_equivalent_full_series_url"
-)
-FRED_FALLBACK_URL = (
-    "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO"
-)
-_FRED_TRANSPORT_AUDIT: dict[str, Any] = {
-    "attempt_count": 0,
-    "attempted_urls": [],
-    "selected_url": None,
-}
 
-
-def _reset_transport_audit() -> None:
-    _FRED_TRANSPORT_AUDIT["attempt_count"] = 0
-    _FRED_TRANSPORT_AUDIT["attempted_urls"] = []
-    _FRED_TRANSPORT_AUDIT["selected_url"] = None
-
-
-def download_fred_with_retry(
-    attempts_per_url: int = 4,
-    timeout: float = 90.0,
-) -> tuple[bytes, dict[str, str]]:
-    """Download the same DGS3MO series with bounded official-source retries."""
-    urls = (v31.FRED_URL, FRED_FALLBACK_URL)
-    last_error: Exception | None = None
-    for url in urls:
-        _FRED_TRANSPORT_AUDIT["attempted_urls"].append(url)
-        for attempt in range(1, attempts_per_url + 1):
-            _FRED_TRANSPORT_AUDIT["attempt_count"] += 1
-            request = Request(
-                url,
-                headers={"User-Agent": "tradebot-v31-yield-trend/1.0"},
-            )
-            try:
-                with urlopen(request, timeout=timeout) as response:  # noqa: S310 - official frozen FRED host
-                    if response.status != 200:
-                        raise v31.HistoricalYieldTrendV31Error(
-                            f"FRED returned HTTP {response.status}"
-                        )
-                    content = response.read()
-                if not content:
-                    raise v31.HistoricalYieldTrendV31Error(
-                        "FRED returned an empty CSV"
-                    )
-                _FRED_TRANSPORT_AUDIT["selected_url"] = url
-                return content, {
-                    "key": "cash:DGS3MO",
-                    "url": url,
-                    "sha256": hashlib.sha256(content).hexdigest(),
-                }
-            except (
-                HTTPError,
-                URLError,
-                TimeoutError,
-                v31.HistoricalYieldTrendV31Error,
-            ) as exc:
-                last_error = exc
-                if attempt < attempts_per_url:
-                    time.sleep(float(attempt))
-    raise v31.HistoricalYieldTrendV31Error(
-        f"FRED DGS3MO download failed after "
-        f"{_FRED_TRANSPORT_AUDIT['attempt_count']} attempts: {last_error}"
-    )
-
-
-def parse_cash_rates_flexible(content: bytes) -> dict[datetime, float]:
-    try:
-        text = content.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise v31.HistoricalYieldTrendV31Error(
-            "FRED CSV is not UTF-8"
-        ) from exc
-    reader = csv.DictReader(io.StringIO(text))
-    fieldnames = list(reader.fieldnames or [])
-    date_column = (
-        "observation_date"
-        if "observation_date" in fieldnames
-        else "DATE"
-        if "DATE" in fieldnames
-        else None
-    )
-    if date_column is None or "DGS3MO" not in fieldnames:
-        raise v31.HistoricalYieldTrendV31Error(
-            f"FRED CSV columns unavailable: {fieldnames}"
-        )
-    rates: dict[datetime, float] = {}
-    for row in reader:
-        raw = str(row.get("DGS3MO", "")).strip()
-        if not raw or raw == ".":
-            continue
-        try:
-            value = float(Decimal(raw) / Decimal("100"))
-            day = datetime.fromisoformat(
-                str(row[date_column])
-            ).replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError, InvalidOperation) as exc:
-            raise v31.HistoricalYieldTrendV31Error(
-                f"Invalid FRED row: {row}"
-            ) from exc
-        if value <= -1.0:
-            raise v31.HistoricalYieldTrendV31Error(
-                f"Invalid annual cash rate on {v31._utc(day)}: {value}"
-            )
-        rates[day] = value
-    if not rates:
-        raise v31.HistoricalYieldTrendV31Error(
-            "FRED CSV contains no valid rates"
-        )
-    return rates
+# Compatibility aliases retained for existing callers and tests.
+parse_cash_rates_flexible = transport.parse_fred_rates
+download_fred_with_retry = transport.download_cash_series_with_resilience
+_FRED_TRANSPORT_AUDIT = transport.TRANSPORT_AUDIT
+_reset_transport_audit = transport.reset_transport_audit
 
 
 def run_guarded_overlay(max_workers: int = 16) -> dict[str, Any]:
@@ -140,27 +36,39 @@ def run_guarded_overlay(max_workers: int = 16) -> dict[str, Any]:
         raise v31.HistoricalYieldTrendV31Error(
             "Corrected v3.1 discovery must contain 10 quarters"
         )
-    _reset_transport_audit()
+    if not TRANSPORT_ADDENDUM_PATH.is_file():
+        raise v31.HistoricalYieldTrendV31Error(
+            f"missing transport addendum: {TRANSPORT_ADDENDUM_PATH}"
+        )
+
+    transport.reset_transport_audit()
     original_parser = v31.parse_cash_rates
     original_downloader = v31._download_fred
-    v31.parse_cash_rates = parse_cash_rates_flexible
-    v31._download_fred = download_fred_with_retry
+    v31.parse_cash_rates = transport.parse_fred_rates
+    v31._download_fred = transport.download_cash_series_with_resilience
     try:
         report = v31.run_overlay(max_workers=max_workers)
     finally:
         v31.parse_cash_rates = original_parser
         v31._download_fred = original_downloader
+
     report["cash_source_policy"] = CASH_SOURCE_POLICY
     report["cash_transport_policy"] = CASH_TRANSPORT_POLICY
-    report["cash_transport_audit"] = dict(_FRED_TRANSPORT_AUDIT)
+    report["cash_transport_audit"] = dict(transport.TRANSPORT_AUDIT)
+    report["transport_addendum_path"] = str(TRANSPORT_ADDENDUM_PATH)
+
     fingerprints = dict(report["fingerprints"])
     fingerprints["runner_sha256"] = hashlib.sha256(
         Path(__file__).resolve().read_bytes()
     ).hexdigest()
     fingerprints["cash_transport_sha256"] = hashlib.sha256(
-        download_fred_with_retry.__code__.co_code
+        Path(transport.__file__).resolve().read_bytes()
+    ).hexdigest()
+    fingerprints["transport_addendum_sha256"] = hashlib.sha256(
+        TRANSPORT_ADDENDUM_PATH.read_bytes()
     ).hexdigest()
     report["fingerprints"] = fingerprints
+
     report.pop("report_sha256", None)
     report["report_sha256"] = hashlib.sha256(
         canonical_json(report).encode("utf-8")
@@ -180,7 +88,7 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run guarded v3.1 yield-bearing cash trend overlay."
+        description="Run guarded v3.1.1 yield-bearing cash trend overlay."
     )
     parser.add_argument("--json-out", required=True)
     parser.add_argument("--max-workers", type=int, default=16)
@@ -209,6 +117,9 @@ def main(argv: list[str] | None = None) -> int:
                     "window_returns"
                 ],
                 "standard_excess_years": verification["standard"][
+                    "excess_window_returns"
+                ],
+                "stress_excess_years": verification["stress"][
                     "excess_window_returns"
                 ],
                 "maximum_drawdown": verification["standard"][
