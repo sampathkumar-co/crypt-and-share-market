@@ -197,12 +197,12 @@ def _feature_set(frames: list[v21.SnapshotFrame], asset: str) -> dict[str, float
     assert six is not None and day is not None
     assert btc_current is not None and btc_six is not None and btc_day is not None
 
-    prior_frames = frames[:-1]
-    asset_hourly = _hourly_returns(prior_frames, asset)
-    btc_hourly = _hourly_returns(prior_frames, "BTC")
+    asset_hourly = _hourly_returns(frames, asset)
+    btc_hourly = _hourly_returns(frames, "BTC")
     if not asset_hourly or not btc_hourly:
         return None
     beta = _beta(asset_hourly, btc_hourly)
+    prior_frames = frames[:-1]
     residual_6h_history = _rolling_residuals(prior_frames, asset, beta, 6)
     residual_24h_history = _rolling_residuals(prior_frames, asset, beta, 24)
     if not residual_6h_history or not residual_24h_history:

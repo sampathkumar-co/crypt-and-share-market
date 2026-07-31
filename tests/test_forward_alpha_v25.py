@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
+import tradebot.research.forward_alpha_v25 as v25
 from tradebot.research.forward_alpha_v25 import evaluate_forward_alpha_v25
 from tradebot.research.market_state_router import ASSETS, SnapshotFrame
 
@@ -214,3 +216,18 @@ def test_report_is_deterministic_bounded_and_safe() -> None:
     assert sum(first["target_weights"].values()) <= 0.30
     assert all(weight <= 0.15 for weight in first["target_weights"].values())
     assert first["report_sha256"]
+
+
+def test_beta_uses_all_168_completed_hourly_returns() -> None:
+    observed: list[tuple[int, int]] = []
+    original = v25._beta
+
+    def capture(asset_returns: list[float], btc_returns: list[float]) -> float:
+        observed.append((len(asset_returns), len(btc_returns)))
+        return original(asset_returns, btc_returns)
+
+    with patch.object(v25, "_beta", side_effect=capture):
+        features = v25._feature_set(_frames(), "ETH")
+
+    assert features is not None
+    assert observed == [(168, 168)]
