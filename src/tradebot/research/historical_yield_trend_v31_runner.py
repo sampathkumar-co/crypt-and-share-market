@@ -7,6 +7,7 @@ import io
 import json
 import time
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -110,11 +111,11 @@ def parse_cash_rates_flexible(content: bytes) -> dict[datetime, float]:
         if not raw or raw == ".":
             continue
         try:
-            value = float(raw) / 100.0
+            value = float(Decimal(raw) / Decimal("100"))
             day = datetime.fromisoformat(
                 str(row[date_column])
             ).replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError, InvalidOperation) as exc:
             raise v31.HistoricalYieldTrendV31Error(
                 f"Invalid FRED row: {row}"
             ) from exc
