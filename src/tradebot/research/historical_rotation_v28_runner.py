@@ -10,6 +10,34 @@ from tradebot.research.forward_alpha_v25 import canonical_json
 from tradebot.research import historical_rotation_v28 as v28
 
 ACCOUNTING_POLICY = "independent_windows_start_and_end_in_cash"
+TARGET_POLICY = "exact_configured_cadence_with_daily_30pct_exposure_cap"
+
+
+def _guarded_daily_target(
+    model: v28.ModelSpec,
+    signal_features: dict[str, v28.AssetFeatures],
+    prior_weights: dict[str, float],
+    prior_sleeve: str,
+    days_since_trend_rebalance: int,
+) -> tuple[dict[str, float], str, int]:
+    effective_age = days_since_trend_rebalance
+    if (
+        prior_sleeve == "trend"
+        and days_since_trend_rebalance >= model.rebalance_days - 1
+    ):
+        effective_age = model.rebalance_days
+    weights, sleeve, age = v28._daily_target(
+        model,
+        signal_features,
+        prior_weights,
+        prior_sleeve,
+        effective_age,
+    )
+    exposure = sum(weights.values())
+    if exposure > v28.MAX_EXPOSURE + 1e-12:
+        scale = v28.MAX_EXPOSURE / exposure
+        weights = {asset: weight * scale for asset, weight in weights.items()}
+    return weights, sleeve, age
 
 
 def simulate_closed(
@@ -39,7 +67,7 @@ def simulate_closed(
             raise v28.HistoricalRotationV28Error(
                 f"Features unavailable for {v28._utc(signal_day)}"
             )
-        target, sleeve, days_since_trend_rebalance = v28._daily_target(
+        target, sleeve, days_since_trend_rebalance = _guarded_daily_target(
             model,
             features[signal_day],
             current_weights,
@@ -134,6 +162,7 @@ def run_guarded_rotation(max_workers: int = 16) -> dict[str, Any]:
     finally:
         v28.simulate = original
     report["accounting_policy"] = ACCOUNTING_POLICY
+    report["target_policy"] = TARGET_POLICY
     fingerprints = dict(report["fingerprints"])
     fingerprints["runner_sha256"] = hashlib.sha256(
         Path(__file__).resolve().read_bytes()
@@ -190,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
                     "maximum_drawdown"
                 ],
                 "accounting_policy": report["accounting_policy"],
+                "target_policy": report["target_policy"],
                 "report_sha256": report["report_sha256"],
                 "authorizes_trading": False,
             },
