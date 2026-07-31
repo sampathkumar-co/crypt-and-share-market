@@ -209,3 +209,25 @@ def test_shadow_authorization_flag_excludes_decision(tmp_path: Path) -> None:
     assert report["verified_decision_count"] == 0
     assert report["excluded_decision_count"] == 1
     assert "unsafe decision flags" in report["exclusions"][0]["reason"]
+
+
+def test_residual_family_cannot_use_btc_as_its_own_benchmark(tmp_path: Path) -> None:
+    decisions, manifests, snapshots = _fixture(tmp_path)
+    decision_path = next(decisions.glob("*.json"))
+    manifest_path = manifests / decision_path.name
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    decision["selected_candidates"][0]["asset"] = "BTC"
+    decision["target_weights"] = {"BTC": 0.15}
+    decision.pop("report_sha256")
+    decision["report_sha256"] = hashlib.sha256(canonical_json(decision).encode("utf-8")).hexdigest()
+    decision_path.write_text(json.dumps(decision, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["decision_file_sha256"] = hashlib.sha256(decision_path.read_bytes()).hexdigest()
+    manifest["decision_report_sha256"] = decision["report_sha256"]
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = readiness.evaluate_forward_alpha_v25_readiness(decisions, manifests, snapshots)
+
+    assert report["verified_decision_count"] == 0
+    assert report["excluded_decision_count"] == 1
+    assert "residual momentum cannot select BTC" in report["exclusions"][0]["reason"]
