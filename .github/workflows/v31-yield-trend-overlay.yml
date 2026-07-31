@@ -1,4 +1,4 @@
-name: v3.1 Yield-Bearing Cash Trend Overlay
+name: v3.1.1 Yield-Bearing Cash Trend Overlay
 
 on:
   workflow_dispatch:
@@ -6,8 +6,10 @@ on:
     paths:
       - "research/V31_YIELD_TREND_OVERLAY_PROTOCOL.md"
       - "research/V31_SOURCE_AVAILABILITY_ADDENDUM.md"
+      - "research/V311_FEDERAL_RESERVE_H15_TRANSPORT_ADDENDUM.md"
       - "src/tradebot/research/historical_yield_trend_v31.py"
       - "src/tradebot/research/historical_yield_trend_v31_runner.py"
+      - "src/tradebot/research/historical_yield_trend_v311_transport.py"
       - "tests/test_historical_yield_trend_v31.py"
       - "tests/test_historical_yield_trend_v31_accounting.py"
       - "tests/test_historical_yield_trend_v31_transport.py"
@@ -16,21 +18,17 @@ on:
   push:
     branches: [main]
     paths:
-      - "research/V31_YIELD_TREND_OVERLAY_PROTOCOL.md"
-      - "research/V31_SOURCE_AVAILABILITY_ADDENDUM.md"
-      - "src/tradebot/research/historical_yield_trend_v31.py"
+      - "research/V311_FEDERAL_RESERVE_H15_TRANSPORT_ADDENDUM.md"
       - "src/tradebot/research/historical_yield_trend_v31_runner.py"
-      - "tests/test_historical_yield_trend_v31.py"
-      - "tests/test_historical_yield_trend_v31_accounting.py"
+      - "src/tradebot/research/historical_yield_trend_v311_transport.py"
       - "tests/test_historical_yield_trend_v31_transport.py"
       - ".github/workflows/v31-yield-trend-overlay.yml"
-      - "pyproject.toml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: v31-yield-trend-overlay-${{ github.ref }}
+  group: v311-yield-trend-overlay-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -52,10 +50,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-      - name: Compile v3.1
+      - name: Compile v3.1.1
         run: |
           python -m py_compile src/tradebot/research/historical_yield_trend_v31.py
           python -m py_compile src/tradebot/research/historical_yield_trend_v31_runner.py
+          python -m py_compile src/tradebot/research/historical_yield_trend_v311_transport.py
       - name: Verify frozen campaigns and gates are unchanged
         if: github.event_name == 'pull_request'
         shell: bash
@@ -79,9 +78,12 @@ jobs:
             src/tradebot/research/historical_monthly_ensemble_v30.py \
             src/tradebot/research/historical_monthly_ensemble_v30_runner.py \
             research/V30_MONTHLY_TREND_RECOVERY_ENSEMBLE_PROTOCOL.md \
+            src/tradebot/research/historical_yield_trend_v31.py \
+            research/V31_YIELD_TREND_OVERLAY_PROTOCOL.md \
+            research/V31_SOURCE_AVAILABILITY_ADDENDUM.md \
             src/tradebot/backtest/profit_quality_gate.py \
             src/tradebot/backtest/selection_stability.py
-      - name: Run focused v3.1 tests
+      - name: Run focused v3.1.1 tests
         run: |
           python -m pytest \
             tests/test_historical_yield_trend_v31.py \
@@ -96,23 +98,23 @@ jobs:
             src/tradebot/research/historical_yield_trend_v31.py
           grep -q 'if len(MODEL_GRID) != 64' \
             src/tradebot/research/historical_yield_trend_v31.py
-          grep -q 'cash_series.*DGS3MO' \
-            src/tradebot/research/historical_yield_trend_v31.py
-          grep -q 'fred_dgs3mo_accept_DATE_or_observation_date' \
-            src/tradebot/research/historical_yield_trend_v31_runner.py
-          grep -q 'retry_frozen_fred_graph_url_then_equivalent_full_series_url' \
-            src/tradebot/research/historical_yield_trend_v31_runner.py
+          grep -q 'H15/H15/RIFLGFCM03_N.B' \
+            src/tradebot/research/historical_yield_trend_v311_transport.py
+          grep -q 'fred_once_each_then_federal_reserve_h15_package_twice' \
+            src/tradebot/research/historical_yield_trend_v311_transport.py
           ! grep -q 'forward-data/v2' \
-            src/tradebot/research/historical_yield_trend_v31.py
+            src/tradebot/research/historical_yield_trend_v31_runner.py \
+            src/tradebot/research/historical_yield_trend_v311_transport.py
           ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order)' \
             src/tradebot/research/historical_yield_trend_v31.py \
-            src/tradebot/research/historical_yield_trend_v31_runner.py
+            src/tradebot/research/historical_yield_trend_v31_runner.py \
+            src/tradebot/research/historical_yield_trend_v311_transport.py
 
   run-fixed-v31:
     if: github.event_name != 'pull_request'
     needs: verify-v31
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -127,7 +129,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-      - name: Run frozen v3.1 verification
+      - name: Run frozen v3.1.1 verification
         run: |
           mkdir -p evidence/v31-yield-trend
           tradebot-v31-yield-trend \
@@ -156,18 +158,33 @@ jobs:
           ]
           assert report["cash_series"] == "DGS3MO"
           assert report["cash_source_policy"] == (
-              "fred_dgs3mo_accept_DATE_or_observation_date_skip_only_missing_values"
+              "federal_reserve_h15_3_month_constant_maturity_exact_series"
           )
           assert report["cash_transport_policy"] == (
-              "retry_frozen_fred_graph_url_then_equivalent_full_series_url"
+              "fred_once_each_then_federal_reserve_h15_package_twice"
+          )
+          assert report["transport_addendum_path"].endswith(
+              "V311_FEDERAL_RESERVE_H15_TRANSPORT_ADDENDUM.md"
           )
           audit = report["cash_transport_audit"]
           assert audit["attempt_count"] >= 1
           assert audit["selected_url"] in audit["attempted_urls"]
+          assert audit["selected_source"] in {
+              "fred_dated_dgs3mo",
+              "fred_full_dgs3mo",
+              "federal_reserve_h15",
+          }
+          assert audit["series_id"] == "H15/H15/RIFLGFCM03_N.B"
+          assert audit["raw_sha256"]
+          assert audit["normalized_sha256"]
+          assert audit["observation_count"] >= 2000
+          assert audit["first_date"] == "2017-08-31"
+          assert audit["last_date"] == "2025-12-31"
           assert report["fingerprints"]["protocol_sha256"]
           assert report["fingerprints"]["addendum_sha256"]
           assert report["fingerprints"]["runner_sha256"]
           assert report["fingerprints"]["cash_transport_sha256"]
+          assert report["fingerprints"]["transport_addendum_sha256"]
           assert any(item["key"] == "cash:DGS3MO" for item in report["source_inventory"])
           canonical = dict(report)
           expected = canonical.pop("report_sha256")
@@ -196,7 +213,7 @@ jobs:
               "report_sha256": expected,
           }, indent=2, sort_keys=True))
           PY
-      - name: Persist immutable v3.1 result
+      - name: Persist immutable v3.1.1 result
         shell: bash
         run: |
           git fetch origin historical-results/v31
@@ -209,7 +226,7 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add results/latest.json "results/run-${GITHUB_RUN_ID}.json"
-          git commit -m "Append v3.1 yield trend result ${GITHUB_RUN_ID}"
+          git commit -m "Append v3.1.1 yield trend result ${GITHUB_RUN_ID}"
           for attempt in 1 2 3; do
             git fetch origin historical-results/v31
             git rebase origin/historical-results/v31
@@ -219,10 +236,10 @@ jobs:
             sleep $((attempt * 5))
           done
           exit 1
-      - name: Upload v3.1 report
+      - name: Upload v3.1.1 report
         uses: actions/upload-artifact@v4
         with:
-          name: v31-yield-trend-${{ github.run_id }}
+          name: v311-yield-trend-${{ github.run_id }}
           path: evidence/v31-yield-trend/report.json
           retention-days: 90
           if-no-files-found: error
