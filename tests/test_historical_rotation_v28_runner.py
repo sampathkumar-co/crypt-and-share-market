@@ -76,6 +76,46 @@ def test_closed_simulation_charges_entry_and_final_exit(monkeypatch) -> None:
     assert result.non_cash_action_days == 1
 
 
+def test_guard_caps_drifted_trend_exposure_at_30_percent(monkeypatch) -> None:
+    payload = {asset: _feature() for asset in v28.ASSETS}
+
+    def carry_target(model, features, prior, sleeve, age):
+        return dict(prior), "trend", age + 1
+
+    monkeypatch.setattr(v28, "_daily_target", carry_target)
+    weights, sleeve, age = runner._guarded_daily_target(
+        v28.ModelSpec(80, 0.4, 5, 1, -0.06),
+        payload,
+        {"BTC": 0.302, "ETH": 0.001},
+        "trend",
+        1,
+    )
+
+    assert sleeve == "trend"
+    assert age == 2
+    assert abs(sum(weights.values()) - 0.30) < 1e-12
+    assert weights["BTC"] > weights["ETH"] > 0.0
+
+
+def test_guard_rebalances_on_exact_fifth_observation(monkeypatch) -> None:
+    captured: dict[str, int] = {}
+
+    def capture_age(model, features, prior, sleeve, age):
+        captured["age"] = age
+        return {}, "cash", 0
+
+    monkeypatch.setattr(v28, "_daily_target", capture_age)
+    runner._guarded_daily_target(
+        v28.ModelSpec(80, 0.4, 5, 1, -0.06),
+        {asset: _feature() for asset in v28.ASSETS},
+        {"BTC": 0.30},
+        "trend",
+        4,
+    )
+
+    assert captured["age"] == 5
+
+
 def test_guard_restores_original_simulator(monkeypatch) -> None:
     captured: dict[str, bool] = {}
 
@@ -98,6 +138,9 @@ def test_guard_restores_original_simulator(monkeypatch) -> None:
     assert v28.simulate is original
     assert report["accounting_policy"] == (
         "independent_windows_start_and_end_in_cash"
+    )
+    assert report["target_policy"] == (
+        "exact_configured_cadence_with_daily_30pct_exposure_cap"
     )
     assert report["fingerprints"]["runner_sha256"]
     assert report["report_sha256"] != "stale"
