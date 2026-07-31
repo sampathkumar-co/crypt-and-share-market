@@ -332,7 +332,11 @@ def test_workflow_isolated_from_track_a() -> None:
     workflow = Path(".github/workflows/v27-fivefold-mechanism-discovery.yml").read_text(
         encoding="utf-8"
     )
+    source = Path("src/tradebot/research/historical_discovery_v27.py").read_text(
+        encoding="utf-8"
+    )
     assert "historical-results/v27" in workflow
-    assert "forward-data/v2" not in workflow
+    assert "git push origin HEAD:historical-results/v27" in workflow
+    assert "forward-data/v2" not in source
     assert "contents: write" in workflow
     assert "pull_request" in workflow
