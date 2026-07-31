@@ -1,0 +1,174 @@
+name: v2.7 Fivefold Mechanism Discovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md"
+      - "src/tradebot/research/historical_discovery_v27.py"
+      - "tests/test_historical_discovery_v27.py"
+      - ".github/workflows/v27-fivefold-mechanism-discovery.yml"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/v27-fivefold-discovery-once.txt"
+      - "research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md"
+      - "src/tradebot/research/historical_discovery_v27.py"
+      - "tests/test_historical_discovery_v27.py"
+      - ".github/workflows/v27-fivefold-mechanism-discovery.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v27-fivefold-mechanism-discovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-v27:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile v2.7
+        run: python -m py_compile src/tradebot/research/historical_discovery_v27.py
+      - name: Verify frozen campaigns and gates are unchanged
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git diff --exit-code "${{ github.event.pull_request.base.sha }}" -- \
+            src/tradebot/research/forward_alpha_v25.py \
+            src/tradebot/research/forward_alpha_v25_readiness.py \
+            research/V25_HIGH_CONVICTION_ALPHA_PROTOCOL.md \
+            research/V24_FORWARD_ALPHA_EVALUATION_PROTOCOL.md \
+            src/tradebot/research/historical_proxy_screen_v25.py \
+            research/V25_HISTORICAL_PROXY_SCREEN_PROTOCOL.md \
+            src/tradebot/research/historical_discovery_v26.py \
+            research/V26_COST_AWARE_HISTORICAL_DISCOVERY_PROTOCOL.md \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py
+      - name: Run focused v2.7 tests
+        run: python -m pytest tests/test_historical_discovery_v27.py -q
+      - name: Run complete repository suite
+        run: python -m pytest -q
+      - name: Enforce isolated paper-only boundary
+        shell: bash
+        run: |
+          grep -q 'MODE = "HISTORICAL_FIVEFOLD_MECHANISM_DISCOVERY_ONLY"' src/tradebot/research/historical_discovery_v27.py
+          grep -q '"authorizes_trading": False' src/tradebot/research/historical_discovery_v27.py
+          grep -q '"authorizes_shadow_paper": False' src/tradebot/research/historical_discovery_v27.py
+          grep -q '"changes_track_a": False' src/tradebot/research/historical_discovery_v27.py
+          grep -q 'positive_five_validation_windows' src/tradebot/research/historical_discovery_v27.py
+          ! grep -q 'forward-data/v2' src/tradebot/research/historical_discovery_v27.py
+          ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order)' \
+            src/tradebot/research/historical_discovery_v27.py
+
+  run-fixed-fivefold-screen:
+    if: github.event_name != 'pull_request'
+    needs: verify-v27
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run frozen v2.7 fivefold screen
+        run: |
+          mkdir -p evidence/v27-fivefold-discovery
+          tradebot-v27-fivefold-discovery \
+            --json-out evidence/v27-fivefold-discovery/report.json \
+            --max-workers 24
+      - name: Validate deterministic isolated report
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/v27-fivefold-discovery/report.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "2.7-fivefold-mechanism-discovery"
+          assert report["mode"] == "HISTORICAL_FIVEFOLD_MECHANISM_DISCOVERY_ONLY"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["changes_track_a"] is False
+          assert report["cannot_replace_forward_evidence"] is True
+          assert [item["name"] for item in report["windows"]] == [
+              "2024-07", "2024-12", "2025-03", "2025-06",
+              "2025-09", "2025-12", "2026-04"
+          ]
+          assert sum(item["phase"] == "validation" for item in report["windows"]) == 5
+          assert report["source_inventory"]
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected
+          primary = report["results"]["8"]["standard"]
+          print(json.dumps({
+              "status": report["screening_status"],
+              "events": report["event_count"],
+              "validation_events": report["validation_event_count"],
+              "active_assets": report["active_assets"],
+              "active_families": report["active_families"],
+              "validation_returns": {
+                  key: primary["window_returns"][key]
+                  for key in ("2025-03", "2025-06", "2025-09", "2025-12", "2026-04")
+              },
+              "eight_hour_net_return": primary["net_compounded_return"],
+              "eight_hour_stress_return": report["results"]["8"]["stress"]["net_compounded_return"],
+              "maximum_drawdown": primary["maximum_drawdown"],
+              "report_sha256": expected,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Persist auditable v2.7 report
+        shell: bash
+        run: |
+          git fetch origin historical-results/v27
+          git worktree add result-branch origin/historical-results/v27
+          mkdir -p result-branch/results
+          cp evidence/v27-fivefold-discovery/report.json result-branch/results/latest.json
+          cp evidence/v27-fivefold-discovery/report.json "result-branch/results/run-${GITHUB_RUN_ID}.json"
+          cd result-branch
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add results/latest.json "results/run-${GITHUB_RUN_ID}.json"
+          git commit -m "Append v2.7 fivefold discovery result ${GITHUB_RUN_ID}"
+          git push origin HEAD:historical-results/v27
+      - name: Upload v2.7 report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v27-fivefold-discovery-${{ github.run_id }}
+          path: evidence/v27-fivefold-discovery/report.json
+          retention-days: 90
+          if-no-files-found: error
