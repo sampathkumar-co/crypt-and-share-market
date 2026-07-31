@@ -1,0 +1,368 @@
+name: v3.3 Daily Forward Observation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 0 * * *"
+    - cron: "20 1 * * *"
+  pull_request:
+    paths:
+      - "research/V33_DAILY_FORWARD_OBSERVATION_PROTOCOL.md"
+      - "src/tradebot/research/forward_yield_trend_v33_sources.py"
+      - "src/tradebot/research/forward_yield_trend_v33.py"
+      - "src/tradebot/research/forward_yield_trend_v33_readiness.py"
+      - "tests/test_forward_yield_trend_v33.py"
+      - "tests/test_forward_yield_trend_v33_readiness.py"
+      - ".github/workflows/v33-forward-observation.yml"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - "research/V33_DAILY_FORWARD_OBSERVATION_PROTOCOL.md"
+      - "src/tradebot/research/forward_yield_trend_v33_sources.py"
+      - "src/tradebot/research/forward_yield_trend_v33.py"
+      - "src/tradebot/research/forward_yield_trend_v33_readiness.py"
+      - "tests/test_forward_yield_trend_v33.py"
+      - "tests/test_forward_yield_trend_v33_readiness.py"
+      - ".github/workflows/v33-forward-observation.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v33-forward-observation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-v33:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile v3.3
+        run: |
+          python -m py_compile src/tradebot/research/forward_yield_trend_v33_sources.py
+          python -m py_compile src/tradebot/research/forward_yield_trend_v33.py
+          python -m py_compile src/tradebot/research/forward_yield_trend_v33_readiness.py
+      - name: Verify promoted historical campaigns are frozen
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git diff --exit-code "${{ github.event.pull_request.base.sha }}" -- \
+            src/tradebot/research/forward_alpha_v25.py \
+            src/tradebot/research/forward_alpha_v25_readiness.py \
+            research/V25_HIGH_CONVICTION_ALPHA_PROTOCOL.md \
+            src/tradebot/research/historical_yield_trend_v31.py \
+            src/tradebot/research/historical_yield_trend_v31_runner.py \
+            src/tradebot/research/historical_yield_trend_v311_transport.py \
+            src/tradebot/research/historical_yield_trend_scheduled_execution_v312.py \
+            src/tradebot/research/historical_yield_trend_integrity_v312.py \
+            src/tradebot/research/historical_coinbase_replication_v32.py \
+            research/V312_SCHEDULED_REBALANCE_INTEGRITY_ADDENDUM.md \
+            research/V32_COINBASE_EXACT_MODEL_REPLICATION_PROTOCOL.md \
+            research/V32_EXECUTION_DEPENDENCY_ADDENDUM.md \
+            src/tradebot/backtest/profit_quality_gate.py \
+            src/tradebot/backtest/selection_stability.py
+      - name: Run focused v3.3 tests
+        run: |
+          python -m pytest \
+            tests/test_forward_yield_trend_v33.py \
+            tests/test_forward_yield_trend_v33_readiness.py -q
+      - name: Run complete repository suite
+        run: python -m pytest -q
+      - name: Enforce observation-only boundary
+        shell: bash
+        run: |
+          grep -q 'MODE = "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY"' \
+            src/tradebot/research/forward_yield_trend_v33.py
+          grep -q 'operational_latency_days": 1' \
+            src/tradebot/research/forward_yield_trend_v33.py
+          grep -q 'HOLD_NO_TRADE' \
+            research/V33_DAILY_FORWARD_OBSERVATION_PROTOCOL.md
+          grep -q 'MIN_OBSERVATIONS = 180' \
+            src/tradebot/research/forward_yield_trend_v33_readiness.py
+          grep -q 'performance_calculated": False' \
+            src/tradebot/research/forward_yield_trend_v33_readiness.py
+          ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order|submit_order)' \
+            src/tradebot/research/forward_yield_trend_v33_sources.py \
+            src/tradebot/research/forward_yield_trend_v33.py \
+            src/tradebot/research/forward_yield_trend_v33_readiness.py
+
+  generate-observation:
+    if: github.event_name != 'pull_request'
+    needs: verify-v33
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and load prior evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          mkdir -p evidence/history evidence/generated evidence/compact/observations evidence/compact/manifests
+          git fetch origin forward-observation/v33
+          rm -rf /tmp/forward-observation-v33-read
+          git worktree add --detach /tmp/forward-observation-v33-read origin/forward-observation/v33
+          source=/tmp/forward-observation-v33-read/data/forward-observation-v33/observations
+          if [ -d "$source" ]; then
+            cp "$source"/*.json evidence/history/ 2>/dev/null || true
+          fi
+          FORWARD_OBSERVATION_HEAD=$(git -C /tmp/forward-observation-v33-read rev-parse HEAD)
+          echo "FORWARD_OBSERVATION_HEAD=$FORWARD_OBSERVATION_HEAD" >> "$GITHUB_ENV"
+      - name: Generate completed-data observation
+        run: |
+          tradebot-v33-forward-observation \
+            --history-folder evidence/history \
+            --json-out evidence/generated/observation.json \
+            --manifest-out evidence/generated/source_manifest.json
+      - name: Validate and package canonical evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          observation_path = Path("evidence/generated/observation.json")
+          source_manifest_path = Path("evidence/generated/source_manifest.json")
+          report = json.loads(observation_path.read_text(encoding="utf-8"))
+          manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "3.3-daily-forward-observation"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["changes_track_a"] is False
+          assert report["action"] in {
+              "ENTER", "REBALANCE", "EXIT", "HOLD_NO_TRADE",
+              "CASH_NO_TRADE", "GAP_RESET_NO_TRADE",
+          }
+          assert report["operational_latency_days"] == 1
+          assert report["historical_promotion_evidence"] == {
+              "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22",
+              "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+          }
+          target = report["recommended_target_weights"]
+          if report["trade_required"]:
+              assert target is not None
+              assert len(target) <= 1
+              assert sum(target.values()) <= 0.10 + 1e-12
+              assert report["minimum_cash_target"] >= 0.90 - 1e-12
+          else:
+              assert target is None
+              assert report["minimum_cash_target"] is None
+          if report["action"] == "HOLD_NO_TRADE":
+              assert target is None
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected
+          forbidden = {"pnl", "profit", "drawdown", "sharpe", "benchmark_return"}
+          assert forbidden.isdisjoint(report)
+
+          day = report["completed_candle_date_utc"]
+          name = f"{day}.json"
+          packaged = Path("evidence/compact/observations") / name
+          packaged.write_bytes(observation_path.read_bytes())
+
+          assert manifest["schema_version"] == "3.3-daily-forward-source-manifest"
+          assert manifest["observation_report_sha256"] == expected
+          manifest["observation_file"] = name
+          manifest["observation_file_sha256"] = hashlib.sha256(
+              packaged.read_bytes()
+          ).hexdigest()
+          manifest["forward_observation_branch"] = "forward-observation/v33"
+          manifest["forward_observation_head_before_append"] = os.environ[
+              "FORWARD_OBSERVATION_HEAD"
+          ]
+          manifest["workflow_run_id"] = os.environ["GITHUB_RUN_ID"]
+          manifest["workflow_run_attempt"] = os.environ["GITHUB_RUN_ATTEMPT"]
+          manifest_path = Path("evidence/compact/manifests") / name
+          manifest_path.write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "date": day,
+              "action": report["action"],
+              "reason": report["decision_reason"],
+              "effective_open": report["earliest_eligible_effective_open_utc"],
+              "state_after": report["state_after"],
+              "report_sha256": expected,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload compact v3.3 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-observation-v33-${{ github.run_id }}
+          path: evidence/compact/
+          retention-days: 90
+          if-no-files-found: error
+
+  persist-observation:
+    if: github.event_name != 'pull_request'
+    needs: generate-observation
+    runs-on: ubuntu-latest
+    concurrency:
+      group: forward-observation-v33-writer
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: forward-observation-v33-${{ github.run_id }}
+          path: evidence/downloaded
+      - name: Append observation and first manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin forward-observation/v33
+          rm -rf /tmp/forward-observation-v33-write
+          git worktree add --detach /tmp/forward-observation-v33-write origin/forward-observation/v33
+          observation_source=$(find evidence/downloaded/observations -name '*.json' -print -quit)
+          manifest_source=$(find evidence/downloaded/manifests -name '*.json' -print -quit)
+          test -n "$observation_source"
+          test -n "$manifest_source"
+          name=$(basename "$observation_source")
+          test "$(basename "$manifest_source")" = "$name"
+          root=/tmp/forward-observation-v33-write/data/forward-observation-v33
+          mkdir -p "$root/observations" "$root/manifests"
+          observation_target="$root/observations/$name"
+          manifest_target="$root/manifests/$name"
+
+          if [ -e "$observation_target" ]; then
+            cmp --silent "$observation_source" "$observation_target" || {
+              echo "Refusing non-identical same-day v3.3 observation: $name" >&2
+              exit 1
+            }
+            test -e "$manifest_target" || {
+              echo "Existing observation has no first manifest: $name" >&2
+              exit 1
+            }
+            python - "$observation_target" "$manifest_target" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+          observation_path = Path(sys.argv[1])
+          manifest_path = Path(sys.argv[2])
+          observation = json.loads(observation_path.read_text(encoding="utf-8"))
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          assert observation["paper_only"] is True
+          assert observation["authorizes_trading"] is False
+          assert observation["authorizes_shadow_paper"] is False
+          assert manifest["observation_file"] == observation_path.name
+          assert manifest["observation_file_sha256"] == hashlib.sha256(
+              observation_path.read_bytes()
+          ).hexdigest()
+          assert manifest["observation_report_sha256"] == observation["report_sha256"]
+          PY
+            echo "Identical same-day observation already preserved; retaining first manifest."
+            exit 0
+          fi
+          if [ -e "$manifest_target" ]; then
+            echo "Refusing orphaned same-day manifest: $name" >&2
+            exit 1
+          fi
+          cp "$observation_source" "$observation_target"
+          cp "$manifest_source" "$manifest_target"
+          git -C /tmp/forward-observation-v33-write config user.name "github-actions[bot]"
+          git -C /tmp/forward-observation-v33-write config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/forward-observation-v33-write add data/forward-observation-v33
+          git -C /tmp/forward-observation-v33-write commit -m "Append v3.3 observation ${name%.json}"
+          git -C /tmp/forward-observation-v33-write pull --rebase origin forward-observation/v33
+          git -C /tmp/forward-observation-v33-write push origin HEAD:forward-observation/v33
+
+  assess-readiness:
+    if: github.event_name != 'pull_request'
+    needs: persist-observation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and load canonical evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          git fetch origin forward-observation/v33
+          rm -rf /tmp/forward-observation-v33-ready
+          git worktree add --detach /tmp/forward-observation-v33-ready origin/forward-observation/v33
+          root=/tmp/forward-observation-v33-ready/data/forward-observation-v33
+          mkdir -p "$root/observations" "$root/manifests" evidence/readiness
+          LATEST_OPEN=$(python - <<'PY'
+          from datetime import datetime, timezone
+          print(datetime.now(timezone.utc).replace(
+              hour=0, minute=0, second=0, microsecond=0
+          ).isoformat().replace("+00:00", "Z"))
+          PY
+          )
+          tradebot-v33-forward-readiness \
+            --observations-folder "$root/observations" \
+            --manifests-folder "$root/manifests" \
+            --latest-available-open-date "$LATEST_OPEN" \
+            --json-out evidence/readiness/readiness.json
+      - name: Validate coverage-only readiness
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path(
+              "evidence/readiness/readiness.json"
+          ).read_text(encoding="utf-8"))
+          assert report["schema_version"] == "3.3-forward-observation-readiness"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["performance_calculated"] is False
+          assert report["status"] in {
+              "INSUFFICIENT_FORWARD_OBSERVATIONS",
+              "INSUFFICIENT_TARGET_ACTIVITY",
+              "INSUFFICIENT_REQUIRED_FUTURE_OPENS",
+              "READY_FOR_PREREGISTERED_FORWARD_EVALUATOR",
+          }
+          forbidden = {"return", "pnl", "profit", "drawdown", "sharpe"}
+          assert forbidden.isdisjoint(report)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forward-observation-v33-readiness-${{ github.run_id }}
+          path: evidence/readiness/readiness.json
+          retention-days: 90
+          if-no-files-found: error
