@@ -192,6 +192,7 @@ jobs:
           inventory_source="evidence/router-decision/history_inventory.json"
           decision_target="/tmp/forward-data-v2/data/market-state-router/decisions/${stem}.json"
           inventory_target="/tmp/forward-data-v2/data/market-state-router/inventories/${stem}.json"
+          snapshot_root="/tmp/forward-data-v2/data/forward-market-state/normalized"
 
           if [ -e "$decision_target" ]; then
             cmp --silent "$decision_source" "$decision_target" || {
@@ -202,13 +203,15 @@ jobs:
               echo "Existing v2.1 decision has no preserved inventory: $stem" >&2
               exit 1
             }
-            python - "$decision_target" "$inventory_target" <<'PY'
+            python - "$decision_target" "$inventory_target" "$snapshot_root" <<'PY'
+          import hashlib
           import json
           import sys
           from pathlib import Path
 
           decision_path = Path(sys.argv[1])
           inventory_path = Path(sys.argv[2])
+          snapshot_root = Path(sys.argv[3])
           decision = json.loads(decision_path.read_text(encoding="utf-8"))
           inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
           assert decision["paper_only"] is True
@@ -217,11 +220,18 @@ jobs:
           assert isinstance(inventory["forward_data_head"], str) and len(inventory["forward_data_head"]) == 40
           snapshots = inventory["snapshots"]
           assert inventory["snapshot_files"] == len(snapshots)
-          names = {item["snapshot_file"] for item in snapshots}
+          by_name = {item["snapshot_file"]: item for item in snapshots}
+          assert len(by_name) == len(snapshots)
+          for name, item in by_name.items():
+              path = snapshot_root / name
+              assert path.is_file(), path
+              expected = item["snapshot_sha256"]
+              assert isinstance(expected, str) and len(expected) == 64
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, name
           required = {f"{item['snapshot_id']}.json" for item in decision["input_snapshots"]}
-          assert required.issubset(names)
+          assert required.issubset(by_name)
           PY
-            echo "Identical same-hour v2.1 decision already preserved; retaining its first valid inventory."
+            echo "Identical same-hour v2.1 decision already preserved; retaining its first hash-verified inventory."
             exit 0
           fi
 
