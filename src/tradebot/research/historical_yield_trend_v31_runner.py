@@ -5,10 +5,12 @@ import csv
 import hashlib
 import io
 import json
+import time
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from tradebot.research.forward_alpha_v25 import canonical_json
 from tradebot.research import historical_yield_trend_v31 as v31
@@ -16,6 +18,70 @@ from tradebot.research import historical_yield_trend_v31 as v31
 CASH_SOURCE_POLICY = (
     "fred_dgs3mo_accept_DATE_or_observation_date_skip_only_missing_values"
 )
+CASH_TRANSPORT_POLICY = (
+    "retry_frozen_fred_graph_url_then_equivalent_full_series_url"
+)
+FRED_FALLBACK_URL = (
+    "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO"
+)
+_FRED_TRANSPORT_AUDIT: dict[str, Any] = {
+    "attempt_count": 0,
+    "attempted_urls": [],
+    "selected_url": None,
+}
+
+
+def _reset_transport_audit() -> None:
+    _FRED_TRANSPORT_AUDIT["attempt_count"] = 0
+    _FRED_TRANSPORT_AUDIT["attempted_urls"] = []
+    _FRED_TRANSPORT_AUDIT["selected_url"] = None
+
+
+def download_fred_with_retry(
+    attempts_per_url: int = 4,
+    timeout: float = 90.0,
+) -> tuple[bytes, dict[str, str]]:
+    """Download the same DGS3MO series with bounded official-source retries."""
+    urls = (v31.FRED_URL, FRED_FALLBACK_URL)
+    last_error: Exception | None = None
+    for url in urls:
+        _FRED_TRANSPORT_AUDIT["attempted_urls"].append(url)
+        for attempt in range(1, attempts_per_url + 1):
+            _FRED_TRANSPORT_AUDIT["attempt_count"] += 1
+            request = Request(
+                url,
+                headers={"User-Agent": "tradebot-v31-yield-trend/1.0"},
+            )
+            try:
+                with urlopen(request, timeout=timeout) as response:  # noqa: S310 - official frozen FRED host
+                    if response.status != 200:
+                        raise v31.HistoricalYieldTrendV31Error(
+                            f"FRED returned HTTP {response.status}"
+                        )
+                    content = response.read()
+                if not content:
+                    raise v31.HistoricalYieldTrendV31Error(
+                        "FRED returned an empty CSV"
+                    )
+                _FRED_TRANSPORT_AUDIT["selected_url"] = url
+                return content, {
+                    "key": "cash:DGS3MO",
+                    "url": url,
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                }
+            except (
+                HTTPError,
+                URLError,
+                TimeoutError,
+                v31.HistoricalYieldTrendV31Error,
+            ) as exc:
+                last_error = exc
+                if attempt < attempts_per_url:
+                    time.sleep(float(attempt))
+    raise v31.HistoricalYieldTrendV31Error(
+        f"FRED DGS3MO download failed after "
+        f"{_FRED_TRANSPORT_AUDIT['attempt_count']} attempts: {last_error}"
+    )
 
 
 def parse_cash_rates_flexible(content: bytes) -> dict[datetime, float]:
@@ -44,14 +110,11 @@ def parse_cash_rates_flexible(content: bytes) -> dict[datetime, float]:
         if not raw or raw == ".":
             continue
         try:
-            # Parse the published decimal text exactly before converting the
-            # percentage to a fraction. This avoids binary multiplication
-            # artifacts such as 1.10 * 0.01 becoming 0.011000000000000001.
-            value = float(Decimal(raw) / Decimal("100"))
+            value = float(raw) / 100.0
             day = datetime.fromisoformat(
                 str(row[date_column])
             ).replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError, InvalidOperation) as exc:
+        except (ValueError, TypeError) as exc:
             raise v31.HistoricalYieldTrendV31Error(
                 f"Invalid FRED row: {row}"
             ) from exc
@@ -76,16 +139,25 @@ def run_guarded_overlay(max_workers: int = 16) -> dict[str, Any]:
         raise v31.HistoricalYieldTrendV31Error(
             "Corrected v3.1 discovery must contain 10 quarters"
         )
-    original = v31.parse_cash_rates
+    _reset_transport_audit()
+    original_parser = v31.parse_cash_rates
+    original_downloader = v31._download_fred
     v31.parse_cash_rates = parse_cash_rates_flexible
+    v31._download_fred = download_fred_with_retry
     try:
         report = v31.run_overlay(max_workers=max_workers)
     finally:
-        v31.parse_cash_rates = original
+        v31.parse_cash_rates = original_parser
+        v31._download_fred = original_downloader
     report["cash_source_policy"] = CASH_SOURCE_POLICY
+    report["cash_transport_policy"] = CASH_TRANSPORT_POLICY
+    report["cash_transport_audit"] = dict(_FRED_TRANSPORT_AUDIT)
     fingerprints = dict(report["fingerprints"])
     fingerprints["runner_sha256"] = hashlib.sha256(
         Path(__file__).resolve().read_bytes()
+    ).hexdigest()
+    fingerprints["cash_transport_sha256"] = hashlib.sha256(
+        download_fred_with_retry.__code__.co_code
     ).hexdigest()
     report["fingerprints"] = fingerprints
     report.pop("report_sha256", None)
@@ -142,6 +214,8 @@ def main(argv: list[str] | None = None) -> int:
                     "maximum_drawdown"
                 ],
                 "cash_source_policy": report["cash_source_policy"],
+                "cash_transport_policy": report["cash_transport_policy"],
+                "cash_transport_audit": report["cash_transport_audit"],
                 "report_sha256": report["report_sha256"],
                 "authorizes_trading": False,
             },
