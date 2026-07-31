@@ -42,14 +42,14 @@ def _write_decision(
     weights = {}
     if active:
         selected = [{
-            "asset": "BTC",
+            "asset": "ETH",
             "family": "residual_momentum_microstructure",
             "score": 7.5,
             "amplitude": 0.008,
             "event_key": "a" * 64,
             "target_weight": 0.15,
         }]
-        weights = {"BTC": 0.15}
+        weights = {"ETH": 0.15}
     report = {
         "schema_version": "2.5",
         "paper_only": True,
@@ -123,7 +123,7 @@ def test_readiness_reports_only_inventory_and_activity(tmp_path: Path) -> None:
     assert report["status"] == "INSUFFICIENT_FORWARD_HISTORY"
     assert report["longest_contiguous_eligible_hours"] == 1
     assert report["activity_diagnostics"]["active_decision_count"] == 1
-    assert report["activity_diagnostics"]["selected_asset_counts"] == {"BTC": 1}
+    assert report["activity_diagnostics"]["selected_asset_counts"] == {"ETH": 1}
     assert report["performance_calculated"] is False
     assert report["authorizes_trading"] is False
     assert report["authorizes_shadow_paper"] is False

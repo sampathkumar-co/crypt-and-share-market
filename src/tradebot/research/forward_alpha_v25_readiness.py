@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from tradebot.research.forward_alpha_v25 import (
+    ASSETS,
     ForwardAlphaV25Error,
     canonical_json,
     implementation_fingerprints,
@@ -198,10 +199,14 @@ def _load_decisions(
                     raise ForwardAlphaV25ReadinessError(f"selected_candidates[{index}] is not an object")
                 asset = item.get("asset")
                 family = item.get("family")
-                if not isinstance(asset, str) or not asset:
+                if not isinstance(asset, str) or asset not in ASSETS:
                     raise ForwardAlphaV25ReadinessError(f"selected_candidates[{index}].asset is invalid")
                 if not isinstance(family, str) or family not in ALLOWED_FAMILIES:
                     raise ForwardAlphaV25ReadinessError(f"selected_candidates[{index}].family is invalid")
+                if family == "residual_momentum_microstructure" and asset == "BTC":
+                    raise ForwardAlphaV25ReadinessError(
+                        "residual momentum cannot select BTC as its own benchmark"
+                    )
                 event_key = item.get("event_key")
                 amplitude = item.get("amplitude")
                 if not isinstance(event_key, str) or len(event_key) != 64:
