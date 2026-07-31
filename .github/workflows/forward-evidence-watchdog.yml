@@ -147,9 +147,12 @@ jobs:
 
           v21="/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json"
           v23="/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json"
+          v25="/tmp/forward-data-watchdog/data/forward-alpha-v25/decisions/$safe.json"
           active_v21=$(gh run list --workflow market-state-router-v21.yml --limit 10 --json status,createdAt \
             --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
           active_v23=$(gh run list --workflow forward-alpha-decisions-v23.yml --limit 10 --json status,createdAt \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+          active_v25=$(gh run list --workflow forward-alpha-decisions-v25.yml --limit 10 --json status,createdAt \
             --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
 
           if [[ ! -f "$v21" && "$active_v21" == "0" ]]; then
@@ -159,6 +162,10 @@ jobs:
           if [[ ! -f "$v23" && "$active_v23" == "0" ]]; then
             echo "Missing v2.3 decision for $target; dispatching frozen alpha router."
             gh workflow run forward-alpha-decisions-v23.yml --ref main
+          fi
+          if [[ ! -f "$v25" && "$active_v25" == "0" ]]; then
+            echo "Missing v2.5 decision for $target; dispatching frozen high-conviction router."
+            gh workflow run forward-alpha-decisions-v25.yml --ref main
           fi
 
           echo "Watchdog completed without modifying strategy or evidence bytes."
