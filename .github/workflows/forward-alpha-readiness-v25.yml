@@ -1,0 +1,143 @@
+name: Forward Alpha Readiness v2.5
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "22 5 * * *"
+  pull_request:
+    paths:
+      - ".github/workflows/forward-alpha-readiness-v25.yml"
+      - "src/tradebot/research/forward_alpha_v25_readiness.py"
+      - "tests/test_forward_alpha_v25_readiness.py"
+      - "src/tradebot/research/forward_alpha_v25.py"
+      - "research/V25_HIGH_CONVICTION_ALPHA_PROTOCOL.md"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forward-alpha-readiness-v25-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sealed-readiness-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile sealed readiness boundary
+        run: python -m py_compile src/tradebot/research/forward_alpha_v25_readiness.py
+      - name: Run focused readiness tests
+        run: python -m pytest tests/test_forward_alpha_v25_readiness.py -q
+      - name: Run complete repository suite
+        run: python -m pytest -q
+      - name: Reject outcome vocabulary in readiness output contract
+        shell: bash
+        run: |
+          grep -q '"performance_calculated": False' src/tradebot/research/forward_alpha_v25_readiness.py
+          grep -q '"holdout_unlocked": False' src/tradebot/research/forward_alpha_v25_readiness.py
+          grep -q '"authorizes_trading": False' src/tradebot/research/forward_alpha_v25_readiness.py
+          grep -q '"authorizes_shadow_paper": False' src/tradebot/research/forward_alpha_v25_readiness.py
+
+  verify-append-only-readiness:
+    if: github.event_name != 'pull_request'
+    needs: sealed-readiness-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Assemble append-only evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/readiness/snapshots evidence/readiness/decisions
+          mkdir -p evidence/readiness/manifests evidence/readiness/report
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-v2-readiness
+          git worktree add --detach /tmp/forward-data-v2-readiness origin/forward-data/v2
+          snapshot_source=/tmp/forward-data-v2-readiness/data/forward-market-state/normalized
+          test -d "$snapshot_source"
+          cp "$snapshot_source"/*.json evidence/readiness/snapshots/
+          decision_source=/tmp/forward-data-v2-readiness/data/forward-alpha-v25/decisions
+          manifest_source=/tmp/forward-data-v2-readiness/data/forward-alpha-v25/manifests
+          if [ -d "$decision_source" ]; then cp "$decision_source"/*.json evidence/readiness/decisions/ 2>/dev/null || true; fi
+          if [ -d "$manifest_source" ]; then cp "$manifest_source"/*.json evidence/readiness/manifests/ 2>/dev/null || true; fi
+      - name: Verify readiness without outcomes
+        run: |
+          tradebot-forward-alpha-v25-readiness \
+            --decisions evidence/readiness/decisions \
+            --manifests evidence/readiness/manifests \
+            --snapshots evidence/readiness/snapshots \
+            --json-out evidence/readiness/report/forward_alpha_readiness_v25.json
+      - name: Validate sealed report
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/readiness/report/forward_alpha_readiness_v25.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == "2.5-readiness"
+          assert report["mode"] == "READINESS_AND_ACTIVITY_ONLY"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is False
+          assert report["performance_calculated"] is False
+          assert report["performance_fields_disclosed"] == []
+          assert report["required_eligible_hours"] == 1448
+          assert report["purge_hours_locked"] == 8
+          assert report["required_future_snapshot_hours"] == 9
+          assert report["holdout_unlocked"] is False
+          assert report["status"] in {
+              "INSUFFICIENT_FORWARD_HISTORY",
+              "INSUFFICIENT_REQUIRED_EXIT_SNAPSHOTS",
+              "READY_FOR_SEALED_OUTCOME_ATTACHMENT",
+          }
+          forbidden = {"return", "returns", "pnl", "profit", "drawdown", "sharpe", "benchmark_return"}
+          assert forbidden.isdisjoint(report)
+          canonical = dict(report)
+          expected = canonical.pop("report_sha256")
+          encoded = json.dumps(
+              canonical,
+              sort_keys=True,
+              separators=(",", ":"),
+              ensure_ascii=False,
+          ).encode("utf-8")
+          assert hashlib.sha256(encoded).hexdigest() == expected
+          print(json.dumps({
+              "status": report["status"],
+              "eligible_hours": report["longest_contiguous_eligible_hours"],
+              "remaining_hours": report["remaining_hours"],
+              "activity": report["activity_diagnostics"],
+              "excluded": report["excluded_decision_count"],
+              "report_sha256": expected,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload sealed readiness report
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-alpha-readiness-v25-${{ github.run_id }}
+          path: evidence/readiness/report/
+          retention-days: 90
+          if-no-files-found: error
