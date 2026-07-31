@@ -181,3 +181,36 @@ def test_sweep_replenishment_continuation_family() -> None:
     features = report["asset_diagnostics"]["SOL"]["features"]
     assert features["spot_book_notional_change_1h"] >= 0.25
     assert features["spread_contraction_fraction"] >= 0.20
+
+
+def test_weak_event_fails_edge_to_cost_hurdle() -> None:
+    def mutate(index: int, assets: dict[str, dict[str, object]]) -> None:
+        if index == 168:
+            assets["ETH"] = _asset_record(
+                mid=100.5,
+                spot_flow=0.20,
+                book=0.08,
+                perp_flow=0.02,
+                funding=0.0,
+            )
+
+    report = evaluate_forward_alpha_v25(_frames(mutate))
+
+    assert report["candidate_state"] == "CASH"
+    assert report["target_weights"] == {}
+    assert report["minimum_cash_weight"] == 1.0
+
+
+def test_report_is_deterministic_bounded_and_safe() -> None:
+    frames = _frames()
+    first = evaluate_forward_alpha_v25(frames)
+    second = evaluate_forward_alpha_v25(list(reversed(frames)))
+
+    assert first == second
+    assert first["paper_only"] is True
+    assert first["authorizes_trading"] is False
+    assert first["authorizes_shadow_paper"] is False
+    assert first["minimum_cash_weight"] >= 0.70
+    assert sum(first["target_weights"].values()) <= 0.30
+    assert all(weight <= 0.15 for weight in first["target_weights"].values())
+    assert first["report_sha256"]
