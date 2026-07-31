@@ -1,0 +1,4370 @@
+{
+  "assets": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "AVAX",
+    "LINK",
+    "DOGE"
+  ],
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "changes_track_a": false,
+  "chosen_model": {
+    "breadth_floor": 0.3333333333333333,
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.15,
+    "model_id": "sma80-breadth33-rebalance5-top2-exposure15-brake20",
+    "rebalance_days": 5,
+    "sma_length": 80,
+    "top_n": 2
+  },
+  "data_start_utc": "2021-01-01T00:00:00Z",
+  "discovery": {
+    "gates": {
+      "drawdown_cap": true,
+      "minimum_quarter_above_minus_five_percent": true,
+      "positive_median_quarter": true,
+      "positive_standard_return": true,
+      "positive_stress_return": true,
+      "ten_positive_quarters": false
+    },
+    "standard": {
+      "active_sleeves": [
+        "moderate_btc",
+        "strong_trend"
+      ],
+      "asset_net_contribution": {
+        "AVAX": -0.008022996719206012,
+        "BTC": 0.032033297154696494,
+        "DOGE": 0.012883592994451621,
+        "ETH": 0.022729231895875238,
+        "LINK": -0.002512130058411417,
+        "SOL": 0.07890289428502321
+      },
+      "maximum_drawdown": 0.05822585919521239,
+      "maximum_positive_asset_share": 0.5384061678539288,
+      "maximum_positive_window_share": 0.36214574587511295,
+      "net_compounded_return": 0.14243079153078786,
+      "non_cash_action_days": 465,
+      "selected_assets": [
+        "AVAX",
+        "BTC",
+        "DOGE",
+        "ETH",
+        "LINK",
+        "SOL"
+      ],
+      "sleeve_net_contribution": {
+        "cash": -0.0032431673044748966,
+        "final_liquidation": -0.00023682570151119462,
+        "moderate_btc": 0.012977982943773662,
+        "strong_trend": 0.1265158996146416
+      },
+      "turnover": 15.21939499462213,
+      "window_action_days": {
+        "2021-Q4": 62,
+        "2022-Q1": 0,
+        "2022-Q2": 0,
+        "2022-Q3": 0,
+        "2022-Q4": 0,
+        "2023-Q1": 58,
+        "2023-Q2": 35,
+        "2023-Q3": 35,
+        "2023-Q4": 70,
+        "2024-Q1": 86,
+        "2024-Q2": 41,
+        "2024-Q3": 3,
+        "2024-Q4": 75
+      },
+      "window_returns": {
+        "2021-Q4": 0.03321906486761206,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.006121696946623123,
+        "2023-Q2": 0.003208032064377253,
+        "2023-Q3": 0.003938489536054135,
+        "2023-Q4": 0.0651218288649067,
+        "2024-Q1": 0.023201913195187496,
+        "2024-Q2": -0.03989253321822994,
+        "2024-Q3": -0.0020989571144434116,
+        "2024-Q4": 0.0450111306782599
+      }
+    },
+    "stress": {
+      "active_sleeves": [
+        "moderate_btc",
+        "strong_trend"
+      ],
+      "asset_net_contribution": {
+        "AVAX": -0.009230402756323159,
+        "BTC": 0.025310384033373066,
+        "DOGE": 0.012412504226001122,
+        "ETH": 0.0193315534216798,
+        "LINK": -0.0035524676255998568,
+        "SOL": 0.07652311366382736
+      },
+      "maximum_drawdown": 0.06136900745304352,
+      "maximum_positive_asset_share": 0.5728740391022562,
+      "maximum_positive_window_share": 0.3777287853961208,
+      "net_compounded_return": 0.1251740260737344,
+      "non_cash_action_days": 465,
+      "selected_assets": [
+        "AVAX",
+        "BTC",
+        "DOGE",
+        "ETH",
+        "LINK",
+        "SOL"
+      ],
+      "sleeve_net_contribution": {
+        "cash": -0.006486497871913803,
+        "final_liquidation": -0.0004736527690052898,
+        "moderate_btc": 0.011937982237723006,
+        "strong_trend": 0.11581685336615438
+      },
+      "turnover": 15.219299792046504,
+      "window_action_days": {
+        "2021-Q4": 62,
+        "2022-Q1": 0,
+        "2022-Q2": 0,
+        "2022-Q3": 0,
+        "2022-Q4": 0,
+        "2023-Q1": 58,
+        "2023-Q2": 35,
+        "2023-Q3": 35,
+        "2023-Q4": 70,
+        "2024-Q1": 86,
+        "2024-Q2": 41,
+        "2024-Q3": 3,
+        "2024-Q4": 75
+      },
+      "window_returns": {
+        "2021-Q4": 0.031568133327051884,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.003891605303486756,
+        "2023-Q2": 0.0019456302962876926,
+        "2023-Q3": 0.0022222056906400223,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.02058856042217938,
+        "2024-Q2": -0.04220476242751259,
+        "2024-Q3": -0.0024800589350814084,
+        "2024-Q4": 0.043761271281701486
+      }
+    }
+  },
+  "discovery_end_utc": "2024-12-31T00:00:00Z",
+  "discovery_windows": [
+    {
+      "end": "2021-12-31T00:00:00Z",
+      "name": "2021-Q4",
+      "start": "2021-10-01T00:00:00Z"
+    },
+    {
+      "end": "2022-03-31T00:00:00Z",
+      "name": "2022-Q1",
+      "start": "2022-01-01T00:00:00Z"
+    },
+    {
+      "end": "2022-06-30T00:00:00Z",
+      "name": "2022-Q2",
+      "start": "2022-04-01T00:00:00Z"
+    },
+    {
+      "end": "2022-09-30T00:00:00Z",
+      "name": "2022-Q3",
+      "start": "2022-07-01T00:00:00Z"
+    },
+    {
+      "end": "2022-12-31T00:00:00Z",
+      "name": "2022-Q4",
+      "start": "2022-10-01T00:00:00Z"
+    },
+    {
+      "end": "2023-03-31T00:00:00Z",
+      "name": "2023-Q1",
+      "start": "2023-01-01T00:00:00Z"
+    },
+    {
+      "end": "2023-06-30T00:00:00Z",
+      "name": "2023-Q2",
+      "start": "2023-04-01T00:00:00Z"
+    },
+    {
+      "end": "2023-09-30T00:00:00Z",
+      "name": "2023-Q3",
+      "start": "2023-07-01T00:00:00Z"
+    },
+    {
+      "end": "2023-12-31T00:00:00Z",
+      "name": "2023-Q4",
+      "start": "2023-10-01T00:00:00Z"
+    },
+    {
+      "end": "2024-03-31T00:00:00Z",
+      "name": "2024-Q1",
+      "start": "2024-01-01T00:00:00Z"
+    },
+    {
+      "end": "2024-06-30T00:00:00Z",
+      "name": "2024-Q2",
+      "start": "2024-04-01T00:00:00Z"
+    },
+    {
+      "end": "2024-09-30T00:00:00Z",
+      "name": "2024-Q3",
+      "start": "2024-07-01T00:00:00Z"
+    },
+    {
+      "end": "2024-12-31T00:00:00Z",
+      "name": "2024-Q4",
+      "start": "2024-10-01T00:00:00Z"
+    }
+  ],
+  "fingerprints": {
+    "chosen_model_sha256": "d4edf38cac86c8b46ee5ba4cedd230144ff27ec7fd9d97bce70902d1c60572cd",
+    "implementation_sha256": "5b8ba026ddcbd4fd27acb135f966bbfa6a04fb17c0bb855d181de58ed5390eb6",
+    "protocol_sha256": "2756769dd765ee19b8e6a38a3da16d3256f5fac3ca4aa8c9d1fe3e76f8cfea85"
+  },
+  "mode": "HISTORICAL_RISK_SCALED_TREND_ROTATION_ONLY",
+  "model_grid_size": 64,
+  "paper_only": true,
+  "report_sha256": "a696c91a85f4baeea00d5887bb1fd5f9617a3c9bece0131e0c43cb1ecb39ef3a",
+  "schema_version": "2.9-risk-scaled-trend-rotation",
+  "screening_status": "NOT_VERIFIED_FIVE_QUARTER_TREND_BREAKTHROUGH",
+  "selection_table": [
+    {
+      "compounded_stress_return": 0.1251740260737344,
+      "maximum_drawdown": 0.06136900745304352,
+      "median_quarter_return": 0.0019456302962876926,
+      "minimum_quarter_return": -0.04220476242751259,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance5-top2-exposure15-brake20",
+      "positive_quarters": 7,
+      "quarter_returns": {
+        "2021-Q4": 0.031568133327051884,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.003891605303486756,
+        "2023-Q2": 0.0019456302962876926,
+        "2023-Q3": 0.0022222056906400223,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.02058856042217938,
+        "2024-Q2": -0.04220476242751259,
+        "2024-Q3": -0.0024800589350814084,
+        "2024-Q4": 0.043761271281701486
+      },
+      "turnover": 15.219299792046504
+    },
+    {
+      "compounded_stress_return": 0.10183499649078942,
+      "maximum_drawdown": 0.06962398361334521,
+      "median_quarter_return": 0.0004547629851461288,
+      "minimum_quarter_return": -0.04461291749308427,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance5-top2-exposure15-brake10",
+      "positive_quarters": 7,
+      "quarter_returns": {
+        "2021-Q4": 0.028330279109519463,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.0004547629851461288,
+        "2023-Q2": 0.0008209600073725287,
+        "2023-Q3": 0.0022222056906400223,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.012526577501016378,
+        "2024-Q2": -0.04461291749308427,
+        "2024-Q3": -0.0024800589350814084,
+        "2024-Q4": 0.04082577585131131
+      },
+      "turnover": 15.36657840390428
+    },
+    {
+      "compounded_stress_return": 0.24611397153787418,
+      "maximum_drawdown": 0.11539651549749086,
+      "median_quarter_return": 0.0017824116055507044,
+      "minimum_quarter_return": -0.07884397311291436,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance5-top2-exposure30-brake20",
+      "positive_quarters": 7,
+      "quarter_returns": {
+        "2021-Q4": 0.0588224630991272,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.0017824116055507044,
+        "2023-Q2": 0.00353056545993069,
+        "2023-Q3": 0.004125012049009946,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.03496249155775688,
+        "2024-Q2": -0.07884397311291436,
+        "2024-Q3": -0.004761413553253657,
+        "2024-Q4": 0.08826197333187658
+      },
+      "turnover": 28.604524236301376
+    },
+    {
+      "compounded_stress_return": 0.10391539223360646,
+      "maximum_drawdown": 0.055994629062289136,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03720152727346837,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance5-top2-exposure15-brake20",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.024136241077568288,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.013466725329655871,
+        "2023-Q2": 0.0008412866548879183,
+        "2023-Q3": 0.006759361250908924,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.015059404398253262,
+        "2024-Q2": -0.03720152727346837,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.046456280894125346
+      },
+      "turnover": 16.290822512095772
+    },
+    {
+      "compounded_stress_return": 0.08626576995218183,
+      "maximum_drawdown": 0.05909629397705474,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03972038409666634,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance5-top2-exposure15-brake20",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.024136241077568288,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02078745135927962,
+        "2023-Q2": 0.0018888299813586418,
+        "2023-Q3": 0.0022222056906400223,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.015059404398253262,
+        "2024-Q2": -0.03972038409666634,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.043761271281701486
+      },
+      "turnover": 13.925380310275848
+    },
+    {
+      "compounded_stress_return": 0.07830695780988228,
+      "maximum_drawdown": 0.0668218832073989,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.041570544990215175,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance5-top2-exposure15-brake10",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.025489565124595215,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.019937213684370736,
+        "2023-Q2": 0.0007642234500213618,
+        "2023-Q3": 0.0022222056906400223,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.011336760791346157,
+        "2024-Q2": -0.041570544990215175,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04082577585131131
+      },
+      "turnover": 14.36572395530818
+    },
+    {
+      "compounded_stress_return": 0.1804190570624027,
+      "maximum_drawdown": 0.11279179563061392,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07808587590262228,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance5-top2-exposure30-brake20",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.04805416559259612,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03864628848753204,
+        "2023-Q2": 0.003473675294999534,
+        "2023-Q3": 0.004125012049009946,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.0291540511271553,
+        "2024-Q2": -0.07808587590262228,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.08826197333187658
+      },
+      "turnover": 27.23385785280367
+    },
+    {
+      "compounded_stress_return": 0.16257024949440768,
+      "maximum_drawdown": 0.12726955277889163,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08163804666540153,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance5-top2-exposure30-brake10",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.051082113819888475,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.037815246852949125,
+        "2023-Q2": 0.0012233891488460102,
+        "2023-Q3": 0.004125012049009946,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.02170317444635006,
+        "2024-Q2": -0.08163804666540153,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.08217000991603807
+      },
+      "turnover": 28.105007930138136
+    },
+    {
+      "compounded_stress_return": 0.20585525603215094,
+      "maximum_drawdown": 0.13034404794001198,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08293343059528213,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance5-top2-exposure30-brake10",
+      "positive_quarters": 6,
+      "quarter_returns": {
+        "2021-Q4": 0.05466984839311584,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0016510379584468993,
+        "2023-Q2": 0.0012801517377842853,
+        "2023-Q3": 0.004125012049009946,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.021421433821979585,
+        "2024-Q2": -0.08293343059528213,
+        "2024-Q3": -0.004761413553253657,
+        "2024-Q4": 0.08217000991603807
+      },
+      "turnover": 29.199445092715983
+    },
+    {
+      "compounded_stress_return": 0.05222436704963318,
+      "maximum_drawdown": 0.06092787845382586,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03579830225242775,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance5-top1-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.009028214992272687,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 4.536297451340765e-05,
+        "2023-Q2": -0.009365787160273586,
+        "2023-Q3": -0.008630144225710401,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.014703367416902369,
+        "2024-Q2": -0.03579830225242775,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.034979451025715314
+      },
+      "turnover": 16.489277146973382
+    },
+    {
+      "compounded_stress_return": 0.125331721287683,
+      "maximum_drawdown": 0.05496675742749557,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.036153192941264845,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance5-top2-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.031568133327051884,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.005083404991096163,
+        "2023-Q2": -0.0021551782562265753,
+        "2023-Q3": 0.006759361250908924,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.02058856042217938,
+        "2024-Q2": -0.036153192941264845,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.046456280894125346
+      },
+      "turnover": 17.14261736798795
+    },
+    {
+      "compounded_stress_return": 0.10556382984173696,
+      "maximum_drawdown": 0.06353189619092059,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.038837114263332695,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance5-top2-exposure15-brake10",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.028330279109519463,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.00550882088988236,
+        "2023-Q2": -0.0033483206640357865,
+        "2023-Q3": 0.006759361250908924,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.012526577501016378,
+        "2024-Q2": -0.038837114263332695,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04411965876889146
+      },
+      "turnover": 17.028349582930577
+    },
+    {
+      "compounded_stress_return": 0.09496418819915275,
+      "maximum_drawdown": 0.0637456854992231,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03905654122264135,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance5-top2-exposure15-brake10",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.025489565124595215,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.013888556608611324,
+        "2023-Q2": -0.00035543868413612234,
+        "2023-Q3": 0.006759361250908924,
+        "2023-Q4": 0.06311598299369026,
+        "2024-Q1": 0.011336760791346157,
+        "2024-Q2": -0.03905654122264135,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04411965876889146
+      },
+      "turnover": 16.612866511000284
+    },
+    {
+      "compounded_stress_return": 0.057399561922967246,
+      "maximum_drawdown": 0.06336649801455163,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.041964198023650146,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance5-top1-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.009028214992272687,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.0032957570447218476,
+        "2023-Q2": -0.0020845101088219353,
+        "2023-Q3": -0.011455349256718983,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.014703367416902369,
+        "2024-Q2": -0.041964198023650146,
+        "2024-Q3": -0.00222256253283748,
+        "2024-Q4": 0.0382728877122942
+      },
+      "turnover": 14.876658507947548
+    },
+    {
+      "compounded_stress_return": 0.09903453357434944,
+      "maximum_drawdown": 0.055845286966360486,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04559941379808785,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance10-top2-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.03361069063281863,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.0019098278522111656,
+        "2023-Q2": -0.002025715564816455,
+        "2023-Q3": -0.011639730677989513,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.0337470958774857,
+        "2024-Q2": -0.04559941379808785,
+        "2024-Q3": -0.0024800589350814084,
+        "2024-Q4": 0.05007397533349511
+      },
+      "turnover": 12.454713483179525
+    },
+    {
+      "compounded_stress_return": 0.07979178571309475,
+      "maximum_drawdown": 0.06025232325545704,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.0465149086429365,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance10-top2-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.026653593973546386,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.012789338663703131,
+        "2023-Q2": 0.0008412866548879183,
+        "2023-Q3": -0.008058581146353272,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.045445766367376184,
+        "2024-Q2": -0.0465149086429365,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.036783700975690614
+      },
+      "turnover": 14.203657167259788
+    },
+    {
+      "compounded_stress_return": 0.0795959865049698,
+      "maximum_drawdown": 0.0688619225996221,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.047585194377504636,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance10-top1-exposure15-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.017946893968137978,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.002321856060488292,
+        "2023-Q2": -0.005675497589046619,
+        "2023-Q3": -0.011424189823982411,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.016267414287027826,
+        "2024-Q2": -0.047585194377504636,
+        "2024-Q3": -0.00222256253283748,
+        "2024-Q4": 0.05250713491467662
+      },
+      "turnover": 12.914383182822542
+    },
+    {
+      "compounded_stress_return": 0.2324247233724963,
+      "maximum_drawdown": 0.1005282482835883,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.06575541049164524,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance5-top2-exposure30-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.0588224630991272,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.030656579616555768,
+        "2023-Q2": -0.006146891278258182,
+        "2023-Q3": 0.01543261695803344,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.03496249155775688,
+        "2024-Q2": -0.06575541049164524,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.09277280896536189
+      },
+      "turnover": 28.496862792273486
+    },
+    {
+      "compounded_stress_return": 0.20061299536655253,
+      "maximum_drawdown": 0.11442340291757924,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.06853180626288857,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance5-top2-exposure30-brake10",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.05466984839311584,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.031071060694149777,
+        "2023-Q2": -0.007335260717381886,
+        "2023-Q3": 0.01543261695803344,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.021421433821979585,
+        "2024-Q2": -0.06853180626288857,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.08791930587291263
+      },
+      "turnover": 28.45181066034239
+    },
+    {
+      "compounded_stress_return": 0.19745682058093372,
+      "maximum_drawdown": 0.10692057288015488,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07239485709719795,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance5-top2-exposure30-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.04805416559259612,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03914908868309119,
+        "2023-Q2": -0.003162413228973593,
+        "2023-Q3": 0.01543261695803344,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.0291540511271553,
+        "2024-Q2": -0.07239485709719795,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.09277280896536189
+      },
+      "turnover": 28.234452826006258
+    },
+    {
+      "compounded_stress_return": 0.1804348093722976,
+      "maximum_drawdown": 0.12149413858467273,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07596895557545791,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance5-top2-exposure30-brake10",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.051082113819888475,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03955993845289929,
+        "2023-Q2": -0.00435435126638839,
+        "2023-Q3": 0.01543261695803344,
+        "2023-Q4": 0.12907907365869287,
+        "2024-Q1": 0.02170317444635006,
+        "2024-Q2": -0.07596895557545791,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.08791930587291263
+      },
+      "turnover": 28.818798888418662
+    },
+    {
+      "compounded_stress_return": 0.09988766005000049,
+      "maximum_drawdown": 0.11931710555213315,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.0783778616226598,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance5-top1-exposure30-brake20",
+      "positive_quarters": 5,
+      "quarter_returns": {
+        "2021-Q4": 0.013008323991479553,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": 0.0003048182132667776,
+        "2023-Q2": -0.004564939174014904,
+        "2023-Q3": -0.022941229155529097,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.0229085113497991,
+        "2024-Q2": -0.0783778616226598,
+        "2024-Q3": -0.004246275175465941,
+        "2024-Q4": 0.07687045714814733
+      },
+      "turnover": 28.05793112560075
+    },
+    {
+      "compounded_stress_return": 0.027582485842396753,
+      "maximum_drawdown": 0.06962314361495414,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03736062243893823,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance5-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.006318344584970159,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.014021313696181203,
+        "2023-Q2": -0.0075790528349917174,
+        "2023-Q3": -0.008630144225710401,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.009436164181656048,
+        "2024-Q2": -0.03736062243893823,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.03309930955805185
+      },
+      "turnover": 16.009145105075017
+    },
+    {
+      "compounded_stress_return": 0.0403076610127,
+      "maximum_drawdown": 0.07070821772145253,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03848332347703787,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance5-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.010606678899678146,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.00038224593165148146,
+        "2023-Q2": -0.010550307703157569,
+        "2023-Q3": -0.008630144225710401,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.007905374633860207,
+        "2024-Q2": -0.03848332347703787,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.03309930955805185
+      },
+      "turnover": 16.498697346551626
+    },
+    {
+      "compounded_stress_return": 0.0871126267951563,
+      "maximum_drawdown": 0.054792423140846536,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.040975194644797375,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance10-top2-exposure15-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.03361069063281863,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.004400262057656423,
+        "2023-Q2": -0.0021551782562265753,
+        "2023-Q3": -0.008058581146353272,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.0337470958774857,
+        "2024-Q2": -0.040975194644797375,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.036783700975690614
+      },
+      "turnover": 15.060334023079804
+    },
+    {
+      "compounded_stress_return": 0.021289810740867443,
+      "maximum_drawdown": 0.07051282969063688,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04153099853852793,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance5-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.006318344584970159,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.01962760237712924,
+        "2023-Q2": -0.0032611649212225258,
+        "2023-Q3": -0.011455349256718983,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.009436164181656048,
+        "2024-Q2": -0.04153099853852793,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.03559594589631554
+      },
+      "turnover": 14.398034173605085
+    },
+    {
+      "compounded_stress_return": 0.053271888838571924,
+      "maximum_drawdown": 0.07372113787681922,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04297002391498661,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance10-top1-exposure15-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.017946893968137978,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.00012645211767736697,
+        "2023-Q2": -0.005085326643455179,
+        "2023-Q3": -0.011097598981932744,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.016267414287027826,
+        "2024-Q2": -0.04297002391498661,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.02388856568147646
+      },
+      "turnover": 14.883616788733855
+    },
+    {
+      "compounded_stress_return": 0.06860876276556893,
+      "maximum_drawdown": 0.06137957953212103,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.043645688653425,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance10-top2-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.029650596158717235,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.004825970061194673,
+        "2023-Q2": -0.0033483206640357865,
+        "2023-Q3": -0.008058581146353272,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.02610069226875078,
+        "2024-Q2": -0.043645688653425,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.03523788368584446
+      },
+      "turnover": 15.049845878689037
+    },
+    {
+      "compounded_stress_return": 0.04184358811582278,
+      "maximum_drawdown": 0.07277207783378004,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04427194924998934,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance5-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.010606678899678146,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0002550912664212035,
+        "2023-Q2": -0.003204656576144216,
+        "2023-Q3": -0.011455349256718983,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.007905374633860207,
+        "2024-Q2": -0.04427194924998934,
+        "2024-Q3": -0.00222256253283748,
+        "2024-Q4": 0.03559594589631554
+      },
+      "turnover": 15.15406885731244
+    },
+    {
+      "compounded_stress_return": 0.04060873179894475,
+      "maximum_drawdown": 0.08336823666735682,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04563507398114941,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance10-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01876205054380664,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0005539875575107933,
+        "2023-Q2": -0.006274965416003808,
+        "2023-Q3": -0.011097598981932744,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.010153331278936806,
+        "2024-Q2": -0.04563507398114941,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.021384219446479502
+      },
+      "turnover": 14.874267796379549
+    },
+    {
+      "compounded_stress_return": 0.035124069468707164,
+      "maximum_drawdown": 0.07835943883911722,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04776230973790663,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance10-top1-exposure15-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.007121834764528767,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.013769010005454718,
+        "2023-Q2": -0.002097660782689692,
+        "2023-Q3": -0.011097598981932744,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.025527775738188874,
+        "2024-Q2": -0.04776230973790663,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.02388856568147646
+      },
+      "turnover": 14.156336232680646
+    },
+    {
+      "compounded_stress_return": 0.07665812341389944,
+      "maximum_drawdown": 0.06285239380143381,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04869077601457428,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance10-top2-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.029650596158717235,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0011669813112815675,
+        "2023-Q2": -0.0031459280722292426,
+        "2023-Q3": -0.011639730677989513,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.02610069226875078,
+        "2024-Q2": -0.04869077601457428,
+        "2024-Q3": -0.0024800589350814084,
+        "2024-Q4": 0.04811833012584321
+      },
+      "turnover": 12.681504726034065
+    },
+    {
+      "compounded_stress_return": 0.06735903609200711,
+      "maximum_drawdown": 0.06758486522401241,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.04996821434663434,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance10-top2-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.026399429272750075,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.013211459586090712,
+        "2023-Q2": -0.00035543868413612234,
+        "2023-Q3": -0.008058581146353272,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.04065954088916124,
+        "2024-Q2": -0.04996821434663434,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.03523788368584446
+      },
+      "turnover": 14.802506081111167
+    },
+    {
+      "compounded_stress_return": 0.0632732930838189,
+      "maximum_drawdown": 0.07864580074350969,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.05032621229897705,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance10-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01876205054380664,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0012255454358539586,
+        "2023-Q2": -0.006791613314223399,
+        "2023-Q3": -0.011424189823982411,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.010153331278936806,
+        "2024-Q2": -0.05032621229897705,
+        "2024-Q3": -0.00222256253283748,
+        "2024-Q4": 0.0499315361077588
+      },
+      "turnover": 13.326050714259857
+    },
+    {
+      "compounded_stress_return": 0.03124116382659814,
+      "maximum_drawdown": 0.08839367194164938,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.050867381387044275,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance10-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.013425330783189526,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.014190712030654473,
+        "2023-Q2": -0.003290871965257791,
+        "2023-Q3": -0.011097598981932744,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.02280508618370103,
+        "2024-Q2": -0.050867381387044275,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.021384219446479502
+      },
+      "turnover": 14.737561248412044
+    },
+    {
+      "compounded_stress_return": 0.07472392636730296,
+      "maximum_drawdown": 0.06286612539071201,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.05253338441657518,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance10-top2-exposure15-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.026653593973546386,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.017288088939239166,
+        "2023-Q2": -0.00208229074408095,
+        "2023-Q3": -0.011639730677989513,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.045445766367376184,
+        "2024-Q2": -0.05253338441657518,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.05007397533349511
+      },
+      "turnover": 11.333668738929322
+    },
+    {
+      "compounded_stress_return": 0.04867247951839482,
+      "maximum_drawdown": 0.07631600868273758,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.05480305649739192,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance10-top1-exposure15-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.007121834764528767,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.016883955736119116,
+        "2023-Q2": -0.005731865862105723,
+        "2023-Q3": -0.011424189823982411,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.025527775738188874,
+        "2024-Q2": -0.05480305649739192,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.05250713491467662
+      },
+      "turnover": 11.916989270568079
+    },
+    {
+      "compounded_stress_return": 0.06378530162160789,
+      "maximum_drawdown": 0.07017827272108146,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.055964892572618496,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance10-top2-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.026399429272750075,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.016086840887172382,
+        "2023-Q2": -0.0032024397466274834,
+        "2023-Q3": -0.011639730677989513,
+        "2023-Q4": 0.04112913171957233,
+        "2024-Q1": 0.04065954088916124,
+        "2024-Q2": -0.055964892572618496,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04811833012584321
+      },
+      "turnover": 11.94261675850786
+    },
+    {
+      "compounded_stress_return": 0.046047213827896005,
+      "maximum_drawdown": 0.08637248934617647,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.05788516956867085,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance10-top1-exposure15-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.013425330783189526,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.016144530222366504,
+        "2023-Q2": -0.006847918314663248,
+        "2023-Q3": -0.011424189823982411,
+        "2023-Q4": 0.05900485759984608,
+        "2024-Q1": 0.02280508618370103,
+        "2024-Q2": -0.05788516956867085,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.0499315361077588
+      },
+      "turnover": 12.715699057730669
+    },
+    {
+      "compounded_stress_return": 0.07312583429483266,
+      "maximum_drawdown": 0.1121227295392806,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.06505716171288511,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance5-top1-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.013008323991479553,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02240061509761082,
+        "2023-Q2": -0.02220687554357781,
+        "2023-Q3": -0.015224429132138173,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.0229085113497991,
+        "2024-Q2": -0.06505716171288511,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06870917959334699
+      },
+      "turnover": 28.961953485989017
+    },
+    {
+      "compounded_stress_return": 0.05888254177298302,
+      "maximum_drawdown": 0.12810760708248892,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.06774621166277672,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance5-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01857301199330208,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02281862633902343,
+        "2023-Q2": -0.023376041748012666,
+        "2023-Q3": -0.015224429132138173,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.011996250426449473,
+        "2024-Q2": -0.06774621166277672,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06485791279936404
+      },
+      "turnover": 29.11829914108564
+    },
+    {
+      "compounded_stress_return": 0.03582497516535765,
+      "maximum_drawdown": 0.1327311312541971,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.0726898239245155,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance5-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01208229868081645,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.041177523765348556,
+        "2023-Q2": -0.020443301748278353,
+        "2023-Q3": -0.015224429132138173,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.017742077298797065,
+        "2024-Q2": -0.0726898239245155,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06485791279936404
+      },
+      "turnover": 29.182644606879755
+    },
+    {
+      "compounded_stress_return": 0.15063970675121352,
+      "maximum_drawdown": 0.10013282654989364,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.0750845550110153,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance10-top2-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.06294232622719842,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.029346917085584234,
+        "2023-Q2": -0.006146891278258182,
+        "2023-Q3": -0.014080764078487129,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.061903902234591746,
+        "2024-Q2": -0.0750845550110153,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.07273693782977353
+      },
+      "turnover": 24.312314403068516
+    },
+    {
+      "compounded_stress_return": 0.12218075338407619,
+      "maximum_drawdown": 0.11032529170763217,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07783322635368284,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth50-rebalance10-top2-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.05729854024034586,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02976195816113747,
+        "2023-Q2": -0.007335260717381886,
+        "2023-Q3": -0.014080764078487129,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.049080166608108655,
+        "2024-Q2": -0.07783322635368284,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06955521262357944
+      },
+      "turnover": 24.478267763089747
+    },
+    {
+      "compounded_stress_return": 0.07587272340588158,
+      "maximum_drawdown": 0.13600707157633618,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07889593161930708,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance10-top1-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.030844188596618416,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.022444685693109423,
+        "2023-Q2": -0.013671210032135117,
+        "2023-Q3": -0.020086622196154758,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.02596754087743136,
+        "2024-Q2": -0.07889593161930708,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.0461235745161388
+      },
+      "turnover": 25.571633442098243
+    },
+    {
+      "compounded_stress_return": 0.06006540676910577,
+      "maximum_drawdown": 0.15156194792978184,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08154517898234603,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth50-rebalance10-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.03490827858236378,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02286267809039777,
+        "2023-Q2": -0.014850582497381914,
+        "2023-Q3": -0.020086622196154758,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.016419669278382232,
+        "2024-Q2": -0.08154517898234603,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04102875950935192
+      },
+      "turnover": 25.69149228991
+    },
+    {
+      "compounded_stress_return": 0.04248340840787801,
+      "maximum_drawdown": 0.13428809450175383,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08155960682290597,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance5-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01208229868081645,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03730859098516903,
+        "2023-Q2": -0.006853503085084811,
+        "2023-Q3": -0.022941229155529097,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.017742077298797065,
+        "2024-Q2": -0.08155960682290597,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.07135262500321682
+      },
+      "turnover": 28.238355982826608
+    },
+    {
+      "compounded_stress_return": 0.07768823488749499,
+      "maximum_drawdown": 0.13634482122813585,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08227435847584996,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance5-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.01857301199330208,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.003213919031115564,
+        "2023-Q2": -0.006797198401263915,
+        "2023-Q3": -0.022941229155529097,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.011996250426449473,
+        "2024-Q2": -0.08227435847584996,
+        "2024-Q3": -0.004246275175465941,
+        "2024-Q4": 0.07135262500321682
+      },
+      "turnover": 28.8433100073194
+    },
+    {
+      "compounded_stress_return": 0.1887584926735857,
+      "maximum_drawdown": 0.1052489511090271,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08575452369231895,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance10-top2-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.06294232622719842,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.002128207702770224,
+        "2023-Q2": -0.004395362808203851,
+        "2023-Q3": -0.02330134928271621,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.061903902234591746,
+        "2024-Q2": -0.08575452369231895,
+        "2024-Q3": -0.004761413553253657,
+        "2024-Q4": 0.10131534248890794
+      },
+      "turnover": 23.206789191755888
+    },
+    {
+      "compounded_stress_return": 0.1458975342017188,
+      "maximum_drawdown": 0.12996507946074964,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.08952081505676379,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance10-top1-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.030844188596618416,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.0016595779448781434,
+        "2023-Q2": -0.011645361215226302,
+        "2023-Q3": -0.02285273491245232,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.02596754087743136,
+        "2024-Q2": -0.08952081505676379,
+        "2024-Q3": -0.004246275175465941,
+        "2024-Q4": 0.10637081513480395
+      },
+      "turnover": 24.302711730905436
+    },
+    {
+      "compounded_stress_return": 0.14595156320134595,
+      "maximum_drawdown": 0.11497404633960173,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.09033888788477573,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance10-top2-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.053136228499209626,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03785090022898929,
+        "2023-Q2": -0.003162413228973593,
+        "2023-Q3": -0.014080764078487129,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.09163921304452893,
+        "2024-Q2": -0.09033888788477573,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.07273693782977353
+      },
+      "turnover": 24.03638553248964
+    },
+    {
+      "compounded_stress_return": 0.15145734010917078,
+      "maximum_drawdown": 0.1177765382649344,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.09093735886759291,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 2
+      },
+      "model_id": "sma80-breadth33-rebalance10-top2-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.05729854024034586,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.004886988188746555,
+        "2023-Q2": -0.0066280026644116585,
+        "2023-Q3": -0.02330134928271621,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.049080166608108655,
+        "2024-Q2": -0.09093735886759291,
+        "2024-Q3": -0.004761413553253657,
+        "2024-Q4": 0.09723806707656246
+      },
+      "turnover": 23.8868941983112
+    },
+    {
+      "compounded_stress_return": 0.04934411956815299,
+      "maximum_drawdown": 0.14893466784202702,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.09267806006384915,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance10-top1-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.013291043198433883,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.04081060856849372,
+        "2023-Q2": -0.01070932703634453,
+        "2023-Q3": -0.020086622196154758,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.05010212570350858,
+        "2024-Q2": -0.09267806006384915,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.0461235745161388
+      },
+      "turnover": 25.354632805242293
+    },
+    {
+      "compounded_stress_return": 0.12206155304651056,
+      "maximum_drawdown": 0.147406057742407,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.09402810073968437,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 80,
+        "top_n": 1
+      },
+      "model_id": "sma80-breadth33-rebalance10-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.03490827858236378,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.005171405101656368,
+        "2023-Q2": -0.013861743364698587,
+        "2023-Q3": -0.02285273491245232,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.016419669278382232,
+        "2024-Q2": -0.09402810073968437,
+        "2024-Q3": -0.004246275175465941,
+        "2024-Q4": 0.10099164094551671
+      },
+      "turnover": 25.261236781904902
+    },
+    {
+      "compounded_stress_return": 0.12194061864879724,
+      "maximum_drawdown": 0.12872376761860782,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.0969036382836781,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth50-rebalance10-top2-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.05286953992514998,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03826230509056172,
+        "2023-Q2": -0.00435435126638839,
+        "2023-Q3": -0.014080764078487129,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.08176677027490742,
+        "2024-Q2": -0.0969036382836781,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06955521262357944
+      },
+      "turnover": 25.180988851511678
+    },
+    {
+      "compounded_stress_return": 0.04358502230118577,
+      "maximum_drawdown": 0.16729354395325813,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.09857501418930004,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance10-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.026266723241505474,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.04122074788982921,
+        "2023-Q2": -0.011892241082538724,
+        "2023-Q3": -0.020086622196154758,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.0446548517789116,
+        "2024-Q2": -0.09857501418930004,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.04102875950935192
+      },
+      "turnover": 26.461424426573984
+    },
+    {
+      "compounded_stress_return": 0.15559256240747166,
+      "maximum_drawdown": 0.11988717588244724,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.10261393723940493,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance10-top2-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.053136228499209626,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03170971068380135,
+        "2023-Q2": -0.004451803652125719,
+        "2023-Q3": -0.02330134928271621,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.09163921304452893,
+        "2024-Q2": -0.10261393723940493,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.10131534248890794
+      },
+      "turnover": 21.98041951395697
+    },
+    {
+      "compounded_stress_return": 0.09907562269217007,
+      "maximum_drawdown": 0.14518295808377102,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.10687630771044787,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance10-top1-exposure30-brake20",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.013291043198433883,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03125497326427096,
+        "2023-Q2": -0.011701391056614274,
+        "2023-Q3": -0.02285273491245232,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.05010212570350858,
+        "2024-Q2": -0.10687630771044787,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.10637081513480395
+      },
+      "turnover": 23.324984827270878
+    },
+    {
+      "compounded_stress_return": 0.1315711137220894,
+      "maximum_drawdown": 0.13356056701368413,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.10909010230243466,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 2
+      },
+      "model_id": "sma150-breadth33-rebalance10-top2-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.05286953992514998,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.030228246283864335,
+        "2023-Q2": -0.006684316939941537,
+        "2023-Q3": -0.02330134928271621,
+        "2023-Q4": 0.08311546022898963,
+        "2024-Q1": 0.08176677027490742,
+        "2024-Q2": -0.10909010230243466,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.09723806707656246
+      },
+      "turnover": 23.216683943857245
+    },
+    {
+      "compounded_stress_return": 0.09321931997662292,
+      "maximum_drawdown": 0.16362276473235837,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.11268098321752895,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.1,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 10,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance10-top1-exposure30-brake10",
+      "positive_quarters": 4,
+      "quarter_returns": {
+        "2021-Q4": 0.026266723241505474,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.030505420318516552,
+        "2023-Q2": -0.013917647559344548,
+        "2023-Q3": -0.02285273491245232,
+        "2023-Q4": 0.12032746591530441,
+        "2024-Q1": 0.0446548517789116,
+        "2024-Q2": -0.11268098321752895,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.10099164094551671
+      },
+      "turnover": 24.84841809239873
+    },
+    {
+      "compounded_stress_return": 0.02772496871180108,
+      "maximum_drawdown": 0.060738903371790554,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03560427019594359,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance5-top1-exposure15-brake20",
+      "positive_quarters": 3,
+      "quarter_returns": {
+        "2021-Q4": -0.0018319579524810337,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.013599539207047262,
+        "2023-Q2": -0.006390975251808539,
+        "2023-Q3": -0.008630144225710401,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.01247462236793373,
+        "2024-Q2": -0.03560427019594359,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.034979451025715314
+      },
+      "turnover": 15.574899924392557
+    },
+    {
+      "compounded_stress_return": 0.020931555901653853,
+      "maximum_drawdown": 0.06226018126528676,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.03978225521906931,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.15,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance5-top1-exposure15-brake20",
+      "positive_quarters": 3,
+      "quarter_returns": {
+        "2021-Q4": -0.0018319579524810337,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.02036441015637036,
+        "2023-Q2": -0.0021410819550230498,
+        "2023-Q3": -0.011455349256718983,
+        "2023-Q4": 0.051358312061789535,
+        "2024-Q1": 0.01247462236793373,
+        "2024-Q2": -0.03978225521906931,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.0382728877122942
+      },
+      "turnover": 13.81469088983792
+    },
+    {
+      "compounded_stress_return": 0.03400704701703727,
+      "maximum_drawdown": 0.12820362672755548,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.06930087097351356,
+      "model": {
+        "breadth_floor": 0.5,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth50-rebalance5-top1-exposure30-brake20",
+      "positive_quarters": 3,
+      "quarter_returns": {
+        "2021-Q4": -0.00451618747321203,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.04076736595392472,
+        "2023-Q2": -0.019270624611651632,
+        "2023-Q3": -0.015224429132138173,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.02376192519660747,
+        "2024-Q2": -0.06930087097351356,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.06870917959334699
+      },
+      "turnover": 28.373532861214862
+    },
+    {
+      "compounded_stress_return": 0.04208506761015274,
+      "maximum_drawdown": 0.11938703968801756,
+      "median_quarter_return": 0.0,
+      "minimum_quarter_return": -0.07820306943004607,
+      "model": {
+        "breadth_floor": 0.3333333333333333,
+        "drawdown_brake": 0.2,
+        "maximum_exposure": 0.3,
+        "rebalance_days": 5,
+        "sma_length": 150,
+        "top_n": 1
+      },
+      "model_id": "sma150-breadth33-rebalance5-top1-exposure30-brake20",
+      "positive_quarters": 3,
+      "quarter_returns": {
+        "2021-Q4": -0.00451618747321203,
+        "2022-Q1": 0.0,
+        "2022-Q2": 0.0,
+        "2022-Q3": 0.0,
+        "2022-Q4": 0.0,
+        "2023-Q1": -0.03805288414224539,
+        "2023-Q2": -0.004621370404649494,
+        "2023-Q3": -0.022941229155529097,
+        "2023-Q4": 0.1039877157355642,
+        "2024-Q1": 0.02376192519660747,
+        "2024-Q2": -0.07820306943004607,
+        "2024-Q3": -0.0026517302666589915,
+        "2024-Q4": 0.07687045714814733
+      },
+      "turnover": 27.15199542231471
+    }
+  ],
+  "source_inventory": [
+    {
+      "key": "exit:AVAX:2026-04-01",
+      "sha256": "0b2d670fd19c72d78cd2f4a56678feec537c8b4f2eb09617fbaa92d9da61e80a",
+      "url": "https://data.binance.vision/data/spot/daily/klines/AVAXUSDT/1d/AVAXUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "exit:BTC:2026-04-01",
+      "sha256": "d8c98d7fd7e3ffd2c6645b9292095c62b1ed050f5c3e4339ae7650b5f4470a5b",
+      "url": "https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "exit:DOGE:2026-04-01",
+      "sha256": "33c46a6295f416045f226df7e3765bb9b09a5963004baaeea6453d8f9e92c902",
+      "url": "https://data.binance.vision/data/spot/daily/klines/DOGEUSDT/1d/DOGEUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "exit:ETH:2026-04-01",
+      "sha256": "47938b2c32a21db49b03f24a44a48f27b7e6de3750f138aef98dabf44ae5117c",
+      "url": "https://data.binance.vision/data/spot/daily/klines/ETHUSDT/1d/ETHUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "exit:LINK:2026-04-01",
+      "sha256": "343d80651630448da0fa0eead5cfbae081263ef14636d806a3b200ab8fc75cc2",
+      "url": "https://data.binance.vision/data/spot/daily/klines/LINKUSDT/1d/LINKUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "exit:SOL:2026-04-01",
+      "sha256": "2572bc5f98d2f7d62cb0e57dd1b703d9d32ebdf071065ba3c1fd320af9769af1",
+      "url": "https://data.binance.vision/data/spot/daily/klines/SOLUSDT/1d/SOLUSDT-1d-2026-04-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-01",
+      "sha256": "c2c0906255914e37385a2d32bc717c4f0adef8ac2704fe5bf09fff246eee8ed0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-02",
+      "sha256": "58bd633ca9b33281165a01a08dca8abe4e2eb9e98ae9f14b3c3c55ef4022d4db",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-03",
+      "sha256": "9093f201e3e6ad2f95f65d25c99854daee5e86cec1efd8109af7e738f653edf0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-04",
+      "sha256": "041982ace8fa850fdb232e42c7ef37940536e04f1be1a59aa8f358ab0777cec9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-05",
+      "sha256": "1aea7d747a9f4cfd9f1bb9b15167f84d64db41f71e7bc8138a204426841cedcc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-06",
+      "sha256": "62cc2f255b9872039d49e89de9de1a10f46367e3971f6d1c6b61589488d2545c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-07",
+      "sha256": "b2c77f2b103c591128737e60b19b213a6b86210801872276940c5d50a27d3096",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-08",
+      "sha256": "52d4d3589ddea1550a8b7aac8075f4889af50b77a3dcd8a04ff520e2478f3b7d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-09",
+      "sha256": "919bf2613081a8225dee1d679a7b8ee930216e3ce5406d26dcdd236b84a7eeb2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-10",
+      "sha256": "3f34c2b0d268130ac7dd4d89e7b7428f25fcf70b50bd36468f4e7ab95d0542be",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-11",
+      "sha256": "4c9bd903eb7d55ac032f759f220b04cfb2cdeeb43fd404aab817f7f0b21435aa",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:AVAX:2021-12",
+      "sha256": "fad3f33d260edaa5f8586e97685b9e6e4b51d8f0fbf64cc758af73f1502cea6a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-01",
+      "sha256": "af6c2fc1f89d5cba5262e9f30401c2855ab1fe6fe862d45cf1884c71ed04725a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-02",
+      "sha256": "a7c991e6468eeb3b33ee59022a3cd2b4b9eedc9dabd582341605b478e1e35128",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-03",
+      "sha256": "8f13c50039b5dbab718ca6f03798567dbdf67b7964a39aa314635bed7e2aeaf8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-04",
+      "sha256": "be9bb77889f43fdf44f070fa19c9d989bb499701ee81e786968e7e7a387848b9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-05",
+      "sha256": "640a741c6911d4e995e266a4cfaf3bf91ea236e1f8fd2d8337e86df97ed35fba",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-06",
+      "sha256": "1482218365f96e1b4ef02271480f5b424110182366c37c97de7361a1ce4fffff",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-07",
+      "sha256": "7dd0028cf83028838ff40ee26c79350eec4838377e160b717f4ddb5123e053c7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-08",
+      "sha256": "3e06ce450b412f86d30882c8cca00454b71fdce8f11f388b813ce8bfc5fc2025",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-09",
+      "sha256": "4937f399f38a3306315350d952bb30936bd0e93f486f26daae91dbbf6f22b4c2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-10",
+      "sha256": "a2649caaa0b2e9de579867e328d9b981c6a0091499911c16a1779e84407e1ce7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-11",
+      "sha256": "7d10af70464c405265939d6a1766f8d082616cbed88b3509ca96e79376dbd728",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:AVAX:2022-12",
+      "sha256": "029fcce795f4000c6b57aeac43db2b7e0dc954fff611d1ade731990a8b51fd4c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-01",
+      "sha256": "117b92a5dc7b7ce45ec488f4a20340d2ec95a1a0dd1cf94283cc59cf3aaa44e1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-02",
+      "sha256": "c77a73672cc083496f63493e63fc6fd9eb7a83fc45fb4fe667d000fcada4907e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-03",
+      "sha256": "381bdfb434dd66919c3c4b57f6bb75c3bad450245e20085d0ca561fceb9a7a9d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-04",
+      "sha256": "d25fa495cac08581584b4644f4c3d02dac4ae7a8dc9dee8ea8641b091a3f9a16",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-05",
+      "sha256": "f98c304c91659f68f0fa8648cc604ff30d609eec3f7563b67c1e7ba38a6ebb7d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-06",
+      "sha256": "2d60581e513ce9f2f132e0e69023fe2cda8435912ecdad52fa05bc50cc731792",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-07",
+      "sha256": "0b5299f1cb6d0ad370fc06dccc1fd54c0d090a55cfd55544bb04929a235dfa59",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-08",
+      "sha256": "317b8783bb36ad65db76f6066168ac981a8c96ef897f40d3a2faf4221999ecf7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-09",
+      "sha256": "e737dd9ec55a2a4de3b607548039b5cf70ff4c3c657583c2dcbc1fe3b2485afd",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-10",
+      "sha256": "1426d8eec34093452d1b6e389fdb2eeb4411a3b99de00afeeb2fb1f13bb31b7d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-11",
+      "sha256": "d56b6b102343186836156641fd2c6808a64550b64d35a12bd0faa37ac76235b9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:AVAX:2023-12",
+      "sha256": "dab695bd566c11170599b4e8791045c882eaf9ad1458cc66eb30663efebaef4f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-01",
+      "sha256": "16a31b1972114ee738f93425b4e1b70ecb1b7fecc4cee72d5252e61565627b2e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-02",
+      "sha256": "a1ea911a74a73d49fc78a0dd96211d4de84cc2557c998c7533207165dd8e80f0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-03",
+      "sha256": "2d5dfe8c5d78ca0b6850801476c45b9ecc4f3056a062b9ed99bac906e5f6188f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-04",
+      "sha256": "53fca45be85490c45e3b3fdad6b76faf05060c4ac50bde98ddf64ca8b27fd2c7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-05",
+      "sha256": "1f04f7679f1ced392ba3521810f078e0a5b27c2554583f8ce0797f07f306fec6",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-06",
+      "sha256": "ab18fc29dd5fe4e5c13772e3245a35ac28f9a830354fdaf16028ff9b2b61a4f7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-07",
+      "sha256": "f076cf4ec5cd841dded296e21587f8078b1c87ea1930096a49829233ddf6f944",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-08",
+      "sha256": "b290efd8fc5038eb790b4707ae971d7f2dfb9d564e4390463ef3891db9cc742d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-09",
+      "sha256": "ccc24fcb9fed43b9d3d6320688831a449de33fd5b77bc6b9a5d03b834e9a8b23",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-10",
+      "sha256": "99f38e349f5b2f1db982b01b2e85a6896130080d7abd5d4bbf2b6b392d97448a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-11",
+      "sha256": "b593bc4175f365f6fbfb413056047fa614218a58c3f3aa6bfd2c47986f095284",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:AVAX:2024-12",
+      "sha256": "25fd185f9cd193053f8aee5ddf10b8ca235c13c6c33fd8087156c9d342c02c7b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-01",
+      "sha256": "7feed4288beb7c0eeaaacfb7f38948f2679a7382f7405945a2a552de4f942f15",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-02",
+      "sha256": "0f917a5ec38d98442a0ffc7e804f90aa4773703b43eec55699393ea1e56bf017",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-03",
+      "sha256": "eb43b9c8926e5bf084b869591dafbff9fa074ba75b9ba15ae786aa8e8bfd6b7b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-04",
+      "sha256": "e483c0b50d5d541e9d696c81f9550824824b24cc1f3db134b6f7c36ac74b72f5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-05",
+      "sha256": "e9f4958e6a37307a2328b95f0fe20830d8aaf0c611361caef53dab35197feff7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-06",
+      "sha256": "517a0a882e14da5effba1f7653d375c92265e2940b28a269ef60dc6140350408",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-07",
+      "sha256": "a7206358ff5c3a7aa176650e38753861b545f93e26fb55cc02b256e26bd48cb2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-08",
+      "sha256": "90a3f7b287cbe393c02f8f4adcda3d3319310e07e0552d9ec3172b9f0859cfb9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-09",
+      "sha256": "344ee1b460529fc5847f1553a92b980c25d79e0b3ea2bf432b8683d983a2263d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-10",
+      "sha256": "729fb4366bd4075477137d8faf92c68e633c5e4fe550a720657de97163f35b77",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-11",
+      "sha256": "cbaea9a4721a94b9a1ad415ba6326131e1d4ca0df1273bf4f0a61e2a2d64ab3c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:AVAX:2025-12",
+      "sha256": "bc576a918b7f0aab8a00c770b515febaf05dfb60c79f8448e608ca8bed94f661",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:AVAX:2026-01",
+      "sha256": "19b13eb6a8291ea435486205787b2b815960a4455288fa7e90c50967ae40f1f9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:AVAX:2026-02",
+      "sha256": "4103fd6c28e6490bdbab29cac295cfc6cb9af7786ab46cfd27f121a32654fc95",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:AVAX:2026-03",
+      "sha256": "a2bf07d7dacfa9941e2e6bafe19b1bf1329eb26277776033a1b583302aeea928",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/AVAXUSDT/1d/AVAXUSDT-1d-2026-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-01",
+      "sha256": "6ff53d94f600e2a208882bfd5c00e2133cff8f07e57b7f373af29f85f86e0284",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-02",
+      "sha256": "f18254dc4a70f396494be83a6081cfafd1935aaef42aef5a12f18b0244edeb27",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-03",
+      "sha256": "f43e48b5efc8e0b06e0520b91aad4e5668844c766933c0c5cf403115dba03303",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-04",
+      "sha256": "3dd852f06608173dec98b7210f6a38728ef221f08717b362b4f3f09436e0a5fe",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-05",
+      "sha256": "3122e1ebaa1376937d479964563dced19f850636a700bb7cb97d7872ea8c8f28",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-06",
+      "sha256": "9875e11e890f75ef6eb0188ef7f952e5c0ba6919bd6d72d3da4d6847b84c5ccf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-07",
+      "sha256": "636f588a6abb568f977aea3ae798f34ced4135f2f96fbc1493a2f9ab54a844eb",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-08",
+      "sha256": "68612e3fb74c184f97e4d3b2e061dd3743156401a6813ab897014b0b35caedd7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-09",
+      "sha256": "9f6535a0fe8a417b0909d230e4a02f6a9933eb23c770f54c9f6bf140e8d02257",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-10",
+      "sha256": "ba50ff3dab5726ca8b9fa26065fe3a8f612aed4baa978ecdd9d39647cd108684",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-11",
+      "sha256": "64162d8ec11458e9d02f49d8569e47765517852bcf0a908cd4d71211e3912e62",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:BTC:2021-12",
+      "sha256": "6231b57d3a3b71fb76a1a34078a01a01275a59870857bf60408ccd3ba4618e75",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-01",
+      "sha256": "a4a2e0432a8f0b42e2da71ac26599b2e6385b579ca4feba692a95cb897decdcd",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-02",
+      "sha256": "faffa5eadb9ebf0b32742773777596d0dbf3f282e94a16dd05cf1eb7b53a3763",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-03",
+      "sha256": "452129b478585b18931f728f89daed9d2a19d4824b932af7a099366efd4db639",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-04",
+      "sha256": "70413f67212d012ebfd600a6ebf20c03a9c8311bf764ab6d21d1bfd2d21d1b19",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-05",
+      "sha256": "53eee1be2d5b461dabc67645ad706610b0465d8bbacd5f9cd99fc790c68f18f5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-06",
+      "sha256": "dd5047ce33c16231bcb01f534951a709937bbfe0c0667c61f20f188cf9b94de4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-07",
+      "sha256": "216567f1a8bc1dbeaada097f7eddff12dafde177c16b26507c762a613a57eb5f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-08",
+      "sha256": "fc8bd69e95141afb6f83c5a4450c3f6b49c4a1cb16e42d90eb960c3ffa9e766e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-09",
+      "sha256": "68a8357e23277ebd98842fd88d492b012d53dd578b5061cafb8c070c440b235e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-10",
+      "sha256": "5b086535cba596ef1b465f247a26385b4ccfd12673a76f225e2dd9e00dddadfd",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-11",
+      "sha256": "142202b226078f54342c4a1d74c8c6081a98c655d7d6f6fba06314f9c101e2d9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:BTC:2022-12",
+      "sha256": "aff24746afa9a3dbd355dd3462bcef80e59e96ed9aa55f79007532f9e07991bf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-01",
+      "sha256": "a9fd53b75add7cc42fb4779a545811606260f79810f3826215d6ebecda11bb36",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-02",
+      "sha256": "13df1e3633f15be3eeba4768d0cc323ef221191002657b53936a6d0fb5e6556f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-03",
+      "sha256": "1cb1209700ec74fa4592048de2e4ea4a38ab2bd622dfe03f1d6195c249501381",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-04",
+      "sha256": "999e86be73731ebc347c6ada94abceb5e291b65e7f1b4df2ce390af1aa2a4a08",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-05",
+      "sha256": "c343e4689784c29f83d25147a096dd44b6ae5c1063c909f8adda82b56414469d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-06",
+      "sha256": "634919565c55a29729543d730927ca4b547c0e52d118a38de730f37fdd7617ef",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-07",
+      "sha256": "32363d37de02e6ad8d334ac332c685f8cdf5684733a9f2cfbca40e15e591396b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-08",
+      "sha256": "8c5e47bfe3f0b0273534379e8ba5c93e69c84d67e8b9a03f293d6621bead2a5f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-09",
+      "sha256": "2fe68ecad48d6927a9280d89700e991cb6481dc2767698c785f2b2d1c0b14744",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-10",
+      "sha256": "358b83bf0c2a5d5390a4bc4d4ae14fa9df0f56139642ad996c0df0f7bc712400",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-11",
+      "sha256": "fac9823cac7bf56a3a6038c3b79417e949b00c172939e62000451c8c25edd7c1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:BTC:2023-12",
+      "sha256": "056dad65795c9264ef90ee668a4c245e8fec73ebcbb272d28f5596c389913979",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-01",
+      "sha256": "474c1ce6fbb09e42cfc7231fee249aecc58af2fb5918570ffeba37998926b4a4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-02",
+      "sha256": "4dae0b3d6b8ea59e39e6493b7964040c52459ea7b0a50b9c2793dcbfae53800d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-03",
+      "sha256": "f7cd4fcafe79d1fac0c830d5fe152f7b3b9100e7c97e40352188766388af0ae0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-04",
+      "sha256": "b4a8542c33e5251fb53f8a3352dd4e6f3cde4ac25f2c24935db8089aa1a2c3a0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-05",
+      "sha256": "0175f696039b9e30f06c6398d218c99e577661ac30424869c648fe9770507248",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-06",
+      "sha256": "8a0f6416c2a83cfa15ba26c688d716fdafe35bb1748dd244f0550e8b2f7e38f7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-07",
+      "sha256": "9a2963ef6541b4d7630eff8df7b2eaee48ece33180af03c34b0bf92675692899",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-08",
+      "sha256": "df41fe3260920b85da86855b4880f34618982e689081317d3d63b9b3bbcb1d53",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-09",
+      "sha256": "89e459b2a8f4b138dc742d9358c0084fcabf719d40468e156c3149a3635f3359",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-10",
+      "sha256": "d442a5f158d45d9ff7b1584b35023a4161cf915a3857f5e71a2a2e6aa68c69c5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-11",
+      "sha256": "b197219d9e8b5e933226e1cd24fe2b7bfc3a2e8a3e74e6f7dc08a48f314da8c3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:BTC:2024-12",
+      "sha256": "82ec90210f492694b9d01722f97f579108ee787968b8485b53d736ea735700da",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-01",
+      "sha256": "3a3eb1b723d944deb4dbef5ae361bbe39340a17fe987fe22e397ef03dca268d2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-02",
+      "sha256": "27cfde08c9eb8e3801fb049e3be351a3e50ab46abd8553c24023fa98ea5e919e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-03",
+      "sha256": "5874e405f55c46f040de1a8ea9daae583dc12b5bcaef6078b21aae9c627cedcc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-04",
+      "sha256": "8068a571425857cb0f5f71f75e733d3bc1e731362a09f84f835bbea6e087aeb2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-05",
+      "sha256": "2b87aa0c63641ba1e954855bcfed96d7fc4eb21efe7936f354ff74e8e06cfcea",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-06",
+      "sha256": "dc4bbe2c75f04372b909febe8e6b379b053f88423d78cdb3ad8b0be3a66d6ede",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-07",
+      "sha256": "1ea64a346f6be0aaf455eb1ce107e6d38367164d97d0dd3719b9f9bb239796f4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-08",
+      "sha256": "6720b573210cfbb98765f4a0de6826033d203fda42a6c8364455144b703ceace",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-09",
+      "sha256": "9934e6d98a90139039bb070a90ba409ff1832ad80116920adcf088090ce4c996",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-10",
+      "sha256": "3597639a18f343c768e374157e8bd08dd046bb33693495ff4e13380abac1260e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-11",
+      "sha256": "9eded1225f9e3f3d4f127fad46111eb403553c1125cf6d11995e69d91d037290",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:BTC:2025-12",
+      "sha256": "b12a106198f3be3ba5916195f75c1c6d34d8e5302ab77b8fd7c4b1b58b6144f4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:BTC:2026-01",
+      "sha256": "b7775ddec3ddd3edafc6ad5abcc94d6ab8b8f063a0911d8a3f3daae6a8bbad2e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:BTC:2026-02",
+      "sha256": "f8806308002477a1a28d6cc55ec9ea7bd91bfd4b44c04500d9fc4aec50fd9464",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:BTC:2026-03",
+      "sha256": "b81fb1942f9653564f355e3bd62dc06e0552d1c64bc966f7dce5a9c1f8780c47",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2026-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-01",
+      "sha256": "97eb6a9187e490a280b08b2fecdcd2b77593cf4063ee91f2a9df415ed947a6af",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-02",
+      "sha256": "498eb4089c941c9f15a2d192886b2938aa2f28bfd5a71b9ba641d00c7b31972b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-03",
+      "sha256": "21c4b651130665a73395c112a6961cd804b6843beb8dac62741f5f471d7059cf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-04",
+      "sha256": "bdad24537d4da2d76e2ec3136a056a1eefa15cecfda1636ecf1ca6e9d11f13e1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-05",
+      "sha256": "a1eea239f97cc0b2d9ff76124ac00a6a0429da283046962449cfb48768d20712",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-06",
+      "sha256": "837818c661742a64996e191a58c812eb09fc11d491af524889e8b0df9a8f467e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-07",
+      "sha256": "1d2b1f8671ad3c6369b3103fe6710a4c669e0b9071a84be1a6a147f461f301f5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-08",
+      "sha256": "5ae7d212f2e05e4b7716bd44a5e6b509065af63e54b7d652e0608dfa1a586db6",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-09",
+      "sha256": "97ea8893c474476c2d9e931c889088608060969e579c8c0ee7b44fa1847e757c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-10",
+      "sha256": "c9cc29673d20801e2392ce36032fcf7e13f6411efc7d35d92ee60df2c42b3a91",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-11",
+      "sha256": "ae025741690c08e3de162d1f4dfdca6736343d071bad154e255ccfb9005df2eb",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:DOGE:2021-12",
+      "sha256": "a8fa1b42fd93675530e8a14d068b5d16a18461331b2717b1cfec0b045b485f18",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-01",
+      "sha256": "c569d49d8a155105189d05ae265d031a9281e29c7c05bd9352a6348cd1decb9a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-02",
+      "sha256": "8d93c2f2e85ea1ee9bcb6a4a64068e3254f591951e70dda060bdb4792cdec5b5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-03",
+      "sha256": "17e89a583b34400dd7ef09ddac03a9dc5596b59f2b6e6add79f8797178ff1537",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-04",
+      "sha256": "618da236e8f5c33cffb2b590b463e14c985c48d60b6d6444cb5cfc56d2cd61d0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-05",
+      "sha256": "1f134da70ca1ab781e62109b152d934ec87bc30b42beffc117e3af2d45283ce9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-06",
+      "sha256": "6658f46eb9c3f0376cd3a51075db1b2373f368497d5ecfbeb1e728c02fd3c357",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-07",
+      "sha256": "22c9b79979e5efdcc17ed602dfb0d25874359ae06ef3cd2ad0e61820c1cef82e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-08",
+      "sha256": "7fc6c09e24be95ca3066cf72b7fa97085bc11a7fbfa6e40fe651e6b476181ccb",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-09",
+      "sha256": "d607a3c4bd2ba207d4a80981f4c73f749db5315bda92a1aee54dc418987ce4fc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-10",
+      "sha256": "4a2d22089b72e2a89ec950d636057a2b08b018a3235f2b20de8bad0329383cfc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-11",
+      "sha256": "44deed05b07d649080d96e2ce49e8044d6bd40d505a0b33aeb7cbec9013a29af",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:DOGE:2022-12",
+      "sha256": "0fe8147721e2feac8e241ae081ec43391589525e03e2a24546d5743296556b80",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-01",
+      "sha256": "110be6f38eb88e72747502f63b1cdbea6364614ec8c3142a13fa8e882afc54ec",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-02",
+      "sha256": "61170b6489f01c9b8b57b168fd5f45a1210710fff9515223e52a38e63e895fce",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-03",
+      "sha256": "d5056f06036a390ba38356560e4d5e2f8e4b3de7b64109e9b2d1fa66ba623269",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-04",
+      "sha256": "baa64505114b4a671413edebfbe48e4b5bb51c7faa96118dc6f6b418ca600ca0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-05",
+      "sha256": "bbc3af49e33377588cd24dda44aa3ff8e59382f864111424dcbbd149cec06d17",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-06",
+      "sha256": "286a6fb905bbada4b9da92842dad5c38dc4cb34dc1b7e01f607acb5863095d29",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-07",
+      "sha256": "62619da6dfb98b80a54fd87f3247f7cfed18b0dc065c1b22d461d933a358b0f1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-08",
+      "sha256": "035f3c244805deb299c3cb4cd68a1e900d75a263d0ac84bfcc7b9855e6e3d66c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-09",
+      "sha256": "05e0666a5861e22519d169fc32bbf9abd3ae1557960b28d9d9bc5fbc51971e90",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-10",
+      "sha256": "89ca1a44f1625e6097d99de343d7d0e609a19386dd038bbe70516387f28e5c4f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-11",
+      "sha256": "6fc04c33f2ec2003e615e0e0f1d2df3b9e9c0f82a0cb1fd8a50aa89a788064b7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:DOGE:2023-12",
+      "sha256": "ffef6d265b8cb39530bda23a66787af05fca5002bbb447d58ae89a8878e30471",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-01",
+      "sha256": "4ea01bae6ac81d90de1620ca141691483df5e6ba104d977fd66241f43c2f987a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-02",
+      "sha256": "ec05eaba605825b3b9d79a6e2879241c126138ca8f84652b21c811347cecda1c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-03",
+      "sha256": "4562390613a728b7b2e951083de57014341b64e96e1a9ca63ce8f8b11457df1b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-04",
+      "sha256": "54b82b550b147a097a0a0981186c17d654d16f659c14521d699edac9e19946cf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-05",
+      "sha256": "c831c9c34a3813a7dc7578bb31bf950f7c360c2ad8f5b967b045beba4d47102f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-06",
+      "sha256": "e66fb26a4801d5321b9c4daacf7baf3e3e6e737901582ce917c77a1b2e8c1b14",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-07",
+      "sha256": "cc31def17f6481b49051706e61fdb29140917dc63ae7db5a1ee29cdaea85b686",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-08",
+      "sha256": "b554b2204be2b6e0f4dd463541137462716503d11cf7530b61d33cf041838a39",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-09",
+      "sha256": "cc07b1e378731f147f62b9c0b186c60bb0b25917616c4d60e7664cbf1d71d868",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-10",
+      "sha256": "3985b83236f69e2f9829f0c064289b375bbef57787f1fff7b4e25268e8bf35f4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-11",
+      "sha256": "611d025b1f914d1b85a5c9e9ad68aa3718b10e33591b29cce536ed246c2c24a6",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:DOGE:2024-12",
+      "sha256": "fe1b1fa8598ea8dcd7e74346fd2d2a12ca0ed0dd7f3ccc1b90fb9c334d7818f1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-01",
+      "sha256": "dcdcd48601bf700c01e0612ccf5ee7b0316a964904d45c7c17fe82c901b5f54d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-02",
+      "sha256": "a2c0dd3a5450f12cf0974f19ca248d9f7a61a1a8fe7f7abb1ad285e320a53a6a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-03",
+      "sha256": "da417dcbd9fed3a8f9dffe25e269dfdf4d1821ea1b87ebcb1ddd1e5d2aa1e67d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-04",
+      "sha256": "f42faa43f436aa4fa2f13946710c2974ed10954ea45890b22d752107a7d8038a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-05",
+      "sha256": "26c273c7b51ba35ddbcda8b467d80a106eb47eb1b05dd849c3cd6290aeb6b84d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-06",
+      "sha256": "dd07195828ff1fbfbab1f9e8655892a125cd98a9e9a0e0ba8e764cec9c977cc7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-07",
+      "sha256": "05aeb6968393c612da3fe9a0e5b16fc94f763cd9fe8460ace1b434f752c714da",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-08",
+      "sha256": "eded0b1dd50964e29aef6c76d75470dd49433596966d273b3fa60ad4f61c33a4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-09",
+      "sha256": "c01de100bafdadc9c1c37dc28d73e350822a3fcd0171e349519af1defe5a00ec",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-10",
+      "sha256": "8cb1ccf9b9c9c1e4bf3c1d53ad5346399000325a5e3848db779a9fa42bbc255f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-11",
+      "sha256": "8134068df1f8988d171c8ab88971bddfe8a0eda87096cc8879295788dae1f441",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:DOGE:2025-12",
+      "sha256": "59cac647224f6a101bc0ac12a8354f0e96c60b9a2404ba984d9c261d80af73fe",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:DOGE:2026-01",
+      "sha256": "21ddfebfec7d1fa38bc10d2b52c46158150c7bd4a10954cbcd801c7d318b8ca4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:DOGE:2026-02",
+      "sha256": "df9ab9a04424bd2d0b75223ab702fd0e3dc2d3684be0ff35991eb5ad32a08596",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:DOGE:2026-03",
+      "sha256": "d5a42d4bbf77d2890a6ec8600d2622cfb956afaac6d0e75d90b3234d7409e2da",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/DOGEUSDT/1d/DOGEUSDT-1d-2026-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-01",
+      "sha256": "9c077a151ad30786ffbf2d560f457fb727ea3fc4f0932e6e287e2bf22ce5ba16",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-02",
+      "sha256": "07b43daa2cd8487fc7a652c58237b93a7a07108e5f4d5cb9ec086d7737898d99",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-03",
+      "sha256": "0f3fe06236480c4aed3460eac7b2d4e0ef621ec4cc5da20445797cb682b74dc2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-04",
+      "sha256": "d483115836d4c285943064b22461670ff30ef1601b1183c4034c7edb4fffeedf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-05",
+      "sha256": "bc68e71360869ed2f1d06bfa07ec6599c5bdb38406d6b712635afe2c6f1df7fa",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-06",
+      "sha256": "b8ddb26be6c48876a04a7fddfbc3f4c8842f53b8e217613eac9dd15a55836597",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-07",
+      "sha256": "c33ea50dc263d559315e7bf3dd6ab87a40f12747fe6fd0c16b5dff28dbd7b58f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-08",
+      "sha256": "3cffa7628cff71c9b2ec5f33085c90317fc1d9866ac701ca9742322344182397",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-09",
+      "sha256": "14e849630ad4d5ae2f899c289c395736c12f1b699486b9dcfd1d7e058e4fff18",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-10",
+      "sha256": "4f9e66dc56961d8552082782b2cdac5a149e125da90694885ab90363a63e8ff5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-11",
+      "sha256": "8e9ebb3bcc07d3080db603ceafaec29fe66612bd160ad737235a3476fc8eafe9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:ETH:2021-12",
+      "sha256": "2f30c04c60988621d47afa115e2b7771785440ee3effe87355d5f7038d234361",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-01",
+      "sha256": "d992b05664b21cef2e104aa93ab1de487fe396f68dc9767380d87998cc7969a1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-02",
+      "sha256": "2d7eeb5c0c0574ebfff2d7369f3b991e2693fe81a2defc87525c667598c3ceef",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-03",
+      "sha256": "0cfffeb995ad02f64b0a1235db34fbca7982aef8b104ee4bb7fd52605323ad53",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-04",
+      "sha256": "2e3269eb718fd3c75f41a11f03c91f3e3af91bd14815b79b216ec371a876ec57",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-05",
+      "sha256": "fe39dd94b5e65aced7b4979fd6357fcd3700ae556a9d03c507d9983d507a628e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-06",
+      "sha256": "62633207619685b148ef58bdc910b78a33fef724ac2b507ef57e7878145516dc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-07",
+      "sha256": "6b4b9bdc7b0e1e6b87b95e750343d898c0df36d9d885bfeae594ca4e29ac0981",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-08",
+      "sha256": "9f54ee2471795608f083a175285cbfd77f5de473cbeaa0d491b3751cf791a3a9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-09",
+      "sha256": "64daaa8bedcb3e82736d5b6426974aadd814007067fc81380ae87e04e1112714",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-10",
+      "sha256": "01a81d5a27053ead87542d1329763bfd22978080f6c3e7ee588f189cd49ff8d6",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-11",
+      "sha256": "83cef6abcb76dffbac6c6ad0e2842dd218f226e1e4a1839e78e35b12dd68a015",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:ETH:2022-12",
+      "sha256": "e3f2c5851ef573c35733f29293188310099683948692d8e8ba008b17fdbd508f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-01",
+      "sha256": "811ff55e20735e6fff55ef37c0c3e922eb6d26d41fe84fc04b2a03c0179549ad",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-02",
+      "sha256": "2f6cdf5aa6613ab3621dbd730a234935e8909f980f1195f7581abf145e422cce",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-03",
+      "sha256": "dbfe653bf62ebac3e4e2bf5c96160de6c76bcbd76e4979ca2105d11cf2bdf77e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-04",
+      "sha256": "d316aea182914c088b06d03640812bae72e889a347ed9dcc78bb8ad10ed1bdf9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-05",
+      "sha256": "a86ef09c35c764e6f0066953074ffb0dc93239afe92e3d73e232fbc95cdeab51",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-06",
+      "sha256": "4932a5fd8853ddf99f3853a501e5f35ffad45a07a466bbf4603ddb7fb4c821ac",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-07",
+      "sha256": "f66293651e4a841fe9bc36cc76483bdb9c1faaa085377fbbd2fd064cd401cd5e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-08",
+      "sha256": "e694749c085b888401f51002dbd21bc8cf0c4d801d2da311e72d6c1ae97627d4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-09",
+      "sha256": "c1faa848529e17e15deafb208d817155576ef51e556813109cdb60c0153ac73d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-10",
+      "sha256": "baadc74c685a63d7ba453531c9f4d1df81a5719200501ab229018352a1be9630",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-11",
+      "sha256": "8faf9f53efe268d25d01b987b3a364cd9f1983703ab2f78486192c29218b1faf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:ETH:2023-12",
+      "sha256": "1778c56d995fe5d32a0816a5214feabcd84d594f4e882315b4e225d6e86e5275",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-01",
+      "sha256": "49598e812edcbf446f20d21a3ffc382a6f51fc1982a7e4224b78a416dbe36e8d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-02",
+      "sha256": "36ebece2c2a6fcccdc4ee2924cd037870e88fa09877208843e2cbdf5f5c93a44",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-03",
+      "sha256": "78f5a6edba263350c1df6d4678596570ae5ce5df38edd4e253ec89431fbddfc0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-04",
+      "sha256": "d0a5088a3d49cea7269dc3bf7f29912e23a390c87fb7b14acbed210ac9be8177",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-05",
+      "sha256": "d0c98ff2f16913e1c1f9bb72165086056ae9923db5b07f113ca6eaf334b87bbf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-06",
+      "sha256": "5198557b48b8df354f5dc07e76270e988416f9e8972e577d9c327b31d2cb1db1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-07",
+      "sha256": "ae4a1a154d9c4e27bb7551293216d6824a0455fef7ecea0efb5084e145ba1ac5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-08",
+      "sha256": "e41fc2dcefc5d0737fd74e943602327cfdbcde04dec40d94030cfcf01720e593",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-09",
+      "sha256": "6e6add68412a0d89199fb6185b88b24994c32522e4ee67ac88d02ab8b81eb1c1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-10",
+      "sha256": "cc2ae0b168f8ddd7b45441a30ae9aa95f748ec9ecaa19ab3cf5e9ec21fc63783",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-11",
+      "sha256": "fe8b32f1ab7a3a72316b404ffc9d7002cb75801364f12dc52eddfedbb3e3af43",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:ETH:2024-12",
+      "sha256": "e36880cb5d79157599878eb97db2d20a5bc10f904384501f0b3571a09c1b6bcc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-01",
+      "sha256": "fb1c6329259282a4174c646629515704da03c713bff9106f8da01ec188112a09",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-02",
+      "sha256": "ed3cf4f55aa296a25e092d73170c6772fa33e089c8ee5bdd379198fa94675361",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-03",
+      "sha256": "37a2a5d88861944141de683f7584d01cfeb23c0a69ba0aa2613fa6ec14b33960",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-04",
+      "sha256": "88554fccbad3d445fb7aad16440ef62aeb7b5a0d0d0be26101919753a455e106",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-05",
+      "sha256": "05f9099dc0225439cdcd08661281bc958f4984a02c5219ff019c7988140a4511",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-06",
+      "sha256": "1a436c3f4e79c6ef65e06749c7be302800f2bbe84b283f36b670688f1fe8e706",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-07",
+      "sha256": "507452f08f6df58e28c66a56eb114c274a601908b7a36cca028f4f1fe685c5a0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-08",
+      "sha256": "caaf73478addeaf0d1a1d470284448a8eea201ec8b54acbf4996327ee5fd30d3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-09",
+      "sha256": "2362f78fe5ef79628fe7a16fcd720ba5e2490bd05806943d092d0c2bbc025403",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-10",
+      "sha256": "7ac29ddc8e5af97d63293df20ca5fe2d31952754d06fa7592992cd1b9ccc2fbb",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-11",
+      "sha256": "ca97638b3e43fa8fc6cfe9e01ebec4cd6b59ac5b37b694f951ae30719424bbed",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:ETH:2025-12",
+      "sha256": "eaf731c713e58a6d0e7a196c9887c41c5ed6066c73de68f878dfbe4a48de05e8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:ETH:2026-01",
+      "sha256": "809eceed4a7a4eddf08f70e4c505f454ecf9d715d72269fa36db37964e4159f4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:ETH:2026-02",
+      "sha256": "c853802f359f27a9e935f9ea48cdc66207b0c7bd6d22241e7bf240722d0e1600",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:ETH:2026-03",
+      "sha256": "ce8ec50be4226da6d0c7724dac25c1a35dac8d75c8f3207d5aa8a0991ee54d9a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1d/ETHUSDT-1d-2026-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-01",
+      "sha256": "89559f94e8144172ee98f693aa85042512253f0198ce9a88a3cc4bc722d76488",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-02",
+      "sha256": "07b41b7ee606907712b9ca88166dfc249a010f725447b1645a0bf716282818cb",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-03",
+      "sha256": "d672ff29dc5f29e3d15bb01e00e9a310fdb1a7fb8e742865b10dbe78a836ad4a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-04",
+      "sha256": "40075e1d4db6547de2df4a48a60390bf3b4233b324d165fd3659684e9b2c0d46",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-05",
+      "sha256": "08aafdd410990dc1d21a7499e3d87aab049bbe05a4e9a03695b8296d452a74e7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-06",
+      "sha256": "2f412578b828b645121f4b986d7e999700ca9710cf37a69e99035e8f0b42ea68",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-07",
+      "sha256": "23fb8601164fe46c14876165940e14715c304b90cf6e8b9fd923f30eb7137cf2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-08",
+      "sha256": "b1d27fe4124f0c9574d4f90a64538732dd30afcf7cc2e8cb5c9e13e45f76f15b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-09",
+      "sha256": "278af4f9a71eec2eb89074f66709b7b261c946f04603fa17be45dfa40deb7bd3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-10",
+      "sha256": "f967c8a0f591c9f9fa459a6bc80b50eaadf274a0459a9e8afedde2e3c5b3aa39",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-11",
+      "sha256": "27dad5421538b244ee284627247e6598533f87384e8be78c2c436bcf5b7825fe",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:LINK:2021-12",
+      "sha256": "e68a906024cc24f6e53ebad8cadc173ae699c2b0c67adde2ef7d26ee2c896cb8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-01",
+      "sha256": "fa946bb644d6ec26810538f867324a0bc26fe6613174664254f939dd585ae716",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-02",
+      "sha256": "24f6d77e8a796d020d72bac90db9975d76b6c4d7414d27f884d7b666553217c3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-03",
+      "sha256": "44ba406472b084f4dc8b4c74e1816e6d640b1154b54149653e47b8e68a2d8c99",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-04",
+      "sha256": "d79ae671e9f4db6c4cebf185e3afb1f0afd2d10609b93f74c703462a7c4b5da8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-05",
+      "sha256": "6dd98e5e1833e5b55b6d27c44c70d9071ed6818220abab0ce18518f98de645ee",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-06",
+      "sha256": "b27f1472a74940a8e28599935edfa49234d9959b79d2c33793f0c727fe1786f8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-07",
+      "sha256": "ccb3a71317c4134998718ce0557e074a332de0febce2eb6995577f37642d91fa",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-08",
+      "sha256": "ad42aef40f3193b9ee7f28076c63237716eaeb9adba1d7380a9b8880f7e4df66",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-09",
+      "sha256": "ae38b009e3b30402fd09f1720d3d53cc5947c9587f15ccb20366585e208f61b0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-10",
+      "sha256": "19f3e0d88c1dce707c9acf0213b9d615667e24a4056db5dde0a51370991904ca",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-11",
+      "sha256": "5a4437504f0486cbc6eff11fdee0498dcd22a2913ac8c9db21040aa843a2fdcf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:LINK:2022-12",
+      "sha256": "abcdd22ef46373acb3f365db35505837f77362385164e70bb0d12e7bfced8e22",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-01",
+      "sha256": "0a59571d5e78db48a3395ed3f15c8d959c93cc272eec4e7503f86dab9270c3f2",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-02",
+      "sha256": "6ec598840bc87bbfe952caafcb85e675d2fb968ff59011c80b70555d3cb8c23c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-03",
+      "sha256": "7e93abe56711895671185e4b311dd0954ca2bbb2fad419220a83167d3cf9c076",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-04",
+      "sha256": "8f6252ee7f7323152639130497e55bdbc49e01e91edc7a0e9255a752ff13c083",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-05",
+      "sha256": "e210744a1a50e0928b898cb332a91e2a97fa0c43ed171c19565e13613481172c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-06",
+      "sha256": "f74199e27769f045f1c8c8e9a52639465e06c62bd02c4c4a51ad99ea711a5b7d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-07",
+      "sha256": "0505ba4266509741672c52e41fc953151cb67c4a444cf822f36e288ea3c714f1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-08",
+      "sha256": "7ad1573b7c31f13a5da1e90df312a2dff2b13f591ee01b53a1d373292986819e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-09",
+      "sha256": "9db1bf15e9611970c39088a60b388b4b89f6f1f3bbc1acfd3104c16e3bad52c0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-10",
+      "sha256": "208031833dc750b323d923dc9c91aee0a2067111d13a0b7f46b037d84ad4e848",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-11",
+      "sha256": "bc126beba5203ffceadd456cde74ddefad4d8534ed472d2cc399998c2d01a2db",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:LINK:2023-12",
+      "sha256": "68c878fbb8dd94b44dbf4c347a5ded5944285ea195feeb774a716af0003186c3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-01",
+      "sha256": "fb51c3585b3c3f9aeabd65df82e2cfedbff8618d550ecc1632dd916668b47ba9",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-02",
+      "sha256": "dcd68701ed45cadb5c1d888321b10e59e47abe790c950885f33ab00a029b04e1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-03",
+      "sha256": "9d08ff3016458fb7edea5cba63aeaf647496eb1cc9413ff2540a660160abcfe1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-04",
+      "sha256": "124ae82928099f3cacd1c425819ed3936f5828277709531311f4354f7928cacd",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-05",
+      "sha256": "a52ad7bc1a79042f52c621351507196776486c165a1a6117d3f78ad19c5521dc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-06",
+      "sha256": "b91fb2de373f3afc2af4ef3a5cf40a4dc042bbf9fd12d882165bad2b792a5a31",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-07",
+      "sha256": "eddb70966c9be13b0b9d3e96642b0b75f3884c967c8aa323ae5abde423074d4a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-08",
+      "sha256": "bdf5e1278a1981068543047e8b0496fb422d2030a6514470736ad1f27cc1db9c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-09",
+      "sha256": "495eb44c5f69453d95ca8aad117e4de1e8e915037b88f8a471bdf3fd02769a74",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-10",
+      "sha256": "f2b37efa7f84d0c3b1ba93c3a2aca85853079b1c6eebacd85b5dfd3443b5672f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-11",
+      "sha256": "c99e19b5fb1d4c8e6e2d3b1ba54b62b4dbf0f8fb596fa48bb7c0b56545b20969",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:LINK:2024-12",
+      "sha256": "a87918fc398affd9a2157bedf050bcea9b392f6c21a7658bde75a722b04a93a8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-01",
+      "sha256": "c692b8a5ef03281ac6f09f74e893fd387cefc65029909c99c8d26f45a27c4c42",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-02",
+      "sha256": "f1569de3f2717b230ae244d863bc9538df1d82b8b39b72890b1137867d5c5981",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-03",
+      "sha256": "3e8d76ee0fd525fe29a2c77255c4b14a6537f469c92e3326023a4c061dd65c8a",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-04",
+      "sha256": "576d792474617361a1ca20195fd05c7d52c61e3dcb3b9f8f5c9c44dc29ddccc6",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-05",
+      "sha256": "3fd793592713d62e4c99094f66cd5869d0207a78b412239577cec0bc2cc62027",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-06",
+      "sha256": "fb14bbd0b916a603aaebac8641698a8a22477f250f26fa11d7016bc42068ba32",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-07",
+      "sha256": "8fdb2f935cdab8889fee7c90f0fe9c45af24ef8c613935eefadeb5fd5ac7e219",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-08",
+      "sha256": "9533583171ccd2ed6baf4dbed102270355926a6fbda4c39d13e7b5443294c74b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-09",
+      "sha256": "528bf6865fda1006781b8ed3f58a0ef39249e6992fc246fb0a47ec486e045c17",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-10",
+      "sha256": "0b3918bc56611402a182ac929beff37ca852bb70a6bb2d57593128cca9a23cb7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-11",
+      "sha256": "1af7faa4c2e4c27f9796dda6423dcbf108972f1bf782c4967af685a135ad02b1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:LINK:2025-12",
+      "sha256": "d5e45f6d9a5be52a1962e87e309894898d3f347afce66f52c5f8b3720248d1f4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:LINK:2026-01",
+      "sha256": "acd22ca38f1ef24db1dfc3b64b4651d31db70db199cb2cfdcf742b94bdc1db6c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:LINK:2026-02",
+      "sha256": "0bba27fc31d2c55bb4c305ec646fa2170c2de1bda5f685d6bf14b185b818c9ed",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:LINK:2026-03",
+      "sha256": "3e04bcbf73e4847cbfc8bbf161d267cbd43cf8ec88a5c8431766d664a46404b5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/LINKUSDT/1d/LINKUSDT-1d-2026-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-01",
+      "sha256": "d7883e8cf9558b3735c2c36e27baccd1ee241d294e3ef85a6b3db5da36d7e040",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-02",
+      "sha256": "576f9b03c69a1c84566ec257a9663f3c0b71179192b10ebc021bc3d31f4c6988",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-03",
+      "sha256": "90f6c49b661828d6191292a4595c42fb2aaa96de34894d4e47ef147b4902d1f8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-04",
+      "sha256": "f81629c45bede0e7cc367dfe5609878359ffe202da39b97b419b36e276155026",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-04.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-05",
+      "sha256": "7787aabb922e9f6bef515697b3bd6e17aec223bda210f223d5df4ef4c2e73bb0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-05.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-06",
+      "sha256": "ceeff69afda85f0affd0d9f41d07297f3cb37c2225854d23e30d2a09bf939d6f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-06.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-07",
+      "sha256": "b3526f1f04967f1f63810409eb0eefcb03154732faca5faea716d623576ec07c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-07.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-08",
+      "sha256": "fbeda8e1117ee083ecaf6777a5134619ec635205848bba3af0713e84f736269b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-08.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-09",
+      "sha256": "b1de9e1a4574027cd9222002a84d1a6e033f2eea3eb012ba75600a45ad2d1a78",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-09.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-10",
+      "sha256": "d74977bf5192ddf49fe9f8dc25c27ffe334a53e4ab5b708bdc7c5ea12a5a2df3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-10.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-11",
+      "sha256": "3b1c1cde8b7605861185cfe01607fbe5203252fc090efed7d0b7b8eec90e766e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-11.zip"
+    },
+    {
+      "key": "monthly:SOL:2021-12",
+      "sha256": "19806d63c1cfd86cd593d5a779610b48d4f53d520776dfe80142ef2381fbd031",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2021-12.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-01",
+      "sha256": "49210272894aa31c0770b525f63385e441c94004f279b48c848a89f4fbc4a74c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-02",
+      "sha256": "7cd7f1e60b6d3d182c6378b47f354a87484e5c410520f794ab3a678c391b3cfd",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-03",
+      "sha256": "61719c709442a46e1b4d6afe539e1516014b0c1821e6f83646838a8e39d9b1b7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-04",
+      "sha256": "43cedd1c6efedb2a9b34d696307c0ced9802d43ddeb705aac3a0cde2d12cfe45",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-04.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-05",
+      "sha256": "d0760411b5f62e535b71e49dfe99ae1153b743426078544a1cc50ce145d8b573",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-05.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-06",
+      "sha256": "33c446671edc92c2564dd218f2f86cee06b01c9e76453e6b95295043f598d843",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-06.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-07",
+      "sha256": "21c63c6038d622b39143dc8477f4cdb590eaee6efc19df58d1e1b16d94874fdc",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-07.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-08",
+      "sha256": "bd88363823cc115d9135fd0f680245897ce8fade0aba5d6cd64e4094c682d038",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-08.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-09",
+      "sha256": "caba81a2063dc1e6b7db5600e203525d5cc1c8ccf0d170e9e14525caee555835",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-09.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-10",
+      "sha256": "b9d21c0ae339e578ca2c88e3f69c72020c140e0374bc20b797fe8db0bba3a662",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-10.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-11",
+      "sha256": "dca79b92bfa96b27f40dd862e6bb40949d0acbf34580c73eb8523ae7e1277342",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-11.zip"
+    },
+    {
+      "key": "monthly:SOL:2022-12",
+      "sha256": "439ce04721bee169ff30510792cdf787be123071ee21f3d885f9681b0a7e1b92",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2022-12.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-01",
+      "sha256": "09fc042c2ab54d9fc09a414a290b74711bd9c8665a58bb520e56432ed7a3041b",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-02",
+      "sha256": "2e0df24a2aa7ac6790da6a09be2448c50b8eb539a4b68003375c853c4a33ab71",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-03",
+      "sha256": "61dabcc011f27759552fd3ff9f43915f40a286b5287619b56ef2f3e088374432",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-04",
+      "sha256": "c91db96b1be0e068cfaaab5c75cca5e9e92171713f44f1856115687a96c828a0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-04.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-05",
+      "sha256": "a3c74635f90344b9af798ce16e45674e8d7c816641db7a825f4317a6be4647d4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-05.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-06",
+      "sha256": "79c2853d97448e168891e429143111c3b0d8f4f54c7faee18ce3aba1414ac5e4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-06.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-07",
+      "sha256": "5a55d12a72e39bd5b8c4e8230914d9537b2a9d5a865ed0ba6ee53212a9abfbf0",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-07.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-08",
+      "sha256": "88917ca3c65a50860c51a4b2b63ff0bc8b89764d164deae347feb287db490e67",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-08.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-09",
+      "sha256": "bbfb009f933b02c10e79b3b7fa717163af1838d490a57ca4229194149cd52d42",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-09.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-10",
+      "sha256": "6daf020274d54de9e3fbaa4f8c4e8f43b549fe15e6a8fb7759b8ef1716d0a235",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-10.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-11",
+      "sha256": "66298306327d421adfe227262c4bb5551ad97ad89e3990a72bbd82c2df44d217",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-11.zip"
+    },
+    {
+      "key": "monthly:SOL:2023-12",
+      "sha256": "d07143cfcfec4d988590a30b74be234dbd96238da2560190b9e16a633761b480",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2023-12.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-01",
+      "sha256": "521c3949cf679a3054234c8c8eed43babe89b26d337c02d1feb764da28516b27",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-02",
+      "sha256": "27c2a0db505c5eadf66d8efdbd921b01df3bcce41c2e09fb62ca4030495074cf",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-03",
+      "sha256": "25e02203a9571e57f203855ea585a065e8fb499ba31e961f49d0c8011925b30c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-04",
+      "sha256": "901a98c35bb7a1bf0fdf06c4b2e3fd7062ca55d3459c0127dc7993332cf9b1e8",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-04.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-05",
+      "sha256": "552ef6e5be0a3c7fef83480b907678c4b2712148290db0c7d9f8cf86273ce926",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-05.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-06",
+      "sha256": "54cc3ff50e1111da33b6fb65ea6ce22b5626e55822787c6d475931e38176b9db",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-06.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-07",
+      "sha256": "6a9bfbb2fe8181e35a1fd9b982dab14f4d7146b61ee85cb47abd3dce7253b1ad",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-07.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-08",
+      "sha256": "09d69d6b4792fe97757b1b0c95c4527b3d487eca5abd7a7ea0eedc8502595506",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-08.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-09",
+      "sha256": "1d0761183c082d09e5a675884c33931bbbc4d56c66516e187aeb2f70240f2fed",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-09.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-10",
+      "sha256": "08b9ce2dc300735ad58cb347ee7ea84ed42faffe56fedc659845d8d445596c57",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-10.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-11",
+      "sha256": "c13259d17ecf4965fc79c1831d773e3210da69fe364ea5b7c6378cae7b5616a5",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-11.zip"
+    },
+    {
+      "key": "monthly:SOL:2024-12",
+      "sha256": "cbe6c4aaf9ec9eba4b5dbac0192b992b3a0d588416789d348fbb24a07d923f47",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2024-12.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-01",
+      "sha256": "48087cf248bb601648b8fe5d942bf5255864bddf08f0e47dcb2622f2cbfe020e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-02",
+      "sha256": "3b84382d78bf1e812c907108c26eba2cf485fb40e8fb52f414be550ecf014b5f",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-03",
+      "sha256": "85fa8662e07bb9ab5ceb7b848022e57c5aa164fb0bfa3ffebfb6cff37dcad5f3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-03.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-04",
+      "sha256": "bcc78ff9c12dad7d789c63eb907ff8eeb3ed5dfb09a78c63a4c8ac71273da04d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-04.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-05",
+      "sha256": "e941f16df00c40ebdead705ca3579e517474d91bc1bb9f1a6cd228ecf261b260",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-05.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-06",
+      "sha256": "0f07a118614cbd5e9c87ca21fac821fe204b77e32d776cc7406af945665adfa1",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-06.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-07",
+      "sha256": "077cf97a326946b4745492d505757dea1c0fde94e048f77a53264758e484e90c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-07.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-08",
+      "sha256": "0ded6dbc78e2bd4b6034b95e302bb0fd03c1e59a6fe24b665fb9edce80f9ca1c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-08.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-09",
+      "sha256": "b426db9acb56eed70f6a25e7bfa2d5ae86b17db54afb2a7abf1a58649a33d20c",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-09.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-10",
+      "sha256": "d675523daf5ef157c13160e9fe4b84fc02bedb8e513bfca5a85b8d53e38684d4",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-10.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-11",
+      "sha256": "0eba533d5d1b2a09a3c4126bdf875387992e348d334697667a54a04d4709d7e3",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-11.zip"
+    },
+    {
+      "key": "monthly:SOL:2025-12",
+      "sha256": "9a0eefcf1eba4ea1731f915f3a49e6fc81a383d599b5c99c56c5d2697039f70d",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2025-12.zip"
+    },
+    {
+      "key": "monthly:SOL:2026-01",
+      "sha256": "546a5858cc28a23a3680a257689793ecf6381941363f88338bd6f659e50aa59e",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2026-01.zip"
+    },
+    {
+      "key": "monthly:SOL:2026-02",
+      "sha256": "2f2a7010a7902ce0645b998e4f33320a9f394ff6aac080e53442d341f1940b05",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2026-02.zip"
+    },
+    {
+      "key": "monthly:SOL:2026-03",
+      "sha256": "254e390e9a69bada245c39990154f4767a2ab1987c3198178dd58fbe1044f6d7",
+      "url": "https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1d/SOLUSDT-1d-2026-03.zip"
+    }
+  ],
+  "source_inventory_sha256": "597bd32dd16ca0ef854506bd2700b65335f38d9f5017c8da8e3aeedbb3e568fa",
+  "verification": {
+    "btc_benchmark_window_returns": {
+      "2025-Q1": -0.017974403693254686,
+      "2025-Q2": 0.04439384009691096,
+      "2025-Q3": 0.009363072553646412,
+      "2025-Q4": -0.03502289615317775,
+      "2026-Q1": -0.03343881709620766
+    },
+    "btc_max_exposure_benchmark_return": -0.03443641118787988,
+    "equal_weight_benchmark_window_returns": {
+      "2025-Q1": -0.054955940591285765,
+      "2025-Q2": 0.020784361268339734,
+      "2025-Q3": 0.06856773506584875,
+      "2025-Q4": -0.06105306470382483,
+      "2026-Q1": -0.04070471593306467
+    },
+    "equal_weight_max_exposure_benchmark_return": -0.07150091671473402,
+    "gates": {
+      "all_bars_complete": true,
+      "asset_concentration": true,
+      "beat_btc_benchmark": true,
+      "beat_cash": true,
+      "beat_equal_weight_benchmark": true,
+      "discovery_robustness": false,
+      "drawdown_cap": true,
+      "five_positive_standard_quarters": false,
+      "five_positive_stress_quarters": false,
+      "four_assets": true,
+      "positive_standard_return": true,
+      "positive_stress_return": true,
+      "quarter_concentration": false,
+      "three_actions_each_quarter": false,
+      "twenty_five_actions": true
+    },
+    "standard": {
+      "active_sleeves": [
+        "moderate_btc",
+        "strong_trend"
+      ],
+      "asset_net_contribution": {
+        "AVAX": -0.018908368343210614,
+        "BTC": 0.019103620686091095,
+        "DOGE": -0.001161931821691686,
+        "ETH": 0.021304876835628508,
+        "LINK": -0.001559228805981259
+      },
+      "maximum_drawdown": 0.03162413083850002,
+      "maximum_positive_asset_share": 0.5272375401777094,
+      "maximum_positive_window_share": 0.9136073230168335,
+      "net_compounded_return": 0.018064611334663194,
+      "non_cash_action_days": 137,
+      "selected_assets": [
+        "AVAX",
+        "BTC",
+        "DOGE",
+        "ETH",
+        "LINK"
+      ],
+      "sleeve_net_contribution": {
+        "cash": -0.0012858233351675785,
+        "final_liquidation": -0.00014857334849624316,
+        "moderate_btc": 0.01267976551617756,
+        "strong_trend": 0.007533599718322306
+      },
+      "turnover": 4.3476936097843595,
+      "window_action_days": {
+        "2025-Q1": 20,
+        "2025-Q2": 50,
+        "2025-Q3": 56,
+        "2025-Q4": 11,
+        "2026-Q1": 0
+      },
+      "window_returns": {
+        "2025-Q1": -0.004054252486923926,
+        "2025-Q2": 0.003894830693220497,
+        "2025-Q3": 0.041188049352033795,
+        "2025-Q4": -0.022037353585837693,
+        "2026-Q1": 0.0
+      }
+    },
+    "stress": {
+      "active_sleeves": [
+        "moderate_btc",
+        "strong_trend"
+      ],
+      "asset_net_contribution": {
+        "AVAX": -0.01903314932918625,
+        "BTC": 0.01571324222306109,
+        "DOGE": -0.0013321643673766452,
+        "ETH": 0.02086121232333358,
+        "LINK": -0.0017781761791476197
+      },
+      "maximum_drawdown": 0.03251402809556436,
+      "maximum_positive_asset_share": 0.5703765806506054,
+      "maximum_positive_window_share": 0.9486478697636256,
+      "net_compounded_return": 0.013648278495775212,
+      "non_cash_action_days": 137,
+      "selected_assets": [
+        "AVAX",
+        "BTC",
+        "DOGE",
+        "ETH",
+        "LINK"
+      ],
+      "sleeve_net_contribution": {
+        "cash": -0.0025717697669967268,
+        "final_liquidation": -0.00029714669699248633,
+        "moderate_btc": 0.011277012517597072,
+        "strong_trend": 0.0060228686170763004
+      },
+      "turnover": 4.347848744968129,
+      "window_action_days": {
+        "2025-Q1": 20,
+        "2025-Q2": 50,
+        "2025-Q3": 56,
+        "2025-Q4": 11,
+        "2026-Q1": 0
+      },
+      "window_returns": {
+        "2025-Q1": -0.004677091142731293,
+        "2025-Q2": 0.0021537544413694487,
+        "2025-Q3": 0.03978714326736621,
+        "2025-Q4": -0.022662672783418714,
+        "2026-Q1": 0.0
+      }
+    }
+  },
+  "verification_end_utc": "2026-03-31T00:00:00Z",
+  "verification_start_utc": "2025-01-01T00:00:00Z",
+  "verification_windows": [
+    {
+      "end": "2025-03-31T00:00:00Z",
+      "name": "2025-Q1",
+      "start": "2025-01-01T00:00:00Z"
+    },
+    {
+      "end": "2025-06-30T00:00:00Z",
+      "name": "2025-Q2",
+      "start": "2025-04-01T00:00:00Z"
+    },
+    {
+      "end": "2025-09-30T00:00:00Z",
+      "name": "2025-Q3",
+      "start": "2025-07-01T00:00:00Z"
+    },
+    {
+      "end": "2025-12-31T00:00:00Z",
+      "name": "2025-Q4",
+      "start": "2025-10-01T00:00:00Z"
+    },
+    {
+      "end": "2026-03-31T00:00:00Z",
+      "name": "2026-Q1",
+      "start": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
