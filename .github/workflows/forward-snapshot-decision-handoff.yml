@@ -1,0 +1,178 @@
+name: Forward Snapshot Decision Handoff
+
+on:
+  workflow_run:
+    workflows: ["Forward Market State v2.0"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: forward-snapshot-decision-handoff-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  handoff-and-verify:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Check out frozen workflow definitions
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Download the exact persisted snapshot artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/source-evidence
+          mkdir -p /tmp/source-evidence
+          gh run download "$SOURCE_RUN_ID" \
+            --name "forward-market-state-v20-normalized-$SOURCE_RUN_ID" \
+            --dir /tmp/source-evidence
+
+      - name: Verify provenance and dispatch only missing decisions
+        id: dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t source_info < <(python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          files = sorted(Path("/tmp/source-evidence").rglob("normalized/*.json"))
+          if len(files) != 1:
+              raise SystemExit(f"Expected exactly one normalized source snapshot, found {len(files)}")
+          path = files[0]
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          if payload.get("schema_version") != "2.0":
+              raise SystemExit("Unexpected source snapshot schema")
+          if payload.get("paper_only") is not True or payload.get("authorizes_trading") is not False:
+              raise SystemExit("Unsafe source snapshot flags")
+          canonical = dict(payload)
+          expected = canonical.pop("record_sha256", None)
+          actual = hashlib.sha256(
+              json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+          ).hexdigest()
+          if expected != actual:
+              raise SystemExit("Source snapshot record hash mismatch")
+          print(payload["hour_bucket_utc"])
+          print(payload["snapshot_id"])
+          print(expected)
+          PY
+          )
+          test "${#source_info[@]}" -eq 3
+          target_hour="${source_info[0]}"
+          snapshot_id="${source_info[1]}"
+          record_sha="${source_info[2]}"
+          safe_hour=$(date -u -d "$target_hour" +%Y%m%dT%H0000Z)
+
+          git fetch origin forward-data/v2
+          rm -rf /tmp/forward-data-handoff
+          git worktree add --detach /tmp/forward-data-handoff origin/forward-data/v2
+
+          TARGET_HOUR="$target_hour" SNAPSHOT_ID="$snapshot_id" RECORD_SHA="$record_sha" python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("/tmp/forward-data-handoff/data/forward-market-state/normalized")
+          exact = root / f"{os.environ['SNAPSHOT_ID']}.json"
+          if not exact.is_file():
+              raise SystemExit("The workflow artifact was not persisted to forward-data/v2")
+          payload = json.loads(exact.read_text(encoding="utf-8"))
+          if payload.get("hour_bucket_utc") != os.environ["TARGET_HOUR"]:
+              raise SystemExit("Persisted snapshot hour differs from the source artifact")
+          if payload.get("record_sha256") != os.environ["RECORD_SHA"]:
+              raise SystemExit("Persisted snapshot hash differs from the source artifact")
+
+          hours = []
+          for path in root.glob("*.json"):
+              try:
+                  raw = json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc")
+                  parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+              except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                  continue
+              if parsed.tzinfo is not None:
+                  hours.append(parsed.astimezone(timezone.utc))
+          if not hours:
+              raise SystemExit("No canonical snapshot hour exists")
+          latest = max(hours).isoformat().replace("+00:00", "Z")
+          Path("/tmp/latest_snapshot_hour.txt").write_text(latest, encoding="utf-8")
+          PY
+
+          v21="/tmp/forward-data-handoff/data/market-state-router/decisions/$safe_hour.json"
+          v23="/tmp/forward-data-handoff/data/forward-alpha-v23/decisions/$safe_hour.json"
+          missing_v21=false
+          missing_v23=false
+          [[ -f "$v21" ]] || missing_v21=true
+          [[ -f "$v23" ]] || missing_v23=true
+
+          if [[ "$missing_v21" == false && "$missing_v23" == false ]]; then
+            echo "Both decisions already exist for $target_hour."
+            echo "target_hour=$target_hour" >> "$GITHUB_OUTPUT"
+            echo "safe_hour=$safe_hour" >> "$GITHUB_OUTPUT"
+            echo "dispatched=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest_hour=$(cat /tmp/latest_snapshot_hour.txt)
+          if [[ "$latest_hour" != "$target_hour" ]]; then
+            echo "Failing closed: source hour $target_hour is no longer the newest canonical snapshot ($latest_hour)." >&2
+            exit 1
+          fi
+
+          if [[ "$missing_v21" == true ]]; then
+            echo "Dispatching frozen v2.1 for newest canonical hour $target_hour."
+            gh workflow run market-state-router-v21.yml --ref main
+          fi
+          if [[ "$missing_v23" == true ]]; then
+            echo "Dispatching frozen v2.3 for newest canonical hour $target_hour."
+            gh workflow run forward-alpha-decisions-v23.yml --ref main
+          fi
+          echo "target_hour=$target_hour" >> "$GITHUB_OUTPUT"
+          echo "safe_hour=$safe_hour" >> "$GITHUB_OUTPUT"
+          echo "dispatched=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for immutable decision persistence
+        if: steps.dispatch.outputs.dispatched == 'true'
+        shell: bash
+        env:
+          TARGET_HOUR: ${{ steps.dispatch.outputs.target_hour }}
+          SAFE_HOUR: ${{ steps.dispatch.outputs.safe_hour }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            git fetch --quiet origin forward-data/v2
+            v21=$(git show "origin/forward-data/v2:data/market-state-router/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
+            v23=$(git show "origin/forward-data/v2:data/forward-alpha-v23/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
+            if [[ -n "$v21" && -n "$v23" ]]; then
+              V21="$v21" V23="$v23" python - <<'PY'
+          import json
+          import os
+          target = os.environ["TARGET_HOUR"]
+          for label, raw in (("v2.1", os.environ["V21"]), ("v2.3", os.environ["V23"])):
+              report = json.loads(raw)
+              assert report["data_cutoff_utc"] == target, (label, report["data_cutoff_utc"], target)
+              assert report["paper_only"] is True
+              assert report["authorizes_trading"] is False
+          PY
+              echo "Both immutable decisions are preserved for $TARGET_HOUR."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for both decisions for $TARGET_HOUR." >&2
+          exit 1
