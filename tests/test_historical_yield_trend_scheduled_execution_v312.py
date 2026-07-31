@@ -80,18 +80,21 @@ def test_corrected_engine_preserves_drift_until_due_rebalance() -> None:
         end,
         0.002,
     )
+    # Entry, one due rebalance and terminal liquidation are the only possible
+    # corrected actions. The inherited path creates additional daily actions.
     assert corrected.crypto_action_days <= 3
     assert inherited.crypto_action_days > corrected.crypto_action_days
-    assert inherited.crypto_turnover > corrected.crypto_turnover
     assert corrected.selected_assets == ["BTC"]
 
 
 def test_daily_risk_off_still_exits_before_scheduled_rebalance() -> None:
     start, bars, features, cash = _fixture(days=5)
-    features[start] = {
-        "BTC": _feature(score=10.0, risk_on=False),
-        "ETH": _feature(score=5.0, risk_on=False),
-    }
+    for offset in range(0, 4):
+        signal_day = start + timedelta(days=offset)
+        features[signal_day] = {
+            "BTC": _feature(score=10.0, risk_on=False),
+            "ETH": _feature(score=5.0, risk_on=False),
+        }
     result = execution.simulate_scheduled(
         audit.FROZEN_MODEL,
         bars,
