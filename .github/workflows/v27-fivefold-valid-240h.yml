@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/v27-fivefold-valid-240h.yml"
       - ".github/triggers/v27-valid-240h-once.txt"
+      - "src/tradebot/research/historical_discovery_v27_runner.py"
+      - "tests/test_historical_discovery_v27_warmup_guard.py"
 
 permissions:
   contents: read
@@ -42,6 +44,8 @@ jobs:
             "$(git rev-parse HEAD:research/V27_FIVEFOLD_MECHANISM_DISCOVERY_PROTOCOL.md)"
           test "$(git hash-object src/tradebot/research/historical_discovery_v27.py)" = \
             "$(git rev-parse HEAD:src/tradebot/research/historical_discovery_v27.py)"
+          test "$(git hash-object src/tradebot/research/historical_discovery_v27_runner.py)" = \
+            "$(git rev-parse HEAD:src/tradebot/research/historical_discovery_v27_runner.py)"
       - name: Run protocol-correct v2.7 screen
         run: |
           mkdir -p evidence/v27-fivefold-valid-240h
@@ -65,7 +69,15 @@ jobs:
           assert report["changes_track_a"] is False
           assert report["cannot_replace_forward_evidence"] is True
           assert report["effective_state_assembly_warmup_hours"] == 240
+          assert report["metrics_row_policy"] == (
+              "skip_nonpositive_observations_require_positive_hour"
+          )
+          audit = report["metrics_row_audit"]
+          assert audit["skipped_nonpositive_observations"] > 0
+          assert audit["positive_observations"] > 0
+          assert audit["positive_hours"] > 0
           assert report["fingerprints"]["runtime_guard_sha256"]
+          assert report["fingerprints"]["metrics_parser_sha256"]
           windows = report["windows"]
           assert [item["name"] for item in windows] == [
               "2024-07", "2024-12", "2025-03", "2025-06",
@@ -92,6 +104,7 @@ jobs:
               },
               "net_return": report["results"]["8"]["standard"]["net_compounded_return"],
               "stress_return": report["results"]["8"]["stress"]["net_compounded_return"],
+              "metrics_row_audit": audit,
               "report_sha256": expected,
           }, indent=2, sort_keys=True))
           PY
