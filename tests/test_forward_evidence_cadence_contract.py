@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CADENCE = ROOT / ".github" / "workflows" / "forward-evidence-cadence.yml"
+COLLECTOR = ROOT / ".github" / "workflows" / "forward-market-state-v20.yml"
 
 
 def test_redundant_cadence_dispatches_existing_watchdog_only() -> None:
@@ -24,3 +25,12 @@ def test_redundant_cadence_avoids_duplicate_active_watchdogs() -> None:
     assert "now - 1800" in text
     assert "A recent watchdog is already active" in text
     assert "no evidence or strategy bytes were modified" in text
+
+
+def test_v20_collector_has_no_independent_hourly_schedule() -> None:
+    text = COLLECTOR.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in text
+    assert "pull_request:" in text
+    assert "schedule:" not in text
+    assert 'cron: "17 * * * *"' not in text
