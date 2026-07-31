@@ -185,8 +185,9 @@ def build_observation(
         raise ForwardYieldTrendV33Error(f"missing protocol: {PROTOCOL_PATH}")
     if FROZEN_MODEL.model_id != EXPECTED_MODEL_ID:
         raise ForwardYieldTrendV33Error("frozen model identity changed")
+    execution_text = Path(execution.__file__).resolve().read_text(encoding="utf-8")
     actual_execution_sha = hashlib.sha256(
-        Path(execution.__file__).resolve().read_bytes()
+        execution_text.replace("\r\n", "\n").encode("utf-8")
     ).hexdigest()
     if actual_execution_sha != SCHEDULED_EXECUTION_SHA256:
         raise ForwardYieldTrendV33Error(
