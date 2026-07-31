@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DECISIONS = ROOT / ".github" / "workflows" / "forward-alpha-decisions-v25.yml"
 VERIFY = ROOT / ".github" / "workflows" / "forward-alpha-v25.yml"
-WATCHDOG = ROOT / ".github" / "workflows" / "forward-evidence-watchdog.yml"
+WATCHDOG = ROOT / ".github" / "workflows" / "forward-alpha-v25-watchdog.yml"
 PROTOCOL = ROOT / "research" / "V25_HIGH_CONVICTION_ALPHA_PROTOCOL.md"
 
 
@@ -43,8 +43,9 @@ def test_v25_decision_workflow_is_append_only_and_bounded() -> None:
 def test_watchdog_recovers_only_missing_v25_decisions() -> None:
     text = WATCHDOG.read_text(encoding="utf-8")
 
+    assert 'cron: "49,59 * * * *"' in text
     assert "data/forward-alpha-v25/decisions/$safe.json" in text
-    assert "active_v25=" in text
     assert "forward-alpha-decisions-v25.yml" in text
-    assert 'if [[ ! -f "$v25" && "$active_v25" == "0" ]]' in text
+    assert "A recent v2.5 decision run is already active" in text
     assert "gh workflow run forward-alpha-decisions-v25.yml --ref main" in text
+    assert "No market snapshot, decision byte, strategy threshold or evaluation gate was modified" in text
