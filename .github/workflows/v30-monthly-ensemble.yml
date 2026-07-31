@@ -6,6 +6,7 @@ on:
     paths:
       - "research/V30_MONTHLY_TREND_RECOVERY_ENSEMBLE_PROTOCOL.md"
       - "src/tradebot/research/historical_monthly_ensemble_v30.py"
+      - "src/tradebot/research/historical_monthly_ensemble_v30_runner.py"
       - "tests/test_historical_monthly_ensemble_v30.py"
       - "tests/test_historical_monthly_ensemble_v30_accounting.py"
       - ".github/workflows/v30-monthly-ensemble.yml"
@@ -15,6 +16,7 @@ on:
     paths:
       - "research/V30_MONTHLY_TREND_RECOVERY_ENSEMBLE_PROTOCOL.md"
       - "src/tradebot/research/historical_monthly_ensemble_v30.py"
+      - "src/tradebot/research/historical_monthly_ensemble_v30_runner.py"
       - "tests/test_historical_monthly_ensemble_v30.py"
       - "tests/test_historical_monthly_ensemble_v30_accounting.py"
       - ".github/workflows/v30-monthly-ensemble.yml"
@@ -47,7 +49,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: Compile v3.0
-        run: python -m py_compile src/tradebot/research/historical_monthly_ensemble_v30.py
+        run: |
+          python -m py_compile src/tradebot/research/historical_monthly_ensemble_v30.py
+          python -m py_compile src/tradebot/research/historical_monthly_ensemble_v30_runner.py
       - name: Verify frozen campaigns and gates are unchanged
         if: github.event_name == 'pull_request'
         shell: bash
@@ -86,10 +90,13 @@ jobs:
             src/tradebot/research/historical_monthly_ensemble_v30.py
           grep -q 'MONTHLY_LOSS_BRAKE = -0.015' \
             src/tradebot/research/historical_monthly_ensemble_v30.py
+          grep -q 'fixed_recovery_exit_trend_regime_separation_natural_drift_costed_next_open' \
+            src/tradebot/research/historical_monthly_ensemble_v30_runner.py
           ! grep -q 'forward-data/v2' \
             src/tradebot/research/historical_monthly_ensemble_v30.py
           ! grep -Eiq '(private_key|api_secret|withdraw|place_order|create_order)' \
-            src/tradebot/research/historical_monthly_ensemble_v30.py
+            src/tradebot/research/historical_monthly_ensemble_v30.py \
+            src/tradebot/research/historical_monthly_ensemble_v30_runner.py
 
   run-fixed-v30:
     if: github.event_name != 'pull_request'
@@ -134,6 +141,10 @@ jobs:
           assert report["cannot_replace_forward_evidence"] is True
           assert report["model_grid_size"] == 64
           assert len(report["discovery_windows"]) == 54
+          assert report["execution_policy"] == (
+              "fixed_recovery_exit_trend_regime_separation_natural_drift_costed_next_open"
+          )
+          assert report["fingerprints"]["runner_sha256"]
           assert [item["name"] for item in report["verification_windows"]] == [
               "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"
           ]
