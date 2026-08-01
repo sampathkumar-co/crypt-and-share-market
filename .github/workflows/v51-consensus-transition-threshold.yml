@@ -1,0 +1,245 @@
+name: v5.1 Consensus Transition Threshold
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V51_CONSENSUS_TRANSITION_THRESHOLD_PROTOCOL.md"
+      - "research/V511_CONSENSUS_TRANSITION_THRESHOLD_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/consensus_transition_threshold_v51.py"
+      - "tests/test_consensus_transition_threshold_v51.py"
+      - ".github/workflows/v51-consensus-transition-threshold.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/walk_forward_selective_veto_v46.py \
+            src/tradebot/research/macro_liquidity_state_v47.py \
+            src/tradebot/research/macro_liquidity_state_v47_runner.py \
+            src/tradebot/research/dollar_rates_attenuation_v48.py \
+            src/tradebot/research/dollar_rates_probability_shock_v49.py \
+            src/tradebot/research/fresh_macro_transition_v50.py \
+            src/tradebot/research/consensus_transition_threshold_v51.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_macro_liquidity_state_v47.py \
+            tests/test_macro_liquidity_state_v47_runner.py \
+            tests/test_dollar_rates_attenuation_v48.py \
+            tests/test_dollar_rates_probability_shock_v49.py \
+            tests/test_fresh_macro_transition_v50.py \
+            tests/test_consensus_transition_threshold_v51.py
+      - name: Reproduce final frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v51
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v5.1 consensus audit and sealed evaluation
+        run: |
+          tradebot-v51-consensus-transition \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v51/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate v5.1 evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v51/historical.json").read_text())
+          model = report["consensus_model"]
+          v50r = report["v50_reproduction"]
+          consensus = report["consensus_derivation"]
+          audit = report["fixed_threshold_audit"]
+          selection = report["selection"]
+          final_audit = report["final_audit_quarter"]
+          evaluation = report["evaluation"]
+          comparison = report["comparison_with_v44"]
+          reproduction = report["reproduction"]
+
+          assert report["schema_version"] == "5.1-consensus-transition-threshold"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["walk_forward_fold_count"] == 6
+          assert reproduction["v50_family_fixed"] == "fresh_14d"
+          assert reproduction["active_multiplier_fixed"] == 0.5
+          assert reproduction["consensus_source_threshold_count"] == 6
+          assert reproduction["all_consensus_sources_presealed"] is True
+          assert reproduction["final_quarter_used_for_selection"] is False
+          assert reproduction["final_v43_retrained_for_v51"] is False
+
+          assert model["macro_family"] == "dollar_rates"
+          assert model["transition_family"] == "fresh_14d"
+          assert model["transition_window_days"] == 14
+          assert model["active_multiplier"] == 0.5
+          assert model["threshold_grid"] == [0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65]
+          assert model["availability_rule"] == "newest observation dated <= decision date - 1 day"
+          assert model["feature_names"] == [
+              "dollar_change_5", "dollar_change_20", "dollar_change_60",
+              "dgs10_level", "dgs10_change_5", "dgs10_change_20",
+              "dgs10_change_60",
+          ]
+
+          expected_thresholds = [0.6, 0.55, 0.65, 0.65, 0.6, 0.5]
+          expected_excess = [
+              0.00025947595841269155,
+              0.0004453652650617812,
+              0.0,
+              0.0,
+              0.000006916900424425165,
+              0.002655854486571352,
+          ]
+          assert v50r["eligible"] is True
+          assert v50r["ineligibility_reasons"] == []
+          assert v50r["thresholds_exact"] is True
+          assert v50r["fold_excess_exact"] is True
+          assert v50r["chronological_thresholds"] == expected_thresholds
+          assert v50r["expected_thresholds"] == expected_thresholds
+          assert v50r["expected_fold_excess"] == expected_excess
+          assert len(v50r["folds"]) == 6
+
+          assert consensus["chronological_thresholds"] == expected_thresholds
+          assert consensus["sorted_thresholds"] == [0.5, 0.55, 0.6, 0.6, 0.65, 0.65]
+          assert consensus["raw_median"] == 0.6
+          assert consensus["consensus_threshold"] == 0.6
+          assert consensus["threshold_grid"] == model["threshold_grid"]
+          assert consensus["source_fold_names"] == [
+              "WF-1", "WF-2", "WF-3", "WF-4", "WF-5", "WF-6"
+          ]
+          assert consensus["all_source_calibrations_end_by_train_end"] is True
+          assert consensus["used_validation_returns"] is False
+          assert consensus["used_final_audit_quarter"] is False
+          assert consensus["used_sealed_results"] is False
+
+          assert len(audit["folds"]) == 6
+          for fold in audit["folds"]:
+              assert fold["threshold"] == 0.6
+              transition = fold["validation_transition"]
+              assert transition["transition_family"] == "fresh_14d"
+              assert transition["transition_window_days"] == 14
+              assert transition["never_added_asset"] is True
+              assert transition["never_increased_target"] is True
+              assert transition["active_transition_date_count"] >= transition["attenuated_decision_count"]
+
+          if audit["eligible"]:
+              assert audit["ineligibility_reasons"] == []
+              assert audit["compounded_excess"] > 0.0
+              assert audit["positive_excess_fold_count"] >= 4
+              assert audit["minimum_fold_excess"] >= -0.0025
+              assert audit["attenuated_decision_count"] >= 1
+              assert selection["selected_family"] == "fresh_14d"
+              assert selection["selected_threshold"] == 0.6
+              assert selection["selected_is_disabled_baseline"] is False
+              assert selection["active_eligible"] is True
+          else:
+              assert audit["ineligibility_reasons"]
+              assert selection["selected_family"] == "disabled"
+              assert selection["selected_threshold"] is None
+              assert selection["selected_is_disabled_baseline"] is True
+              assert selection["active_eligible"] is False
+
+          assert selection["original_v50_eligible"] is True
+          assert selection["fixed_consensus_eligible"] is audit["eligible"]
+          assert final_audit["audit_only"] is True
+          assert final_audit["used_for_selection"] is False
+
+          assert evaluation["verification_days"] == 265
+          assert evaluation["maximum_target_exposure"] <= 0.1000001
+          assert evaluation["maximum_selected_cardinality"] <= 2
+          assert evaluation["never_added_asset"] is True
+          assert evaluation["never_increased_target"] is True
+          assert comparison["actions_not_increased"] is True
+          assert comparison["maximum_target_exposure_not_increased"] is True
+          assert comparison["never_added_asset"] is True
+          assert comparison["never_increased_target"] is True
+          assert comparison["crypto_signal_or_risk_parameters_changed"] is False
+          assert evaluation["status"] in {
+              "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
+              "RETROSPECTIVE_HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION_AND_SMOKE",
+          }
+
+          if selection["selected_family"] == "disabled":
+              assert evaluation["attenuated_decision_count"] == 0
+              assert evaluation["crossing_count"] == 0
+              assert evaluation["active_transition_date_count"] == 0
+              assert math.isclose(comparison["standard_return_uplift"], 0.0, abs_tol=1e-15)
+              assert math.isclose(comparison["stress_return_uplift"], 0.0, abs_tol=1e-15)
+              assert math.isclose(comparison["annualized_return_uplift"], 0.0, abs_tol=1e-15)
+          else:
+              assert final_audit["transition_family"] == "fresh_14d"
+              assert final_audit["threshold"] == 0.6
+              assert final_audit["window_days"] == 14
+              assert final_audit["multiplier"] == 0.5
+              assert len(final_audit["months"]) == 3
+              assert evaluation["active_multiplier"] == 0.5
+              assert evaluation["transition_window_days"] == 14
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "selected_family": selection["selected_family"],
+              "selected_threshold": selection["selected_threshold"],
+              "fixed_consensus_eligible": selection["fixed_consensus_eligible"],
+              "minimum_fold_excess": audit["minimum_fold_excess"],
+              "positive_excess_fold_count": audit["positive_excess_fold_count"],
+              "compounded_excess": audit["compounded_excess"],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation["annualized_standard_return"],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "standard_windows": evaluation["standard_window_returns"],
+              "attenuated_decision_count": evaluation["attenuated_decision_count"],
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v5.1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v51-consensus-transition-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v51/historical.json
+          retention-days: 90
