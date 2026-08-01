@@ -72,12 +72,12 @@ jobs:
             --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$current_hour_started_at\")] | length")
 
           dispatched_v20=false
-          if [[ "$phase" != "decisions" && "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
+          if [[ "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
             echo "Missing snapshot for $current_target; dispatching frozen v2.0 collector."
             gh workflow run forward-market-state-v20.yml --ref main
             dispatched_v20=true
           else
-            echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20"
+            echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20 phase=$phase"
           fi
 
           if [[ "$snapshot_present" != "true" && "$dispatched_v20" == "true" ]]; then
