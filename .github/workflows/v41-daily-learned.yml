@@ -1,0 +1,99 @@
+name: v4.1 Daily Multi-Horizon Learned Paper
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V41_DAILY_MULTI_HORIZON_LEARNED_PROTOCOL.md"
+      - "research/V411_DAILY_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/learned_daily_multihorizon_v41.py"
+      - "src/tradebot/research/shadow_daily_v41.py"
+      - "tests/test_learned_daily_multihorizon_v41.py"
+      - ".github/workflows/v41-daily-learned.yml"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+    paths:
+      - "research/V41_DAILY_MULTI_HORIZON_LEARNED_PROTOCOL.md"
+      - "research/V411_DAILY_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/learned_daily_multihorizon_v41.py"
+      - "src/tradebot/research/shadow_daily_v41.py"
+      - "tests/test_learned_daily_multihorizon_v41.py"
+      - ".github/workflows/v41-daily-learned.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v41:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile v4.1
+        run: python -m py_compile src/tradebot/research/learned_daily_multihorizon_v41.py src/tradebot/research/shadow_daily_v41.py
+      - name: Focused v4.1 tests
+        run: python -m pytest -q tests/test_learned_daily_multihorizon_v41.py
+      - name: Complete repository suite
+        run: python -m pytest -q
+      - name: Enforce paper-only boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("src/tradebot/research/learned_daily_multihorizon_v41.py").read_text()
+          assert 'authorizes_trading": False' in text
+          assert "private_key" not in text.lower()
+          assert "create_order" not in text.lower()
+          assert "place_order" not in text.lower()
+          PY
+
+  historical-v41:
+    if: github.event_name != 'pull_request'
+    needs: verify-v41
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run frozen v4.1 campaign
+        run: |
+          mkdir -p evidence/v41
+          tradebot-v41-daily-learned \
+            --json-out evidence/v41/historical.json \
+            --bundle-out evidence/v41/bundle.joblib
+      - name: Validate evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("evidence/v41/historical.json").read_text())
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["evaluation"]["status"] in {
+              "NOT_YET_HISTORICAL_BREAKTHROUGH",
+              "HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION",
+          }
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v41-daily-learned-${{ github.run_id }}
+          path: evidence/v41/historical.json
+          retention-days: 90
