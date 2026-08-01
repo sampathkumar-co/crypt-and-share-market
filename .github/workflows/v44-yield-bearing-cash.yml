@@ -7,7 +7,9 @@ on:
       - "research/V44_YIELD_BEARING_CASH_PROTOCOL.md"
       - "research/V441_YIELD_BEARING_CASH_IMPLEMENTATION_CONTRACT.md"
       - "src/tradebot/research/yield_bearing_cash_v44.py"
+      - "src/tradebot/research/yield_bearing_cash_v44_reproduce.py"
       - "tests/test_yield_bearing_cash_v44.py"
+      - "tests/test_yield_bearing_cash_v44_reproduce.py"
       - ".github/workflows/v44-yield-bearing-cash.yml"
       - "pyproject.toml"
 
@@ -35,12 +37,14 @@ jobs:
         run: |
           python -m py_compile \
             src/tradebot/research/distributional_utility_v43.py \
-            src/tradebot/research/yield_bearing_cash_v44.py
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py
       - name: Focused invariant tests
         run: |
           python -m pytest -q \
             tests/test_distributional_utility_v43.py \
-            tests/test_yield_bearing_cash_v44.py
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py
       - name: Reproduce frozen v4.3 baseline
         run: |
           mkdir -p evidence/v43 evidence/v44
@@ -68,12 +72,18 @@ jobs:
           evaluation = report["evaluation"]
           comparison = report["comparison_with_v43"]
           cash = report["cash_source"]
+          reproduction = report["reproduction"]
 
           assert report["paper_only"] is True
           assert report["authorizes_trading"] is False
           assert report["authorizes_shadow_paper"] is True
           assert report["retrospective"] is True
           assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["v43_retrained_for_overlay"] is False
           assert comparison["actions_unchanged"] is True
           assert comparison["selected_assets_unchanged"] is True
           assert comparison["signal_or_risk_parameters_changed"] is False
@@ -85,7 +95,7 @@ jobs:
           assert cash["last_date"] >= "2026-06-30"
           assert evaluation["status"] in {
               "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
-              "RETROSPECTIVE_HISTORICAL_GATES_PASS_PENDING_REPLICATION_AND_SMOKE",
+              "RETROSPECTIVE_HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION_AND_SMOKE",
           }
           assert baseline["evaluation"]["target_changing_actions"] == evaluation["target_changing_actions"]
           assert baseline["evaluation"]["selected_assets"] == evaluation["selected_assets"]
