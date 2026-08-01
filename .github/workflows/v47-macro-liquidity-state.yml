@@ -7,7 +7,9 @@ on:
       - "research/V47_MACRO_LIQUIDITY_STATE_PROTOCOL.md"
       - "research/V471_MACRO_LIQUIDITY_STATE_IMPLEMENTATION_CONTRACT.md"
       - "src/tradebot/research/macro_liquidity_state_v47.py"
+      - "src/tradebot/research/macro_liquidity_state_v47_runner.py"
       - "tests/test_macro_liquidity_state_v47.py"
+      - "tests/test_macro_liquidity_state_v47_runner.py"
       - ".github/workflows/v47-macro-liquidity-state.yml"
       - "pyproject.toml"
 
@@ -38,7 +40,8 @@ jobs:
             src/tradebot/research/yield_bearing_cash_v44.py \
             src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
             src/tradebot/research/walk_forward_selective_veto_v46.py \
-            src/tradebot/research/macro_liquidity_state_v47.py
+            src/tradebot/research/macro_liquidity_state_v47.py \
+            src/tradebot/research/macro_liquidity_state_v47_runner.py
       - name: Focused invariant tests
         run: |
           python -m pytest -q \
@@ -46,7 +49,8 @@ jobs:
             tests/test_yield_bearing_cash_v44.py \
             tests/test_yield_bearing_cash_v44_reproduce.py \
             tests/test_walk_forward_selective_veto_v46.py \
-            tests/test_macro_liquidity_state_v47.py
+            tests/test_macro_liquidity_state_v47.py \
+            tests/test_macro_liquidity_state_v47_runner.py
       - name: Reproduce final frozen v4.3 baseline
         run: |
           mkdir -p evidence/v43 evidence/v47
