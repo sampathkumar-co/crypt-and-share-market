@@ -1,0 +1,163 @@
+name: v4.8 Cross-Exchange Confirmation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V48_CROSS_EXCHANGE_CONFIRMATION_PROTOCOL.md"
+      - "research/V481_CROSS_EXCHANGE_CONFIRMATION_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/cross_exchange_confirmation_v48.py"
+      - "tests/test_cross_exchange_confirmation_v48.py"
+      - ".github/workflows/v48-cross-exchange-confirmation.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/walk_forward_selective_veto_v46.py \
+            src/tradebot/research/macro_risk_confirmation_v47.py \
+            src/tradebot/research/cross_exchange_confirmation_v48.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_macro_risk_confirmation_v47.py \
+            tests/test_cross_exchange_confirmation_v48.py
+      - name: Reproduce final frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v48
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v4.8 walk-forward feature selection and sealed evaluation
+        run: |
+          tradebot-v48-cross-exchange \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v48/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate v4.8 evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v48/historical.json").read_text())
+          reproduction = report["reproduction"]
+          selection = report["selection"]
+          evaluation = report["evaluation"]
+          coinbase = report["coinbase_source"]
+
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["final_control_retrained_for_v48"] is False
+          assert reproduction["walk_forward_fold_count"] == 6
+          assert reproduction["coinbase_future_observations_allowed"] is False
+          assert selection["walk_forward_fold_count"] == 6
+          assert selection["candidate_count"] == 4
+          assert len(selection["folds"]) == 6
+          assert selection["selected_family"] in {
+              "baseline", "price", "liquidity", "combined"
+          }
+          assert coinbase["provider"] == "coinbase-exchange-public-rest"
+          assert coinbase["products"] == {
+              "BTC": "BTC-USD", "ETH": "ETH-USD"
+          }
+          assert coinbase["source_start"] == "2021-01-01"
+          assert coinbase["source_end"] == "2026-06-30"
+          assert coinbase["request_count"] == len(coinbase["inventory"])
+          assert coinbase["request_count"] >= 16
+          assert coinbase["complete_dates"]["BTC"] == coinbase[
+              "complete_dates"
+          ]["ETH"]
+          assert evaluation["verification_days"] == 265
+          assert all(
+              window["standard"]["maximum_target_exposure"] <= 0.1000001
+              for window in evaluation["windows"]
+          )
+          if selection["selected_is_disabled_baseline"]:
+              baseline = report["v44_baseline"]
+              assert report["final_bundle_reused_from_v43"] is True
+              assert report["selected_feature_names"] == []
+              assert evaluation["aggregate_standard_return"] == baseline[
+                  "aggregate_standard_return"
+              ]
+              assert evaluation["aggregate_stress_return"] == baseline[
+                  "aggregate_stress_return"
+              ]
+              assert evaluation["annualized_standard_return"] == baseline[
+                  "annualized_standard_return"
+              ]
+          else:
+              assert report["final_bundle_reused_from_v43"] is False
+              assert len(report["selected_feature_names"]) in {17, 22, 39}
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "selected_family": selection["selected_family"],
+              "selected_is_disabled_baseline": selection[
+                  "selected_is_disabled_baseline"
+              ],
+              "eligible_active_candidate_count": selection[
+                  "eligible_active_candidate_count"
+              ],
+              "candidates": selection["candidates"],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation[
+                  "annualized_standard_return"
+              ],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "standard_return_change": report["v44_comparison"][
+                  "standard_return_change"
+              ],
+              "standard_windows": evaluation["standard_window_returns"],
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v4.8 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v48-cross-exchange-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v48/historical.json
+          retention-days: 90
