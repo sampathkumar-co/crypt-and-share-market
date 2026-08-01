@@ -27,7 +27,8 @@ Repository = "https://github.com/sampathkumar-co/crypt-and-share-market"
 Issues = "https://github.com/sampathkumar-co/crypt-and-share-market/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10"]
+dev = ["pytest>=8,<10", "numpy>=1.26,<3", "scikit-learn>=1.5,<2", "joblib>=1.2"]
+ml = ["numpy>=1.26,<3", "scikit-learn>=1.5,<2", "joblib>=1.2"]
 
 [project.scripts]
 tradebot = "tradebot.cli:main"
@@ -49,6 +50,8 @@ tradebot-v312-scheduled-integrity = "tradebot.research.historical_yield_trend_in
 tradebot-v32-coinbase-replication = "tradebot.research.historical_coinbase_replication_v32:main"
 tradebot-v33-forward-observation = "tradebot.research.forward_yield_trend_v33:main"
 tradebot-v33-forward-readiness = "tradebot.research.forward_yield_trend_v33_readiness:main"
+tradebot-v41-daily-learned = "tradebot.research.learned_daily_multihorizon_v41:main"
+tradebot-v41-shadow-smoke = "tradebot.research.shadow_daily_v41:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
