@@ -1,0 +1,153 @@
+name: v4.7 Macro-Risk Confirmation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V47_MACRO_RISK_CONFIRMATION_PROTOCOL.md"
+      - "research/V471_MACRO_RISK_CONFIRMATION_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/macro_risk_confirmation_v47.py"
+      - "tests/test_macro_risk_confirmation_v47.py"
+      - ".github/workflows/v47-macro-risk-confirmation.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/regime_diversified_utility_v45.py \
+            src/tradebot/research/walk_forward_selective_veto_v46.py \
+            src/tradebot/research/macro_risk_confirmation_v47.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_regime_diversified_utility_v45.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_macro_risk_confirmation_v47.py
+      - name: Reproduce final frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v47
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v4.7 walk-forward macro selection and sealed evaluation
+        run: |
+          tradebot-v47-macro-risk \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v47/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate v4.7 evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v47/historical.json").read_text())
+          reproduction = report["reproduction"]
+          selection = report["selection"]
+          evaluation = report["evaluation"]
+          macro_source = report["macro_source"]
+
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["final_v43_retrained_for_v47"] is False
+          assert reproduction["walk_forward_fold_count"] == 6
+          assert reproduction["macro_same_day_observations_allowed"] is False
+          assert selection["walk_forward_fold_count"] == 6
+          assert selection["candidate_count"] == 37
+          assert len(selection["folds"]) == 6
+          assert macro_source["provider"] == "fred-federal-reserve-public-csv"
+          series = {item["series"]: item for item in macro_source["series"]}
+          assert set(series) == {"VIXCLS", "DTWEXBGS", "DFII10"}
+          for item in series.values():
+              assert item["observation_count"] >= 1000
+              assert item["first_date"] <= "2020-01-03"
+              assert item["last_date"] >= "2026-06-29"
+          assert evaluation["verification_days"] == 265
+          assert evaluation["maximum_target_exposure"] <= 0.1500001
+          assert evaluation["selected_identity_mismatches"] == 0
+          assert evaluation["status"] in {
+              "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
+              "RETROSPECTIVE_HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION_AND_SMOKE",
+          }
+          if selection["selected_is_disabled_baseline"]:
+              baseline = report["v44_baseline"]
+              assert evaluation["aggregate_standard_return"] == baseline[
+                  "aggregate_standard_return"
+              ]
+              assert evaluation["aggregate_stress_return"] == baseline[
+                  "aggregate_stress_return"
+              ]
+              assert evaluation["annualized_standard_return"] == baseline[
+                  "annualized_standard_return"
+              ]
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "selected_config": selection["selected_config"],
+              "selected_is_disabled_baseline": selection[
+                  "selected_is_disabled_baseline"
+              ],
+              "eligible_active_candidate_count": selection[
+                  "eligible_active_candidate_count"
+              ],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation[
+                  "annualized_standard_return"
+              ],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "standard_return_change": evaluation["v44_comparison"][
+                  "standard_return_change"
+              ],
+              "standard_windows": evaluation["standard_window_returns"],
+              "macro_state_counts": evaluation["macro_state_counts"],
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v4.7 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v47-macro-risk-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v47/historical.json
+          retention-days: 90
