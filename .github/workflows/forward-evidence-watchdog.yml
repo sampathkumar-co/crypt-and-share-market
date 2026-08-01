@@ -68,16 +68,20 @@ jobs:
           )
 
           current_hour_started_at=$(date -u +%Y-%m-%dT%H:00:00Z)
+          current_minute=$((10#$(date -u +%M)))
+          recovery_deadline_minute=45
           active_v20=$(gh run list --workflow forward-market-state-v20.yml --limit 10 --json status,createdAt \
             --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$current_hour_started_at\")] | length")
 
           dispatched_v20=false
-          if [[ "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
-            echo "Missing snapshot for $current_target; dispatching frozen v2.0 collector."
+          if [[ "$snapshot_present" != "true" && "$active_v20" == "0" && "$current_minute" -lt "$recovery_deadline_minute" ]]; then
+            echo "Missing snapshot for $current_target with sufficient pre-rollover margin; dispatching frozen v2.0 collector."
             gh workflow run forward-market-state-v20.yml --ref main
             dispatched_v20=true
+          elif [[ "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
+            echo "Missing snapshot for $current_target, but minute=$current_minute is inside the rollover safety window; failing closed without dispatch." >&2
           else
-            echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20 phase=$phase"
+            echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20 phase=$phase minute=$current_minute"
           fi
 
           if [[ "$snapshot_present" != "true" && "$dispatched_v20" == "true" ]]; then
