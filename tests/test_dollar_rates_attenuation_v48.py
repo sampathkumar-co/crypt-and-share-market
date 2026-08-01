@@ -248,3 +248,19 @@ def test_active_grids_are_fixed_and_downside_only():
     assert None not in model.ACTIVE_THRESHOLDS
     assert all(0.0 < value < 1.0 for value in model.ATTENUATION_MULTIPLIERS)
     assert model.FAMILY == "dollar_rates"
+
+
+def test_eligible_active_with_allowed_small_deficit_beats_disabled():
+    excesses = [-0.001, 0.001, 0.001, 0.001, 0.001, 0.0]
+    active = [
+        fold_result(index, 0.5, excess, attenuated=1)
+        for index, excess in enumerate(excesses)
+    ]
+    eligible, reasons = model.multiplier_eligibility(0.5, active)
+    assert eligible is True
+    assert reasons == []
+
+    selected, report = model.select_multiplier({0.5: active})
+    assert selected == pytest.approx(0.5)
+    assert report["selected_is_disabled_baseline"] is False
+    assert report["selected_key"] is not None

@@ -582,13 +582,13 @@ def select_multiplier(
             validation_excess=0.0,
         ))
     all_results = {1.0: disabled, **multiplier_results}
-    best: tuple[tuple[Any, ...], float] | None = None
+    best_active: tuple[tuple[Any, ...], float] | None = None
     candidates: list[dict[str, Any]] = []
     for multiplier, results in sorted(all_results.items()):
         eligible, reasons = multiplier_eligibility(multiplier, results)
         key = (
             multiplier_selection_key(multiplier, results)
-            if eligible
+            if eligible and multiplier != 1.0
             else None
         )
         candidates.append({
@@ -611,19 +611,27 @@ def select_multiplier(
             ),
             "folds": [asdict(value) for value in results],
         })
-        if eligible and (best is None or key > best[0]):
-            best = (key, multiplier)
-    if best is None:
-        raise DollarRatesAttenuationV48Error(
-            "multiplier selection produced no disabled fallback"
-        )
-    return best[1], {
-        "selected_multiplier": best[1],
-        "selected_is_disabled_baseline": best[1] == 1.0,
-        "selected_key": list(best[0]),
+        if (
+            multiplier != 1.0
+            and eligible
+            and (best_active is None or key > best_active[0])
+        ):
+            best_active = (key, multiplier)
+    selected_multiplier = (
+        best_active[1] if best_active is not None else 1.0
+    )
+    return selected_multiplier, {
+        "selected_multiplier": selected_multiplier,
+        "selected_is_disabled_baseline": selected_multiplier == 1.0,
+        "selected_key": (
+            list(best_active[0]) if best_active is not None else None
+        ),
         "candidate_count": len(candidates),
         "candidates": candidates,
-        "folds": [asdict(value) for value in all_results[best[1]]],
+        "folds": [
+            asdict(value)
+            for value in all_results[selected_multiplier]
+        ],
     }
 
 
