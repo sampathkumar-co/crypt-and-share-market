@@ -147,7 +147,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download v2.2 status evidence
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: forward-paper-evaluation-v22-${{ github.run_id }}
           path: evidence/forward-paper-v22
