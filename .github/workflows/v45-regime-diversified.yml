@@ -1,0 +1,122 @@
+name: v4.5 Regime-Diversified Utility
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V45_REGIME_DIVERSIFIED_UTILITY_PROTOCOL.md"
+      - "research/V451_REGIME_DIVERSIFIED_UTILITY_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/regime_diversified_utility_v45.py"
+      - "tests/test_regime_diversified_utility_v45.py"
+      - ".github/workflows/v45-regime-diversified.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/regime_diversified_utility_v45.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_regime_diversified_utility_v45.py
+      - name: Reproduce frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v45
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v4.5 blocked calibration and sealed evaluation
+        run: |
+          tradebot-v45-regime-diversified \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v45/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v45/historical.json").read_text())
+          evaluation = report["evaluation"]
+          calibration = report["calibration"]
+          reproduction = report["reproduction"]
+
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["v43_retrained_for_v45"] is False
+          assert [block["name"] for block in calibration["blocks"]] == [
+              "calibration-A", "calibration-B", "calibration-C"
+          ]
+          assert calibration["blocks"][-1]["end"] == "2025-09-30T00:00:00Z"
+          assert report["cash_source"]["series"] == "DGS3MO"
+          assert report["cash_source"]["first_date"] <= "2022-01-03"
+          assert report["cash_source"]["last_date"] >= "2026-06-30"
+          assert evaluation["verification_days"] == 265
+          assert evaluation["maximum_target_exposure"] if "maximum_target_exposure" in evaluation else True
+          assert evaluation["status"] in {
+              "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
+              "RETROSPECTIVE_HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION_AND_SMOKE",
+          }
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "chosen_config": calibration["chosen_config"],
+              "calibration_worst_block": calibration["worst_block_return"],
+              "calibration_positive_blocks": calibration["positive_block_count"],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation["annualized_standard_return"],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "maximum_positive_regime_share": evaluation["maximum_positive_regime_share"],
+              "standard_windows": evaluation["standard_window_returns"],
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v4.5 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v45-regime-diversified-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v45/historical.json
+          retention-days: 90
