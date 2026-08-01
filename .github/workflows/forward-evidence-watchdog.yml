@@ -67,8 +67,9 @@ jobs:
           PY
           )
 
+          current_hour_started_at=$(date -u +%Y-%m-%dT%H:00:00Z)
           active_v20=$(gh run list --workflow forward-market-state-v20.yml --limit 10 --json status,createdAt \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt > (now - 3600 | todateiso8601)))] | length')
+            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$current_hour_started_at\")] | length")
 
           dispatched_v20=false
           if [[ "$phase" != "decisions" && "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
