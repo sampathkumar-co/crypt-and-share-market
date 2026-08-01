@@ -3,6 +3,7 @@ name: Forward Evidence Watchdog
 on:
   workflow_dispatch:
   schedule:
+    - cron: "17 * * * *"
     - cron: "37 * * * *"
     - cron: "57 * * * *"
   push:

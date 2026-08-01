@@ -22,3 +22,10 @@ def test_rollover_guard_keeps_mid_hour_recovery_and_fails_closed_late() -> None:
     assert "recovery_deadline_minute=45" in text
     assert "inside the rollover safety window; failing closed without dispatch" in text
     assert "current_minute=$((10#$(date -u +%M)))" in text
+
+
+def test_watchdog_has_an_early_recovery_opportunity_before_rollover_cutoff() -> None:
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert '- cron: "17 * * * *"' in text
+    assert '- cron: "37 * * * *"' in text
+    assert '- cron: "57 * * * *"' in text
