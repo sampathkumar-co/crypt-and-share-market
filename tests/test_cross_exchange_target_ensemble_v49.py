@@ -265,6 +265,67 @@ def test_combined_panic_cashes_only_combined_sleeve(monkeypatch):
     assert "BTC" in ensemble["selected_assets"]
 
 
+def test_one_sleeve_panic_does_not_delay_other_sleeve_cadence(monkeypatch):
+    start = model.v43.day("2025-01-02")
+    base = manual_dataset(start, 4, feature_count=2)
+    combined = manual_dataset(start, 4, feature_count=3)
+    mask = np.ones(len(base.X), dtype=bool)
+    monkeypatch.setattr(
+        model.v43,
+        "predict_components",
+        lambda *_args, **_kwargs: {},
+    )
+
+    def independent(dataset, mask, *_args):
+        stamps = sorted({
+            dataset.dates[index]
+            for index in np.flatnonzero(mask)
+        })
+        result = {}
+        for offset, stamp in enumerate(stamps):
+            indexes = [
+                index
+                for index in np.flatnonzero(mask)
+                if dataset.dates[index] == stamp
+            ]
+            is_control = len(dataset.feature_names) == 2
+            panic = not is_control and offset == 1
+            asset = (
+                "ETH"
+                if is_control and offset == 3
+                else "BTC"
+                if is_control
+                else "SOL"
+            )
+            selected = next(
+                index
+                for index in indexes
+                if dataset.assets[index] == asset
+            )
+            result[stamp] = {
+                "regime": 2 if panic else 0,
+                "selected": [] if panic else [selected],
+                "candidate_count": 0 if panic else 1,
+                "panic_probability": 1.0 if panic else 0.0,
+            }
+        return result
+
+    monkeypatch.setattr(model.v43, "decisions_by_date", independent)
+    ensemble = model.simulate_ensemble(
+        base,
+        combined,
+        mask,
+        object(),
+        object(),
+        cash_history(start),
+        model.EnsembleConfig(0.25),
+        one_way_cost=model.STANDARD_ONE_WAY_COST,
+    )
+    assert ensemble["agreement_counts"]["combined_panic"] == 1
+    assert ensemble["sleeve_due_counts"]["control"] == 2
+    assert "ETH" in ensemble["decision_selected_assets"]
+
+
 def test_active_eligibility_accepts_stable_positive_ensemble():
     folds = [
         fold_result(0.012 if index < 4 else 0.009)
