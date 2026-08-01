@@ -7,7 +7,9 @@ on:
       - "research/V47_RESIDUAL_MOMENTUM_BREAKOUT_PROTOCOL.md"
       - "research/V471_RESIDUAL_MOMENTUM_BREAKOUT_IMPLEMENTATION_CONTRACT.md"
       - "src/tradebot/research/residual_momentum_breakout_v47.py"
+      - "src/tradebot/research/residual_momentum_breakout_v47_exact.py"
       - "tests/test_residual_momentum_breakout_v47.py"
+      - "tests/test_residual_momentum_breakout_v47_exact.py"
       - ".github/workflows/v47-residual-momentum.yml"
       - "pyproject.toml"
 
@@ -37,14 +39,16 @@ jobs:
             src/tradebot/research/distributional_utility_v43.py \
             src/tradebot/research/yield_bearing_cash_v44.py \
             src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
-            src/tradebot/research/residual_momentum_breakout_v47.py
+            src/tradebot/research/residual_momentum_breakout_v47.py \
+            src/tradebot/research/residual_momentum_breakout_v47_exact.py
       - name: Focused invariant tests
         run: |
           python -m pytest -q \
             tests/test_distributional_utility_v43.py \
             tests/test_yield_bearing_cash_v44.py \
             tests/test_yield_bearing_cash_v44_reproduce.py \
-            tests/test_residual_momentum_breakout_v47.py
+            tests/test_residual_momentum_breakout_v47.py \
+            tests/test_residual_momentum_breakout_v47_exact.py
       - name: Reproduce frozen v4.3 baseline
         run: |
           mkdir -p evidence/v43 evidence/v47
@@ -87,6 +91,7 @@ jobs:
           assert report["cash_source"]["series"] == "DGS3MO"
           assert report["cash_source"]["first_date"] <= "2022-01-03"
           assert report["cash_source"]["last_date"] >= "2026-06-30"
+          assert report["residual_dataset"]["verification_alignment"] == "exact-frozen-v43-decision-dates"
           assert evaluation["verification_days"] == 265
           assert evaluation["status"] in {
               "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
