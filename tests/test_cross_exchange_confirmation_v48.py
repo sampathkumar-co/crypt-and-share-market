@@ -110,6 +110,7 @@ def result(
     common = {
         "maximum_drawdown": drawdown,
         "maximum_target_exposure": 0.10,
+        "turnover": 1.0,
     }
     return {
         "candidate_standard": {"net_return": candidate, **common},
