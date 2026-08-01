@@ -28,7 +28,7 @@ from tradebot.research.historical_proxy_screen_v25 import (
 ASSETS = ("BTC", "ETH", "SOL", "XRP", "ADA")
 SYMBOLS = {asset: f"{asset}USDT" for asset in ASSETS}
 START = datetime(2021, 1, 1, tzinfo=timezone.utc)
-END = datetime(2024, 12, 31, tzinfo=timezone.utc)
+END = datetime(2026, 6, 30, tzinfo=timezone.utc)
 CACHE_ROOT = Path(".cache/v42-binance")
 
 

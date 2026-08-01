@@ -25,6 +25,7 @@ PROTOCOL_PATH = Path("research/V42_REGIME_SPECIALIST_CROSS_ASSET_RANKING_PROTOCO
 CONTRACT_PATH = Path("research/V421_REGIME_RANKING_IMPLEMENTATION_CONTRACT.md")
 STRUCTURE_PATH = Path("research/V422_REGIME_SPECIALIST_MODEL_STRUCTURE_ADDENDUM.md")
 FEATURE_SEMANTICS_PATH = Path("research/V423_EXACT_FEATURE_SEMANTICS_ADDENDUM.md")
+SOURCE_AVAILABILITY_PATH = Path("research/V424_SOURCE_AVAILABILITY_ADDENDUM.md")
 SCHEMA_VERSION = "4.2-regime-specialist-ranking"
 REGIME_NAMES = {0: "chop", 1: "trend", 2: "panic", 3: "recovery"}
 LONG_REGIMES = (0, 1, 3)
@@ -95,16 +96,16 @@ def day(value: str) -> datetime:
 
 
 FOLDS = (
-    FoldSpec("2022-Q4", day("2021-01-01"), day("2022-06-30"),
-             day("2022-07-01"), day("2022-09-30"), day("2022-10-01"), day("2022-12-31")),
-    FoldSpec("2023-Q2", day("2021-01-01"), day("2022-12-31"),
-             day("2023-01-01"), day("2023-03-31"), day("2023-04-01"), day("2023-06-30")),
-    FoldSpec("2023-Q4", day("2021-01-01"), day("2023-06-30"),
-             day("2023-07-01"), day("2023-09-30"), day("2023-10-01"), day("2023-12-31")),
-    FoldSpec("2024-Q2", day("2021-01-01"), day("2023-12-31"),
-             day("2024-01-01"), day("2024-03-31"), day("2024-04-01"), day("2024-06-30")),
-    FoldSpec("2024-Q4", day("2021-01-01"), day("2024-06-30"),
-             day("2024-07-01"), day("2024-09-30"), day("2024-10-01"), day("2024-12-31")),
+    FoldSpec("2023-Q3", day("2022-10-19"), day("2023-03-31"),
+             day("2023-04-01"), day("2023-06-30"), day("2023-07-01"), day("2023-09-30")),
+    FoldSpec("2024-Q1", day("2022-10-19"), day("2023-09-30"),
+             day("2023-10-01"), day("2023-12-31"), day("2024-01-01"), day("2024-03-31")),
+    FoldSpec("2024-Q3", day("2022-10-19"), day("2024-03-31"),
+             day("2024-04-01"), day("2024-06-30"), day("2024-07-01"), day("2024-09-30")),
+    FoldSpec("2025-Q1", day("2022-10-19"), day("2024-09-30"),
+             day("2024-10-01"), day("2024-12-31"), day("2025-01-01"), day("2025-03-31")),
+    FoldSpec("2025-Q3", day("2022-10-19"), day("2025-03-31"),
+             day("2025-04-01"), day("2025-06-30"), day("2025-07-01"), day("2025-09-30")),
 )
 
 
@@ -1243,6 +1244,7 @@ def run_campaign(
         "implementation_contract_sha256": file_sha256(CONTRACT_PATH),
         "model_structure_sha256": file_sha256(STRUCTURE_PATH),
         "feature_semantics_sha256": file_sha256(FEATURE_SEMANTICS_PATH),
+        "source_availability_sha256": file_sha256(SOURCE_AVAILABILITY_PATH),
         "folds": [
             {
                 "name": result.name,
