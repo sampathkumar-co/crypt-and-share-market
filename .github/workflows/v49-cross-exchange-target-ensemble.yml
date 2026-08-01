@@ -1,0 +1,158 @@
+name: v4.9 Cross-Exchange Target Ensemble
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V49_CROSS_EXCHANGE_TARGET_ENSEMBLE_PROTOCOL.md"
+      - "research/V491_CROSS_EXCHANGE_TARGET_ENSEMBLE_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/cross_exchange_target_ensemble_v49.py"
+      - "tests/test_cross_exchange_target_ensemble_v49.py"
+      - ".github/workflows/v49-cross-exchange-target-ensemble.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/walk_forward_selective_veto_v46.py \
+            src/tradebot/research/cross_exchange_confirmation_v48.py \
+            src/tradebot/research/cross_exchange_target_ensemble_v49.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_cross_exchange_confirmation_v48.py \
+            tests/test_cross_exchange_target_ensemble_v49.py
+      - name: Reproduce final frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v49
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v4.9 walk-forward ensemble selection and sealed evaluation
+        run: |
+          tradebot-v49-target-ensemble \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v49/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate v4.9 evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v49/historical.json").read_text())
+          reproduction = report["reproduction"]
+          selection = report["selection"]
+          evaluation = report["evaluation"]
+
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["final_control_retrained_for_v49"] is False
+          assert reproduction["walk_forward_fold_count"] == 6
+          assert reproduction["future_coinbase_observations_allowed"] is False
+          assert reproduction["post_simulation_metric_blending"] is False
+          assert selection["walk_forward_fold_count"] == 6
+          assert selection["candidate_count"] == 4
+          assert len(selection["folds"]) == 6
+          weights = [
+              item["combined_weight"]
+              for item in selection["candidates"]
+          ]
+          assert weights == [0.0, 0.25, 0.50, 0.75]
+          assert evaluation["verification_days"] == 265
+          if selection["selected_is_disabled_baseline"]:
+              baseline = report["v44_baseline"]
+              assert selection["selected_config"] is None
+              assert report["final_combined_bundle"] is None
+              assert evaluation["aggregate_standard_return"] == baseline[
+                  "aggregate_standard_return"
+              ]
+              assert evaluation["aggregate_stress_return"] == baseline[
+                  "aggregate_stress_return"
+              ]
+              assert evaluation["annualized_standard_return"] == baseline[
+                  "annualized_standard_return"
+              ]
+          else:
+              assert selection["selected_config"]["combined_weight"] in {
+                  0.25, 0.50, 0.75
+              }
+              assert report["final_combined_bundle"] is not None
+              assert evaluation["maximum_target_exposure"] <= 0.1000001
+              assert evaluation["combined_weight"] == selection[
+                  "selected_config"
+              ]["combined_weight"]
+              assert evaluation["control_weight"] + evaluation[
+                  "combined_weight"
+              ] == 1.0
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "selected_config": selection["selected_config"],
+              "selected_is_disabled_baseline": selection[
+                  "selected_is_disabled_baseline"
+              ],
+              "eligible_active_candidate_count": selection[
+                  "eligible_active_candidate_count"
+              ],
+              "candidates": selection["candidates"],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation[
+                  "annualized_standard_return"
+              ],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "standard_windows": evaluation["standard_window_returns"],
+              "gates": evaluation["gates"],
+              "v44_comparison": evaluation.get("v44_comparison", {}),
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v4.9 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v49-target-ensemble-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v49/historical.json
+          retention-days: 90
