@@ -177,7 +177,14 @@ def simulate_ensemble(
     maximum_drawdown = 0.0
     turnover = 0.0
     action_count = 0
-    age = 3
+    age = {
+        "control": 3,
+        "combined": 3,
+    }
+    sleeve_due_counts = {
+        "control": 0,
+        "combined": 0,
+    }
     maximum_gross_exposure = 0.0
     maximum_target_exposure = 0.0
     daily_returns: list[float] = []
@@ -196,54 +203,61 @@ def simulate_ensemble(
 
     for stamp in sorted(control_decisions):
         equity_before = cash + sum(_totals(components).values())
-        control_decision = control_decisions[stamp]
-        combined_decision = combined_decisions[stamp]
-        panic = {
-            "control": int(control_decision["regime"]) == 2,
-            "combined": int(combined_decision["regime"]) == 2,
+        decisions = {
+            "control": control_decisions[stamp],
+            "combined": combined_decisions[stamp],
         }
-        due = age >= 3
+        datasets = {
+            "control": base,
+            "combined": combined,
+        }
+        panic = {
+            sleeve: int(decision["regime"]) == 2
+            for sleeve, decision in decisions.items()
+        }
+        due = {
+            sleeve: age[sleeve] >= 3
+            for sleeve in ("control", "combined")
+        }
         if panic["control"]:
             agreement_counts["control_panic"] += 1
         if panic["combined"]:
             agreement_counts["combined_panic"] += 1
 
-        if due:
-            proposed = {
-                "control": tuple(
-                    base.assets[index]
-                    for index in control_decision["selected"]
-                ),
-                "combined": tuple(
-                    combined.assets[index]
-                    for index in combined_decision["selected"]
-                ),
-            }
-            decision_selected_ever.update(proposed["control"])
-            decision_selected_ever.update(proposed["combined"])
-            if not proposed["control"] or not proposed["combined"]:
-                agreement_counts["one_or_both_cash"] += 1
-            elif proposed["control"] == proposed["combined"]:
-                agreement_counts["same_selection"] += 1
-            else:
-                agreement_counts["different_selection"] += 1
-
-        if due or panic["control"] or panic["combined"]:
+        update_required = any(due.values()) or any(panic.values())
+        if update_required:
             next_selected = dict(selected)
             next_regime = dict(selected_regime)
-            for sleeve, decision, dataset in (
-                ("control", control_decision, base),
-                ("combined", combined_decision, combined),
-            ):
+            for sleeve in ("control", "combined"):
+                decision = decisions[sleeve]
+                dataset = datasets[sleeve]
                 if panic[sleeve]:
                     next_selected[sleeve] = ()
                     next_regime[sleeve] = 2
-                elif due:
+                elif due[sleeve]:
                     next_selected[sleeve] = tuple(
                         dataset.assets[index]
                         for index in decision["selected"]
                     )
                     next_regime[sleeve] = int(decision["regime"])
+                    decision_selected_ever.update(
+                        next_selected[sleeve]
+                    )
+                    sleeve_due_counts[sleeve] += 1
+
+            if any(due.values()):
+                if (
+                    not next_selected["control"]
+                    or not next_selected["combined"]
+                ):
+                    agreement_counts["one_or_both_cash"] += 1
+                elif (
+                    next_selected["control"]
+                    == next_selected["combined"]
+                ):
+                    agreement_counts["same_selection"] += 1
+                else:
+                    agreement_counts["different_selection"] += 1
 
             target_components = _target_components(
                 equity_before,
@@ -261,6 +275,16 @@ def simulate_ensemble(
                 maximum_target_exposure,
                 target_exposure,
             )
+            sleeve_changed = {
+                sleeve: any(
+                    abs(
+                        target_components[sleeve][asset]
+                        - components[sleeve][asset]
+                    ) > 1e-12
+                    for asset in ASSETS
+                )
+                for sleeve in ("control", "combined")
+            }
             traded = sum(
                 abs(new_totals[asset] - old_totals[asset])
                 for asset in ASSETS
@@ -282,10 +306,11 @@ def simulate_ensemble(
                 for asset, value in new_totals.items()
                 if value > 0.0
             )
-            if due or (
-                (panic["control"] or panic["combined"]) and changed
-            ):
-                age = 0
+            for sleeve in ("control", "combined"):
+                if due[sleeve] or (
+                    panic[sleeve] and sleeve_changed[sleeve]
+                ):
+                    age[sleeve] = 0
 
         totals = _totals(components)
         equity_open = cash + sum(totals.values())
@@ -323,7 +348,8 @@ def simulate_ensemble(
             maximum_drawdown,
             1.0 - equity_close / peak,
         )
-        age += 1
+        for sleeve in ("control", "combined"):
+            age[sleeve] += 1
 
     terminal_equity_before_liquidation = (
         cash + sum(_totals(components).values())
@@ -355,6 +381,7 @@ def simulate_ensemble(
             terminal_equity_before_liquidation
         ),
         "agreement_counts": agreement_counts,
+        "sleeve_due_counts": sleeve_due_counts,
         "combined_weight": config.combined_weight,
         "control_weight": config.control_weight,
     }
