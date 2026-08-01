@@ -1263,6 +1263,50 @@ def run_campaign(
     return report, results
 
 
+
+def specialist_to_state(value: Specialist) -> dict[str, Any]:
+    return {
+        "return3_models": value.return3_models,
+        "return7_models": value.return7_models,
+        "rank_models": value.rank_models,
+    }
+
+
+def bundle_to_state(value: Bundle) -> dict[str, Any]:
+    return {
+        "specialists": {
+            str(regime): specialist_to_state(specialist)
+            for regime, specialist in value.specialists.items()
+        },
+        "meta_models": value.meta_models,
+        "downside_models": value.downside_models,
+        "regime_models": value.regime_models,
+        "config": value.config,
+        "meta_threshold": value.meta_threshold,
+        "downside_limit": value.downside_limit,
+        "top_n": value.top_n,
+        "disagreement_threshold": value.disagreement_threshold,
+        "feature_names": value.feature_names,
+    }
+
+
+def bundle_from_state(value: dict[str, Any]) -> Bundle:
+    return Bundle(
+        specialists={
+            int(regime): Specialist(**specialist)
+            for regime, specialist in value["specialists"].items()
+        },
+        meta_models=value["meta_models"],
+        downside_models=value["downside_models"],
+        regime_models=value["regime_models"],
+        config=value["config"],
+        meta_threshold=float(value["meta_threshold"]),
+        downside_limit=float(value["downside_limit"]),
+        top_n=int(value["top_n"]),
+        disagreement_threshold=float(value["disagreement_threshold"]),
+        feature_names=list(value["feature_names"]),
+    )
+
 def save_bundles(
     path: Path,
     results: list[FoldResult],
@@ -1278,7 +1322,7 @@ def save_bundles(
         "folds": [
             {
                 "name": result.name,
-                "bundle": result.bundle,
+                "bundle": bundle_to_state(result.bundle),
             }
             for result in results
         ],

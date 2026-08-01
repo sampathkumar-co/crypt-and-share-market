@@ -333,3 +333,20 @@ def test_terminal_liquidation_cost_is_in_drawdown():
     assert summary["maximum_drawdown"] == pytest.approx(
         -summary["net_return"], rel=1e-6
     )
+
+
+def test_bundle_state_is_portable_joblib(tmp_path):
+    import joblib
+
+    bundle = fake_bundle(top_n=2)
+    bundle.specialists = {
+        1: model.Specialist([], [], []),
+    }
+    path = tmp_path / "bundle.joblib"
+    joblib.dump(model.bundle_to_state(bundle), path)
+    raw = joblib.load(path)
+    assert isinstance(raw, dict)
+    restored = model.bundle_from_state(raw)
+    assert restored.top_n == 2
+    assert sorted(restored.specialists) == [1]
+    assert restored.meta_threshold == pytest.approx(0.45)
