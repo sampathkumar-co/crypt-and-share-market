@@ -1,0 +1,240 @@
+name: v5.0 Fresh Macro Transition
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V50_FRESH_MACRO_TRANSITION_PROTOCOL.md"
+      - "research/V501_FRESH_MACRO_TRANSITION_IMPLEMENTATION_CONTRACT.md"
+      - "src/tradebot/research/fresh_macro_transition_v50.py"
+      - "tests/test_fresh_macro_transition_v50.py"
+      - ".github/workflows/v50-fresh-macro-transition.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile research modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/distributional_utility_v43.py \
+            src/tradebot/research/yield_bearing_cash_v44.py \
+            src/tradebot/research/yield_bearing_cash_v44_reproduce.py \
+            src/tradebot/research/walk_forward_selective_veto_v46.py \
+            src/tradebot/research/macro_liquidity_state_v47.py \
+            src/tradebot/research/macro_liquidity_state_v47_runner.py \
+            src/tradebot/research/dollar_rates_attenuation_v48.py \
+            src/tradebot/research/dollar_rates_probability_shock_v49.py \
+            src/tradebot/research/fresh_macro_transition_v50.py
+      - name: Focused invariant tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_macro_liquidity_state_v47.py \
+            tests/test_macro_liquidity_state_v47_runner.py \
+            tests/test_dollar_rates_attenuation_v48.py \
+            tests/test_dollar_rates_probability_shock_v49.py \
+            tests/test_fresh_macro_transition_v50.py
+      - name: Reproduce final frozen v4.3 baseline
+        run: |
+          mkdir -p evidence/v43 evidence/v50
+          tradebot-v43-distributional-utility \
+            --json-out evidence/v43/historical.json \
+            --bundle-out evidence/v43/bundle.joblib \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Run v5.0 selection and sealed evaluation
+        run: |
+          tradebot-v50-fresh-transition \
+            --baseline-json evidence/v43/historical.json \
+            --bundle evidence/v43/bundle.joblib \
+            --json-out evidence/v50/historical.json \
+            --monthly-workers 8 \
+            --metrics-workers 16
+      - name: Validate v5.0 evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/v50/historical.json").read_text())
+          selection = report["selection"]
+          evaluation = report["evaluation"]
+          comparison = report["comparison_with_v44"]
+          reproduction = report["reproduction"]
+          model = report["transition_model"]
+
+          assert report["schema_version"] == "5.0-fresh-macro-transition"
+          assert report["paper_only"] is True
+          assert report["authorizes_trading"] is False
+          assert report["authorizes_shadow_paper"] is True
+          assert report["retrospective"] is True
+          assert report["untouched_historical_dates"] is False
+          assert reproduction["source_inventory_exact"] is True
+          assert reproduction["dataset_metadata_exact"] is True
+          assert reproduction["bundle_summary_exact"] is True
+          assert reproduction["v43_evaluation_exact"] is True
+          assert reproduction["walk_forward_fold_count"] == 6
+          assert reproduction["active_transition_family_count"] == 3
+          assert reproduction["active_multiplier_fixed"] == 0.5
+          assert reproduction["final_v43_retrained_for_v50"] is False
+
+          assert model["macro_family"] == "dollar_rates"
+          assert model["transition_families"] == ["fresh_3d", "fresh_7d", "fresh_14d"]
+          assert model["transition_windows"] == {
+              "fresh_3d": 3, "fresh_7d": 7, "fresh_14d": 14
+          }
+          assert model["thresholds"] == [0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65]
+          assert model["active_multiplier"] == 0.5
+          assert model["availability_rule"] == "newest observation dated <= decision date - 1 day"
+          assert model["feature_names"] == [
+              "dollar_change_5", "dollar_change_20", "dollar_change_60",
+              "dgs10_level", "dgs10_change_5", "dgs10_change_20",
+              "dgs10_change_60",
+          ]
+
+          assert selection["candidate_count"] == 4
+          assert len(selection["folds"]) == 6
+          assert selection["selected_family"] in {
+              "disabled", "fresh_3d", "fresh_7d", "fresh_14d"
+          }
+          candidates = {
+              candidate["transition_family"]: candidate
+              for candidate in selection["candidates"]
+          }
+          assert set(candidates) == {
+              "disabled", "fresh_3d", "fresh_7d", "fresh_14d"
+          }
+          disabled = candidates["disabled"]
+          assert disabled["eligible"] is True
+          assert disabled["selection_key"] is None
+          assert disabled["ineligibility_reasons"] == []
+
+          eligible_active = []
+          for family in ("fresh_3d", "fresh_7d", "fresh_14d"):
+              candidate = candidates[family]
+              assert len(candidate["folds"]) == 6
+              baseline_actions = sum(
+                  int(fold["validation_baseline"]["target_changing_actions"])
+                  for fold in candidate["folds"]
+              )
+              transition_actions = sum(
+                  int(fold["validation_transition"]["target_changing_actions"])
+                  for fold in candidate["folds"]
+              )
+              baseline_turnover = sum(
+                  float(fold["validation_baseline"]["turnover"])
+                  for fold in candidate["folds"]
+              )
+              transition_turnover = sum(
+                  float(fold["validation_transition"]["turnover"])
+                  for fold in candidate["folds"]
+              )
+              for fold in candidate["folds"]:
+                  assert fold["threshold"] in model["thresholds"]
+                  assert len(fold["calibration_months"]) == 3
+                  transition = fold["validation_transition"]
+                  assert transition["transition_family"] == family
+                  assert transition["transition_window_days"] == model["transition_windows"][family]
+                  assert transition["never_added_asset"] is True
+                  assert transition["never_increased_target"] is True
+                  assert transition["active_transition_date_count"] >= transition["attenuated_decision_count"]
+              if candidate["eligible"]:
+                  eligible_active.append(candidate)
+                  assert candidate["ineligibility_reasons"] == []
+                  assert candidate["selection_key"] is not None
+                  assert candidate["compounded_excess"] > 0.0
+                  assert candidate["positive_excess_fold_count"] >= 4
+                  assert candidate["minimum_fold_excess"] >= -0.0025
+                  assert candidate["attenuated_decision_count"] >= 1
+                  assert transition_actions <= baseline_actions
+                  assert transition_turnover <= baseline_turnover + 1e-12
+                  for fold in candidate["folds"]:
+                      assert float(fold["validation_transition"]["maximum_drawdown"]) <= (
+                          float(fold["validation_baseline"]["maximum_drawdown"]) + 0.0025
+                      )
+
+          if eligible_active:
+              expected = max(eligible_active, key=lambda value: value["selection_key"])
+              assert selection["selected_family"] == expected["transition_family"]
+              assert selection["selected_is_disabled_baseline"] is False
+              assert selection["selected_key"] == expected["selection_key"]
+          else:
+              assert selection["selected_family"] == "disabled"
+              assert selection["selected_is_disabled_baseline"] is True
+              assert selection["selected_key"] is None
+
+          assert evaluation["verification_days"] == 265
+          assert evaluation["maximum_target_exposure"] <= 0.1000001
+          assert evaluation["maximum_selected_cardinality"] <= 2
+          assert evaluation["never_added_asset"] is True
+          assert evaluation["never_increased_target"] is True
+          assert comparison["actions_not_increased"] is True
+          assert comparison["maximum_target_exposure_not_increased"] is True
+          assert comparison["never_added_asset"] is True
+          assert comparison["never_increased_target"] is True
+          assert comparison["crypto_signal_or_risk_parameters_changed"] is False
+          assert evaluation["status"] in {
+              "RETROSPECTIVE_NOT_YET_BREAKTHROUGH",
+              "RETROSPECTIVE_HISTORICAL_BREAKTHROUGH_PENDING_REPLICATION_AND_SMOKE",
+          }
+
+          if selection["selected_family"] == "disabled":
+              assert report["final_calibration"]["threshold"] is None
+              assert evaluation["attenuated_decision_count"] == 0
+              assert evaluation["crossing_count"] == 0
+              assert evaluation["active_transition_date_count"] == 0
+              assert math.isclose(comparison["standard_return_uplift"], 0.0, abs_tol=1e-15)
+              assert math.isclose(comparison["stress_return_uplift"], 0.0, abs_tol=1e-15)
+              assert math.isclose(comparison["annualized_return_uplift"], 0.0, abs_tol=1e-15)
+          else:
+              assert report["final_calibration"]["threshold"] in model["thresholds"]
+              assert len(report["final_calibration"]["calibration_months"]) == 3
+              assert evaluation["active_multiplier"] == 0.5
+              assert evaluation["transition_window_days"] == model["transition_windows"][selection["selected_family"]]
+
+          print(json.dumps({
+              "status": evaluation["status"],
+              "selected_family": selection["selected_family"],
+              "selected_threshold": report["final_calibration"]["threshold"],
+              "standard_return": evaluation["aggregate_standard_return"],
+              "stress_return": evaluation["aggregate_stress_return"],
+              "annualized_standard_return": evaluation["annualized_standard_return"],
+              "maximum_drawdown": evaluation["maximum_drawdown"],
+              "standard_windows": evaluation["standard_window_returns"],
+              "attenuated_decision_count": evaluation["attenuated_decision_count"],
+              "crossing_count": evaluation["crossing_count"],
+              "report_sha256": report["report_sha256"],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Upload v5.0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v50-fresh-transition-${{ github.run_id }}
+          path: |
+            evidence/v43/historical.json
+            evidence/v43/bundle.joblib
+            evidence/v50/historical.json
+          retention-days: 90
