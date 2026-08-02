@@ -28,9 +28,10 @@ from tradebot.research.regime_ranking_v42 import (
 )
 from tradebot.research.regime_ranking_v42_sources import canonical_json, utc_iso
 
-SCHEMA_VERSION = "5.4-july-forward-paper-smoke"
+SCHEMA_VERSION = "5.4.1-july-forward-paper-smoke-source-repair"
 PROTOCOL_PATH = Path("research/V54_JULY_FORWARD_SMOKE_PROTOCOL.md")
 CONTRACT_PATH = Path("research/V541_JULY_FORWARD_SMOKE_CONTRACT.md")
+REPAIR_PATH = Path("research/V541_JULY_FUNDING_SOURCE_REPAIR.md")
 V52_REPORT_SHA256 = v53.V52_REPORT_SHA256
 V53_REPORT_SHA256 = (
     "133917e3b52367d34b51ca5f7958d3c"
@@ -68,15 +69,20 @@ def daily_urls(asset: str, stamp: datetime) -> dict[str, str]:
             f"{base}/futures/um/daily/klines/{symbol}/1d/"
             f"{symbol}-1d-{day}.zip"
         ),
-        "funding": (
-            f"{base}/futures/um/daily/fundingRate/{symbol}/"
-            f"{symbol}-fundingRate-{day}.zip"
-        ),
+
         "metrics": (
             f"{base}/futures/um/daily/metrics/{symbol}/"
             f"{symbol}-metrics-{day}.zip"
         ),
     }
+
+
+def monthly_funding_url(asset: str) -> str:
+    symbol = sources.SYMBOLS[asset]
+    return (
+        f"{sources.BASE_URL}/futures/um/monthly/fundingRate/{symbol}/"
+        f"{symbol}-fundingRate-2026-07.zip"
+    )
 
 
 def validate_prior_reports(
@@ -104,13 +110,19 @@ def load_july_extension(
     dict[str, dict[datetime, sources.DailyAssetState]],
     dict[str, Any],
 ]:
-    requests: list[tuple[str, str, datetime, str]] = []
+    requests: list[tuple[str, str, datetime | None, str]] = []
     for asset in ASSETS:
         for stamp in july_dates():
             for kind, url in daily_urls(asset, stamp).items():
                 requests.append((kind, asset, stamp, url))
+        requests.append((
+            "funding_monthly",
+            asset,
+            None,
+            monthly_funding_url(asset),
+        ))
     downloaded: dict[
-        tuple[str, str, datetime], sources.DownloadedArchive
+        tuple[str, str, datetime | None], sources.DownloadedArchive
     ] = {}
     inventory: list[dict[str, Any]] = []
     missing: list[dict[str, str]] = []
@@ -124,7 +136,11 @@ def load_july_extension(
         for future in as_completed(futures):
             kind, asset, stamp, url = futures[future]
             archive = future.result()
-            key = f"{kind}:{asset}:{stamp.date().isoformat()}"
+            suffix = (
+                "2026-07" if stamp is None
+                else stamp.date().isoformat()
+            )
+            key = f"{kind}:{asset}:{suffix}"
             if archive is None:
                 missing.append({"key": key, "url": url, "reason": "404"})
                 continue
@@ -134,22 +150,51 @@ def load_july_extension(
                 "url": url,
                 "sha256": archive.sha256,
             })
+    funding_by_asset: dict[str, dict[datetime, float]] = {}
+    for asset in ASSETS:
+        archive = downloaded.get(("funding_monthly", asset, None))
+        if archive is None:
+            funding_by_asset[asset] = {}
+            continue
+        try:
+            funding_by_asset[asset] = sources.aggregate_daily_funding(archive)
+        except Exception as exc:
+            funding_by_asset[asset] = {}
+            missing.append({
+                "key": f"funding_monthly_parse:{asset}:2026-07",
+                "url": monthly_funding_url(asset),
+                "reason": f"parse:{type(exc).__name__}:{exc}",
+            })
     extension = {asset: {} for asset in ASSETS}
     for asset in ASSETS:
         for stamp in july_dates():
             required = {
                 kind: downloaded.get((kind, asset, stamp))
-                for kind in ("spot", "perp", "funding", "metrics")
+                for kind in ("spot", "perp", "metrics")
             }
-            absent = [kind for kind, archive in required.items() if archive is None]
+            funding = funding_by_asset[asset].get(stamp)
+            absent = [
+                kind for kind, archive in required.items()
+                if archive is None
+            ]
+            if funding is None:
+                absent.append("funding")
             if absent:
+                if (
+                    "funding" in absent
+                    and downloaded.get(("funding_monthly", asset, None))
+                    is not None
+                ):
+                    missing.append({
+                        "key": f"state_component:funding:{asset}:"
+                        f"{stamp.date().isoformat()}",
+                        "url": monthly_funding_url(asset),
+                        "reason": "daily_observation_unavailable",
+                    })
                 continue
             try:
                 spot = sources.parse_daily_klines(required["spot"])[stamp]
                 perp = sources.parse_daily_klines(required["perp"])[stamp]
-                funding = sources.aggregate_daily_funding(
-                    required["funding"]
-                )[stamp]
                 open_interest = sources.parse_daily_open_interest(
                     required["metrics"]
                 )
@@ -180,9 +225,12 @@ def load_july_extension(
     inventory = sorted(inventory, key=lambda value: value["key"])
     missing = sorted(missing, key=lambda value: value["key"])
     report = {
-        "schema_version": "5.4-binance-july-daily-extension",
+        "schema_version": (
+            "5.4.1-binance-july-daily-plus-monthly-funding"
+        ),
         "requested_start": START.date().isoformat(),
         "requested_end": END.date().isoformat(),
+        "funding_source_granularity": "monthly_archive_daily_observations",
         "requested_archive_count": len(requests),
         "successful_archive_count": len(inventory),
         "missing_component_count": len(missing),
@@ -413,6 +461,7 @@ def run_campaign(
         },
         "protocol_sha256": file_sha256(PROTOCOL_PATH),
         "implementation_contract_sha256": file_sha256(CONTRACT_PATH),
+        "source_repair_sha256": file_sha256(REPAIR_PATH),
         "implementation_sha256": file_sha256(Path(__file__).resolve()),
         "v52_report_sha256": v52_report["report_sha256"],
         "v53_report_sha256": v53_report["report_sha256"],

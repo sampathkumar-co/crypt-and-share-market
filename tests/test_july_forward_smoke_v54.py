@@ -81,10 +81,11 @@ def test_daily_urls_use_frozen_binance_paths() -> None:
     urls = v54.daily_urls("BTC", stamp)
     assert urls["spot"].endswith("BTCUSDT-1d-2026-07-04.zip")
     assert "/futures/um/daily/klines/" in urls["perp"]
-    assert urls["funding"].endswith(
-        "BTCUSDT-fundingRate-2026-07-04.zip"
-    )
+    assert "funding" not in urls
     assert urls["metrics"].endswith("BTCUSDT-metrics-2026-07-04.zip")
+    assert v54.monthly_funding_url("BTC").endswith(
+        "BTCUSDT-fundingRate-2026-07.zip"
+    )
 
 
 def test_validate_prior_reports_accepts_exact_provenance() -> None:
