@@ -1,0 +1,54 @@
+name: v55 Coinbase execution replication tests
+
+on:
+  pull_request:
+    branches:
+      - research/v542-forward-tail-integrity-correction
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-lineage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Compile corrected forward and Coinbase modules
+        run: |
+          python -m py_compile \
+            src/tradebot/research/forward_tail_integrity_v542.py \
+            src/tradebot/research/coinbase_execution_replication_v55.py
+
+      - name: Run frozen research lineage tests
+        run: |
+          python -m pytest -q \
+            tests/test_distributional_utility_v43.py \
+            tests/test_yield_bearing_cash_v44.py \
+            tests/test_yield_bearing_cash_v44_reproduce.py \
+            tests/test_walk_forward_selective_veto_v46.py \
+            tests/test_macro_liquidity_state_v47.py \
+            tests/test_macro_liquidity_state_v47_runner.py \
+            tests/test_dollar_rates_attenuation_v48.py \
+            tests/test_dollar_rates_probability_shock_v49.py \
+            tests/test_fresh_macro_transition_v50.py \
+            tests/test_consensus_transition_threshold_v51.py \
+            tests/test_adversarial_alpha_funnel_v52.py \
+            tests/test_untouched_replication_v53.py \
+            tests/test_july_forward_smoke_v54.py \
+            tests/test_forward_tail_integrity_v542.py \
+            tests/test_coinbase_execution_replication_v55.py
