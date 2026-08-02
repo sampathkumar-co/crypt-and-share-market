@@ -25,13 +25,13 @@ jobs:
         run: |
           set -euo pipefail
           repo="${GITHUB_REPOSITORY}"
-          target_hour_start=$(date -u +'%Y-%m-%dT%H:00:00Z')
+          export TARGET_HOUR_START=$(date -u +'%Y-%m-%dT%H:00:00Z')
           active=$(gh run list \
             --repo "$repo" \
             --workflow forward-evidence-watchdog.yml \
             --limit 20 \
             --json status,createdAt \
-            --jq --arg target_hour_start "$target_hour_start" '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt >= $target_hour_start))] | length')
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.createdAt >= env.TARGET_HOUR_START))] | length')
 
           if [[ "$active" != "0" ]]; then
             echo "A watchdog created for the current target hour is already active; no duplicate dispatch is needed."
