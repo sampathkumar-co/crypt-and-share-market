@@ -166,14 +166,32 @@ jobs:
               return 0
             fi
 
-            local active
-            active=$(gh run list --workflow "$workflow" --limit 10 --json status,createdAt \
-              --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
-            if [[ "$active" == "0" ]]; then
+            local run_id
+            run_id=$(gh run list --workflow "$workflow" --limit 20 \
+              --json databaseId,status,createdAt \
+              --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | sort_by(.createdAt) | last | .databaseId // empty")
+
+            if [[ -z "$run_id" ]]; then
+              local dispatched_at
+              dispatched_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
               echo "Missing $label decision for $target; dispatching frozen workflow $workflow."
               gh workflow run "$workflow" --ref main
+
+              for attempt in $(seq 1 20); do
+                sleep 3
+                run_id=$(gh run list --workflow "$workflow" --event workflow_dispatch --limit 20 \
+                  --json databaseId,status,createdAt \
+                  --jq "[.[] | select(.createdAt >= \"$dispatched_at\")] | sort_by(.createdAt) | last | .databaseId // empty")
+                if [[ -n "$run_id" ]]; then
+                  break
+                fi
+              done
+              if [[ -z "$run_id" ]]; then
+                echo "Unable to bind the dispatched $label workflow to a concrete run ID; failing closed." >&2
+                return 1
+              fi
             else
-              echo "A target-capable $label workflow is already active; waiting for its append-only result."
+              echo "A target-capable $label workflow is already active as run $run_id; waiting for its append-only result."
             fi
 
             for attempt in $(seq 1 60); do
@@ -181,20 +199,25 @@ jobs:
               git fetch --quiet origin forward-data/v2
               git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
               if [[ -f "$decision_path" ]]; then
-                echo "$label decision persisted for $target."
+                echo "$label decision persisted for $target by bound run $run_id."
                 return 0
               fi
 
-              local completed_failure
-              completed_failure=$(gh run list --workflow "$workflow" --limit 10 --json status,conclusion,createdAt \
-                --jq "[.[] | select(.createdAt >= \"$snapshot_persisted_at\" and .status == \"completed\" and .conclusion != \"success\")] | length")
-              if [[ "$completed_failure" != "0" ]]; then
-                echo "$label workflow completed without success before the decision was persisted; failing closed." >&2
-                return 1
+              local run_state
+              run_state=$(gh run view "$run_id" --json status,conclusion \
+                --jq '[.status, (.conclusion // "")] | @tsv')
+              local run_status="${run_state%%$'\t'*}"
+              local run_conclusion="${run_state#*$'\t'}"
+              if [[ "$run_status" == "completed" ]]; then
+                if [[ "$run_conclusion" != "success" ]]; then
+                  echo "$label bound run $run_id completed with $run_conclusion before persistence; failing closed." >&2
+                  return 1
+                fi
+                echo "$label bound run $run_id completed successfully but its decision is not yet visible; continuing bounded persistence wait."
               fi
             done
 
-            echo "Timed out waiting for $label decision persistence; failing closed." >&2
+            echo "Timed out waiting for $label decision persistence from bound run $run_id; failing closed." >&2
             return 1
           }
 
