@@ -214,3 +214,9 @@ def test_replication_status_transitions() -> None:
         attenuated_decisions=1,
         gates={"a": False},
     ) == "COINBASE_EXECUTION_REPLICATION_FAILED"
+
+
+def test_real_manifest_hash_is_locked() -> None:
+    assert v55.EXPECTED_MANIFEST_SHA256 == (
+        "6a8a6fad962abd8a117f3f88ab003bbcb58f4d7e20e6c9b5856fd9944e9f7701"
+    )
