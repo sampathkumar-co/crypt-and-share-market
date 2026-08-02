@@ -22,8 +22,9 @@ def test_redundant_cadence_suppression_is_target_hour_aware() -> None:
     text = CADENCE.read_text(encoding="utf-8")
 
     assert 'status == "queued" or .status == "in_progress"' in text
-    assert "target_hour_start=$(date -u +'%Y-%m-%dT%H:00:00Z')" in text
-    assert '.createdAt >= $target_hour_start' in text
+    assert "export TARGET_HOUR_START=$(date -u +'%Y-%m-%dT%H:00:00Z')" in text
+    assert ".createdAt >= env.TARGET_HOUR_START" in text
+    assert "--jq --arg" not in text
     assert "now - 1800" not in text
     assert "created for the current target hour is already active" in text
     assert "no evidence or strategy bytes were modified" in text
