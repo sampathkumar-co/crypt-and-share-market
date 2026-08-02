@@ -22,7 +22,7 @@ concurrency:
 jobs:
   recover-missing-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,8 +41,6 @@ jobs:
           git worktree add --detach /tmp/forward-data-watchdog origin/forward-data/v2
 
           current_target=$(date -u +%Y-%m-%dT%H:00:00Z)
-          target="$current_target"
-          safe=$(date -u +%Y%m%dT%H0000Z)
           phase="snapshot"
           if [[ "$EVENT_SCHEDULE" == "57 * * * *" ]]; then
             phase="decisions"
@@ -156,27 +154,61 @@ jobs:
           test -n "$snapshot_persisted_at"
           echo "Decision recovery anchored to latest canonical snapshot: $target persisted_at=$snapshot_persisted_at"
 
-          v21="/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json"
-          v23="/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json"
-          v25="/tmp/forward-data-watchdog/data/forward-alpha-v25/decisions/$safe.json"
-          active_v21=$(gh run list --workflow market-state-router-v21.yml --limit 10 --json status,createdAt \
-            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
-          active_v23=$(gh run list --workflow forward-alpha-decisions-v23.yml --limit 10 --json status,createdAt \
-            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
-          active_v25=$(gh run list --workflow forward-alpha-decisions-v25.yml --limit 10 --json status,createdAt \
-            --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
+          wait_for_decision() {
+            local workflow="$1"
+            local decision_path="$2"
+            local label="$3"
 
-          if [[ ! -f "$v21" && "$active_v21" == "0" ]]; then
-            echo "Missing v2.1 decision for $target; dispatching frozen router."
-            gh workflow run market-state-router-v21.yml --ref main
-          fi
-          if [[ ! -f "$v23" && "$active_v23" == "0" ]]; then
-            echo "Missing v2.3 decision for $target; dispatching frozen alpha router."
-            gh workflow run forward-alpha-decisions-v23.yml --ref main
-          fi
-          if [[ ! -f "$v25" && "$active_v25" == "0" ]]; then
-            echo "Missing v2.5 decision for $target; dispatching frozen high-conviction router."
-            gh workflow run forward-alpha-decisions-v25.yml --ref main
-          fi
+            git fetch --quiet origin forward-data/v2
+            git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
+            if [[ -f "$decision_path" ]]; then
+              echo "$label decision already exists for $target."
+              return 0
+            fi
+
+            local active
+            active=$(gh run list --workflow "$workflow" --limit 10 --json status,createdAt \
+              --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\")] | length")
+            if [[ "$active" == "0" ]]; then
+              echo "Missing $label decision for $target; dispatching frozen workflow $workflow."
+              gh workflow run "$workflow" --ref main
+            else
+              echo "A target-capable $label workflow is already active; waiting for its append-only result."
+            fi
+
+            for attempt in $(seq 1 60); do
+              sleep 15
+              git fetch --quiet origin forward-data/v2
+              git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
+              if [[ -f "$decision_path" ]]; then
+                echo "$label decision persisted for $target."
+                return 0
+              fi
+
+              local completed_failure
+              completed_failure=$(gh run list --workflow "$workflow" --limit 10 --json status,conclusion,createdAt \
+                --jq "[.[] | select(.createdAt >= \"$snapshot_persisted_at\" and .status == \"completed\" and .conclusion != \"success\")] | length")
+              if [[ "$completed_failure" != "0" ]]; then
+                echo "$label workflow completed without success before the decision was persisted; failing closed." >&2
+                return 1
+              fi
+            done
+
+            echo "Timed out waiting for $label decision persistence; failing closed." >&2
+            return 1
+          }
+
+          wait_for_decision \
+            market-state-router-v21.yml \
+            "/tmp/forward-data-watchdog/data/market-state-router/decisions/$safe.json" \
+            "v2.1"
+          wait_for_decision \
+            forward-alpha-decisions-v23.yml \
+            "/tmp/forward-data-watchdog/data/forward-alpha-v23/decisions/$safe.json" \
+            "v2.3"
+          wait_for_decision \
+            forward-alpha-decisions-v25.yml \
+            "/tmp/forward-data-watchdog/data/forward-alpha-v25/decisions/$safe.json" \
+            "v2.5"
 
           echo "Watchdog completed without modifying strategy or evidence bytes."
