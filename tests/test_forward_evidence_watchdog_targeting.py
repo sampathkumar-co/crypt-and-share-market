@@ -29,3 +29,11 @@ def test_watchdog_has_an_early_recovery_opportunity_before_rollover_cutoff() -> 
     assert '- cron: "17 * * * *"' in text
     assert '- cron: "37 * * * *"' in text
     assert '- cron: "57 * * * *"' in text
+
+
+def test_decision_wait_is_bound_to_one_concrete_run_id() -> None:
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert "--json databaseId,status,createdAt" in text
+    assert 'gh run view "$run_id" --json status,conclusion' in text
+    assert "completed_failure=$(gh run list" not in text
+    assert "Unable to bind the dispatched $label workflow to a concrete run ID" in text
