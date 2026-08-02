@@ -18,12 +18,14 @@ def test_redundant_cadence_dispatches_existing_watchdog_only() -> None:
     assert "tradebot" not in text
 
 
-def test_redundant_cadence_avoids_duplicate_active_watchdogs() -> None:
+def test_redundant_cadence_suppression_is_target_hour_aware() -> None:
     text = CADENCE.read_text(encoding="utf-8")
 
     assert 'status == "queued" or .status == "in_progress"' in text
-    assert "now - 1800" in text
-    assert "A recent watchdog is already active" in text
+    assert "target_hour_start=$(date -u +'%Y-%m-%dT%H:00:00Z')" in text
+    assert '.createdAt >= $target_hour_start' in text
+    assert "now - 1800" not in text
+    assert "created for the current target hour is already active" in text
     assert "no evidence or strategy bytes were modified" in text
 
 
