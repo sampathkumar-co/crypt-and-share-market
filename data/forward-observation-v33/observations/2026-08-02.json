@@ -1,0 +1,106 @@
+{
+  "action": "CASH_NO_TRADE",
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_evidence": {
+    "latest_known_annual_rate": 0.0382,
+    "latest_known_date": "2026-07-30",
+    "normalized_sha256": "c625ca26c9dce687ab9ca9e9b8ae32b966d616e8f872b9948f0e9c226e461d22",
+    "observation_count": 11227,
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "changes_track_a": false,
+  "completed_candle_date_utc": "2026-08-02",
+  "continuity": {
+    "gap_reset": false,
+    "has_prior_observation": true,
+    "prior_calendar_day_present": true
+  },
+  "data_cutoff_utc": "2026-08-02T23:59:59.999999Z",
+  "decision_reason": "risk_conditions_not_qualified",
+  "earliest_eligible_effective_open_utc": "2026-08-04T00:00:00Z",
+  "features": {
+    "BTC": {
+      "close": 63499.49,
+      "drawdown_20": -0.045352724705477576,
+      "return_1": 0.01171511785380841,
+      "return_120": -0.056355216309641576,
+      "return_20": 0.019827369945269346,
+      "return_200": -0.3450633261808861,
+      "return_5": -0.005444724836453196,
+      "return_60": -0.008440193628981962,
+      "sma_100": 68752.9649,
+      "sma_200": 71125.56585,
+      "sma_50": 63344.018200000006,
+      "trend_score": -0.23710598810247904,
+      "volatility_20": 0.01640370371543377
+    },
+    "ETH": {
+      "close": 1883.35,
+      "drawdown_20": -0.03562851715115245,
+      "return_1": 0.02179385627014163,
+      "return_120": -0.08804117820808943,
+      "return_20": 0.06129935702733613,
+      "return_200": -0.4386136961148438,
+      "return_5": -0.0190374498671807,
+      "return_60": 0.040145582273867,
+      "sma_100": 1930.6845,
+      "sma_200": 2095.327,
+      "sma_50": 1780.6714000000002,
+      "trend_score": 1.0524693457532557,
+      "volatility_20": 0.023834535091619962
+    }
+  },
+  "fingerprints": {
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "cf1dc9c096fa9eb29467cd4c324798c519a7d68eeca13112a34c0cd7215c1a68",
+    "protocol_sha256": "b75cde366a938cb6c14b30029b06996c3979022d84ecf69c93d8ac5439adf266",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "source_implementation_sha256": "c37209fa243ce0e8e069eee128fe62aa13f85f49def340ef7cd4bb679658bfc8"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "historical_promotion_evidence": {
+    "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+    "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+  },
+  "history_days": 260,
+  "minimum_cash_target": null,
+  "mode": "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY",
+  "operational_latency_days": 1,
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "recommended_target_weights": null,
+  "report_sha256": "22b5bfe02c4828967a3d00ba87c9529957b2eed84a586e15a63b9c73cda3cc1b",
+  "schema_version": "3.3-daily-forward-observation",
+  "source_fingerprints": {
+    "coinbase_btc_normalized_sha256": "b0f00620661e8093256a01205eb7a076702bc88917121bf74a93b08f3b1c8478",
+    "coinbase_eth_normalized_sha256": "eec36355d69b69526edd09590bf3483c9ba9c79a64a88b00216e8218c7c7119f",
+    "h15_normalized_sha256": "c625ca26c9dce687ab9ca9e9b8ae32b966d616e8f872b9948f0e9c226e461d22",
+    "prior_observation_file_sha256": "9f7aeb56e6f87c6b724399ef4f80b1a0bb3d3e2adfd0581df69f6d614a06c379"
+  },
+  "state_after": {
+    "age": 0,
+    "selected_assets": [],
+    "sleeve": "cash"
+  },
+  "state_before": {
+    "age": 0,
+    "selected_assets": [],
+    "sleeve": "cash"
+  },
+  "target_changing_action": false,
+  "trade_required": false
+}
