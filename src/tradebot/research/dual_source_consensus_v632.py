@@ -13,6 +13,9 @@ PROTOCOL_PATH = Path("research/V632_SEMANTIC_DEPENDENCY_FINGERPRINT_PROTOCOL.md"
 COMMON_SOURCE_ADDENDUM_PATH = Path(
     "research/V633_COMMON_SOURCE_DISCOVERY_WINDOW_ADDENDUM.md"
 )
+SIGNAL_LAG_ADDENDUM_PATH = Path(
+    "research/V634_COMMON_SOURCE_SIGNAL_LAG_ADDENDUM.md"
+)
 EXPECTED_SEMANTIC = {
     "v6.1": "5e0b6042dbdc1b74e0cb718f27a9fad30fb2051d70ac15f2363d40488598bb3f",
     "v6.2": "520bb66e8c84057317ed75be808697bbedc021ab385c5e55d85b4e63254f7b1b",
@@ -27,11 +30,19 @@ EXPECTED_STATUS = {
 }
 COMMON_SOURCE_DISCOVERY_START = datetime(2020, 7, 1, tzinfo=timezone.utc)
 COMMON_SOURCE_DISCOVERY_END = datetime(2020, 12, 31, tzinfo=timezone.utc)
-COMMON_SOURCE_DISCOVERY_PERIODS = tuple(
+_COMMON_QUARTERS = tuple(
     period
     for period in base.v31.DISCOVERY_PERIODS
     if period.start >= COMMON_SOURCE_DISCOVERY_START
     and period.end <= COMMON_SOURCE_DISCOVERY_END
+)
+COMMON_SOURCE_DISCOVERY_PERIODS = (
+    base.v31.Period(
+        "2020-Q3-common-lag-safe",
+        datetime(2020, 7, 2, tzinfo=timezone.utc),
+        _COMMON_QUARTERS[0].end,
+    ),
+    _COMMON_QUARTERS[1],
 )
 _ORIGINAL_BUILD_REPORT = base.build_report
 _OBSERVED_REPORT_SHA: dict[str, str] = {}
@@ -45,12 +56,23 @@ if not COMMON_SOURCE_ADDENDUM_PATH.is_file():
     raise base.DualSourceConsensusV63Error(
         "v6.3.3 common-source discovery addendum is missing"
     )
-if tuple(period.name for period in COMMON_SOURCE_DISCOVERY_PERIODS) != (
+if not SIGNAL_LAG_ADDENDUM_PATH.is_file():
+    raise base.DualSourceConsensusV63Error(
+        "v6.3.4 common-source signal-lag addendum is missing"
+    )
+if tuple(period.name for period in _COMMON_QUARTERS) != (
     "2020-Q3",
     "2020-Q4",
 ):
     raise base.DualSourceConsensusV63Error(
         "common-source discovery quarters changed"
+    )
+if tuple(period.name for period in COMMON_SOURCE_DISCOVERY_PERIODS) != (
+    "2020-Q3-common-lag-safe",
+    "2020-Q4",
+):
+    raise base.DualSourceConsensusV63Error(
+        "lag-safe common-source periods changed"
     )
 
 
@@ -157,12 +179,15 @@ def build_report(*args: Any, **kwargs: Any) -> dict[str, Any]:
         base.v31.DISCOVERY_PERIODS = original_discovery_periods
         base._validate_dependency = original_validator
     report.pop("report_sha256", None)
-    report["schema_version"] = "6.3.3-dual-source-common-discovery"
+    report["schema_version"] = "6.3.4-dual-source-common-discovery-lag-safe"
     report["semantic_dependency_protocol_sha256"] = hashlib.sha256(
         PROTOCOL_PATH.read_bytes()
     ).hexdigest()
     report["common_source_discovery_addendum_sha256"] = hashlib.sha256(
         COMMON_SOURCE_ADDENDUM_PATH.read_bytes()
+    ).hexdigest()
+    report["common_source_signal_lag_addendum_sha256"] = hashlib.sha256(
+        SIGNAL_LAG_ADDENDUM_PATH.read_bytes()
     ).hexdigest()
     report["common_source_discovery_periods"] = [
         {
