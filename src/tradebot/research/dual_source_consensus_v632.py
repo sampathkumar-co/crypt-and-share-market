@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -9,6 +10,9 @@ from tradebot.research import dual_source_consensus_v63 as base
 
 
 PROTOCOL_PATH = Path("research/V632_SEMANTIC_DEPENDENCY_FINGERPRINT_PROTOCOL.md")
+COMMON_SOURCE_ADDENDUM_PATH = Path(
+    "research/V633_COMMON_SOURCE_DISCOVERY_WINDOW_ADDENDUM.md"
+)
 EXPECTED_SEMANTIC = {
     "v6.1": "e88af5a6342f67c181abaea6e33c8f95a93117f00d26277698916a3dec414dc9",
     "v6.2": "520bb66e8c84057317ed75be808697bbedc021ab385c5e55d85b4e63254f7b1b",
@@ -21,6 +25,14 @@ EXPECTED_STATUS = {
     "v6.1": "ENSEMBLE_REJECTED",
     "v6.2": "CONSENSUS_ENSEMBLE_REJECTED",
 }
+COMMON_SOURCE_DISCOVERY_START = datetime(2020, 7, 1, tzinfo=timezone.utc)
+COMMON_SOURCE_DISCOVERY_END = datetime(2020, 12, 31, tzinfo=timezone.utc)
+COMMON_SOURCE_DISCOVERY_PERIODS = tuple(
+    period
+    for period in base.v31.DISCOVERY_PERIODS
+    if period.start >= COMMON_SOURCE_DISCOVERY_START
+    and period.end <= COMMON_SOURCE_DISCOVERY_END
+)
 _ORIGINAL_BUILD_REPORT = base.build_report
 _OBSERVED_REPORT_SHA: dict[str, str] = {}
 
@@ -28,6 +40,17 @@ _OBSERVED_REPORT_SHA: dict[str, str] = {}
 if not PROTOCOL_PATH.is_file():
     raise base.DualSourceConsensusV63Error(
         "v6.3.2 semantic dependency protocol is missing"
+    )
+if not COMMON_SOURCE_ADDENDUM_PATH.is_file():
+    raise base.DualSourceConsensusV63Error(
+        "v6.3.3 common-source discovery addendum is missing"
+    )
+if tuple(period.name for period in COMMON_SOURCE_DISCOVERY_PERIODS) != (
+    "2020-Q3",
+    "2020-Q4",
+):
+    raise base.DualSourceConsensusV63Error(
+        "common-source discovery quarters changed"
     )
 
 
@@ -124,17 +147,31 @@ def validate_dependency(
 
 def build_report(*args: Any, **kwargs: Any) -> dict[str, Any]:
     original_validator = base._validate_dependency
+    original_discovery_periods = base.v31.DISCOVERY_PERIODS
     base._validate_dependency = validate_dependency
+    base.v31.DISCOVERY_PERIODS = COMMON_SOURCE_DISCOVERY_PERIODS
     _OBSERVED_REPORT_SHA.clear()
     try:
         report = _ORIGINAL_BUILD_REPORT(*args, **kwargs)
     finally:
+        base.v31.DISCOVERY_PERIODS = original_discovery_periods
         base._validate_dependency = original_validator
     report.pop("report_sha256", None)
-    report["schema_version"] = "6.3.2-dual-source-semantic-dependencies"
+    report["schema_version"] = "6.3.3-dual-source-common-discovery"
     report["semantic_dependency_protocol_sha256"] = hashlib.sha256(
         PROTOCOL_PATH.read_bytes()
     ).hexdigest()
+    report["common_source_discovery_addendum_sha256"] = hashlib.sha256(
+        COMMON_SOURCE_ADDENDUM_PATH.read_bytes()
+    ).hexdigest()
+    report["common_source_discovery_periods"] = [
+        {
+            "name": period.name,
+            "start": period.start.isoformat(),
+            "end": period.end.isoformat(),
+        }
+        for period in COMMON_SOURCE_DISCOVERY_PERIODS
+    ]
     report["dependency_evidence"] = {
         name: {
             "semantic_fingerprint": EXPECTED_SEMANTIC[name],
