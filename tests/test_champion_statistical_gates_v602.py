@@ -39,10 +39,10 @@ def test_expected_maximum_sharpe_penalizes_large_trial_count():
     assert v602.expected_maximum_sharpe(100_000) > v602.expected_maximum_sharpe(10)
 
 
-def test_zero_volatility_cannot_pass_dsr_floor():
+def test_numerically_constant_series_cannot_pass_dsr_floor():
     values = np.full(500, 0.001, dtype=float)
     result = v602.deflated_sharpe_floor(values)
-    assert result.annualized_sharpe == 0.0
+    assert result.probability == 0.0
     assert result.passed is False
 
 
