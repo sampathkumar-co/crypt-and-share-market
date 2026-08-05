@@ -26,12 +26,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install package and tests
-        run: python -m pip install -e . pytest
+          cache: pip
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile source
+        run: python -m compileall -q src
       - name: Focused v7 tests
-        run: pytest -q tests/test_intraday_alpha_lab_v70.py
+        run: python -m pytest -q tests/test_intraday_alpha_lab_v70.py
       - name: Full regression suite
-        run: pytest -q
+        run: python -m pytest -q
       - name: Protect existing evidence
         shell: bash
         run: |
