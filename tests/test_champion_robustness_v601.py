@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from tradebot.research import champion_robustness_v601 as v601
 from tradebot.research import historical_proxy_screen_v25 as v25
 from tradebot.research import historical_yield_trend_v31 as v31
@@ -25,8 +27,16 @@ def _feature(value: float) -> v31.Features:
     )
 
 
-def _bar(value: float) -> v25.HourlyBar:
-    return v25.HourlyBar(open=value, high=value, low=value, close=value, volume=1.0)
+def _bar(day: datetime, value: float) -> v25.HourlyBar:
+    return v25.HourlyBar(
+        hour=day,
+        open=value,
+        high=value,
+        low=value,
+        close=value,
+        quote_volume=1.0,
+        taker_buy_quote_volume=0.5,
+    )
 
 
 def test_positive_concentration_uses_only_positive_intervals():
@@ -37,12 +47,19 @@ def test_positive_concentration_uses_only_positive_intervals():
 def test_one_day_signal_delay_changes_only_information_timing(monkeypatch):
     base = datetime(2025, 1, 1, tzinfo=timezone.utc)
     dates = [base + timedelta(days=index) for index in range(6)]
+    btc_values = [100, 100, 100, 110, 110, 110]
     bars = {
-        "BTC": {day: _bar(value) for day, value in zip(dates, [100, 100, 100, 110, 110, 110], strict=True)},
-        "ETH": {day: _bar(100.0) for day in dates},
+        "BTC": {
+            day: _bar(day, value)
+            for day, value in zip(dates, btc_values, strict=True)
+        },
+        "ETH": {day: _bar(day, 100.0) for day in dates},
     }
     features = {
-        day: {"BTC": _feature(1.0 if index == 1 else -1.0), "ETH": _feature(-1.0)}
+        day: {
+            "BTC": _feature(1.0 if index == 1 else -1.0),
+            "ETH": _feature(-1.0),
+        }
         for index, day in enumerate(dates)
     }
     cash_returns = {day: 0.0 for day in dates}
@@ -88,7 +105,7 @@ def test_one_day_signal_delay_changes_only_information_timing(monkeypatch):
 
 def test_invalid_signal_lag_fails_closed():
     model = v31.ModelSpec(100, 1, 1, 0.10, 0.02, 0.20)
-    with __import__("pytest").raises(v601.ChampionRobustnessV601Error):
+    with pytest.raises(v601.ChampionRobustnessV601Error):
         v601.simulate_diagnostic(
             model,
             {},
