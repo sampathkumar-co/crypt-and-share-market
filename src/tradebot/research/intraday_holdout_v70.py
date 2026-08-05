@@ -1,0 +1,187 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from dataclasses import asdict, dataclass
+from typing import Mapping, Sequence
+
+from tradebot.research.intraday_alpha_lab_v70 import MAX_DRAWDOWN
+from tradebot.research.intraday_selection_v70 import (
+    PreHoldoutSelectionManifest,
+    SealedHoldoutRelease,
+    holdout_release_fingerprint,
+    manifest_fingerprint,
+    verify_holdout_release_is_non_authorizing,
+)
+
+
+HOLDOUT_RESULT_SCHEMA_VERSION = "7.0-sealed-holdout-result-v1"
+REQUIRED_SOURCES = frozenset(("binance", "coinbase"))
+
+
+@dataclass(frozen=True)
+class HoldoutAction:
+    action_id: str
+    source: str
+    standard_excess_return: float
+    stress_excess_return: float
+    delayed_stress_excess_return: float
+    target_changed: bool
+
+
+@dataclass(frozen=True)
+class SealedHoldoutResult:
+    schema_version: str
+    release_fingerprint: str
+    manifest_fingerprint: str
+    selected_candidate_id: str
+    sealed_holdout_id: str
+    sealed_holdout_fingerprint: str
+    source_action_counts: Mapping[str, int]
+    target_changing_actions: int
+    standard_compounded_excess: float
+    stress_compounded_excess: float
+    delayed_stress_compounded_excess: float
+    maximum_drawdown: float
+    passed: bool
+    reasons: tuple[str, ...]
+    paper_only: bool = True
+    authorizes_trading: bool = False
+
+
+def _canonical(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def holdout_result_fingerprint(result: SealedHoldoutResult) -> str:
+    return hashlib.sha256(_canonical(asdict(result)).encode("utf-8")).hexdigest()
+
+
+def _compound(values: Sequence[float]) -> float:
+    wealth = 1.0
+    for value in values:
+        number = float(value)
+        if not math.isfinite(number) or number <= -1.0:
+            raise ValueError("holdout returns must be finite and greater than -100%")
+        wealth *= 1.0 + number
+    return wealth - 1.0
+
+
+def _maximum_drawdown(values: Sequence[float]) -> float:
+    wealth = 1.0
+    peak = 1.0
+    maximum = 0.0
+    for value in values:
+        wealth *= 1.0 + float(value)
+        peak = max(peak, wealth)
+        maximum = max(maximum, (peak - wealth) / peak)
+    return maximum
+
+
+def evaluate_single_sealed_holdout(
+    manifest: PreHoldoutSelectionManifest,
+    release: SealedHoldoutRelease,
+    actions: Sequence[HoldoutAction],
+    *,
+    expected_release_fingerprint: str,
+) -> SealedHoldoutResult:
+    verify_holdout_release_is_non_authorizing(release)
+    actual_manifest_fingerprint = manifest_fingerprint(manifest)
+    if release.manifest_fingerprint != actual_manifest_fingerprint:
+        raise ValueError("release does not match the frozen pre-holdout manifest")
+    actual_release_fingerprint = holdout_release_fingerprint(release)
+    if expected_release_fingerprint != actual_release_fingerprint:
+        raise ValueError("sealed holdout release fingerprint mismatch")
+    if manifest.selected_candidate_id is None:
+        raise ValueError("manifest has no selected candidate")
+    if release.selected_candidate_id != manifest.selected_candidate_id:
+        raise ValueError("released candidate differs from frozen selection")
+    if not actions:
+        raise ValueError("sealed holdout observations are required")
+
+    action_ids = [item.action_id for item in actions]
+    if any(not value.strip() for value in action_ids) or len(action_ids) != len(set(action_ids)):
+        raise ValueError("holdout action identifiers must be non-empty and unique")
+    sources = {item.source for item in actions}
+    if sources != REQUIRED_SOURCES:
+        raise ValueError("holdout requires exactly Binance and Coinbase observations")
+
+    by_source = {source: [item for item in actions if item.source == source] for source in REQUIRED_SOURCES}
+    counts = {source: len(items) for source, items in by_source.items()}
+    if len(set(counts.values())) != 1:
+        raise ValueError("independent sources must contain equal action counts")
+
+    for source, items in by_source.items():
+        source_ids = [item.action_id.split(":", 1)[-1] for item in items]
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError(f"duplicate logical action in {source} holdout evidence")
+    logical_sets = {
+        source: {item.action_id.split(":", 1)[-1] for item in items}
+        for source, items in by_source.items()
+    }
+    if len({frozenset(values) for values in logical_sets.values()}) != 1:
+        raise ValueError("independent sources must cover identical logical actions")
+
+    ordered = sorted(actions, key=lambda item: (item.action_id.split(":", 1)[-1], item.source))
+    standard = [item.standard_excess_return for item in ordered]
+    stress = [item.stress_excess_return for item in ordered]
+    delayed = [item.delayed_stress_excess_return for item in ordered]
+    standard_compounded = _compound(standard)
+    stress_compounded = _compound(stress)
+    delayed_compounded = _compound(delayed)
+    maximum_drawdown = _maximum_drawdown(stress)
+
+    source_stress = {
+        source: _compound([item.stress_excess_return for item in items])
+        for source, items in by_source.items()
+    }
+    source_delayed = {
+        source: _compound([item.delayed_stress_excess_return for item in items])
+        for source, items in by_source.items()
+    }
+    logical_target_changes: dict[str, bool] = {}
+    for item in actions:
+        logical_id = item.action_id.split(":", 1)[-1]
+        previous = logical_target_changes.setdefault(logical_id, item.target_changed)
+        if previous is not item.target_changed:
+            raise ValueError("independent sources disagree on target-changing actions")
+    target_changing_actions = sum(logical_target_changes.values())
+
+    reasons: list[str] = []
+    if standard_compounded <= 0.0:
+        reasons.append("holdout_standard_excess_not_positive")
+    if stress_compounded <= 0.0:
+        reasons.append("holdout_stress_excess_not_positive")
+    if delayed_compounded <= 0.0:
+        reasons.append("holdout_delayed_stress_not_positive")
+    if any(value <= 0.0 for value in source_stress.values()):
+        reasons.append("holdout_independent_source_stress_failed")
+    if any(value <= 0.0 for value in source_delayed.values()):
+        reasons.append("holdout_independent_source_delay_failed")
+    if maximum_drawdown > MAX_DRAWDOWN:
+        reasons.append("holdout_drawdown_gate_failed")
+    if target_changing_actions == 0:
+        reasons.append("holdout_has_no_genuine_actions")
+
+    return SealedHoldoutResult(
+        schema_version=HOLDOUT_RESULT_SCHEMA_VERSION,
+        release_fingerprint=actual_release_fingerprint,
+        manifest_fingerprint=actual_manifest_fingerprint,
+        selected_candidate_id=release.selected_candidate_id,
+        sealed_holdout_id=release.sealed_holdout_id,
+        sealed_holdout_fingerprint=release.sealed_holdout_fingerprint,
+        source_action_counts=counts,
+        target_changing_actions=target_changing_actions,
+        standard_compounded_excess=standard_compounded,
+        stress_compounded_excess=stress_compounded,
+        delayed_stress_compounded_excess=delayed_compounded,
+        maximum_drawdown=maximum_drawdown,
+        passed=not reasons,
+        reasons=tuple(reasons),
+    )
+
+
+def verify_holdout_result_is_non_authorizing(result: SealedHoldoutResult) -> None:
+    if not result.paper_only or result.authorizes_trading:
+        raise ValueError("sealed holdout result must remain paper-only and non-authorizing")
