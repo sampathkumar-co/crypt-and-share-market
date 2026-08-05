@@ -9,7 +9,12 @@ from tradebot.v5.data_quality import SourceObservation, reconcile_sources, valid
 from tradebot.v5.metrics import performance_metrics
 from tradebot.v5.regime import RegimeInputs, dominant_regime, regime_probabilities
 from tradebot.v5.sealing import SealedPrediction, verify_seal
-from tradebot.v5.tournament import CandidateEvidence, evaluate_candidate
+from tradebot.v5.tournament import (
+    CandidateEvidence,
+    MultipleTestingEvidence,
+    evaluate_candidate,
+    rank_candidates,
+)
 
 
 def test_cost_model_stress_and_liquidity_are_conservative():
@@ -91,22 +96,78 @@ def test_trend_baseline_selects_only_consistent_positive_leaders():
     assert sum(signal.weights.values()) <= 0.10
 
 
-def test_tournament_rejects_unreplicated_candidate_even_when_profitable():
-    evidence = CandidateEvidence(
-        candidate_id="candidate",
-        returns=tuple([0.001] * 100),
-        stressed_returns=tuple([0.0008] * 100),
+def _profitable_candidate(
+    candidate_id: str,
+    *,
+    replicated: bool = True,
+    pbo: float = 0.05,
+    attempted_configurations: int = 2,
+) -> CandidateEvidence:
+    pattern = (0.004, 0.003, 0.005, 0.002, 0.004)
+    returns = tuple(pattern[index % len(pattern)] for index in range(400))
+    stressed = tuple(value - 0.0005 for value in returns)
+    return CandidateEvidence(
+        candidate_id=candidate_id,
+        returns=returns,
+        stressed_returns=stressed,
         decisions=40,
-        sequential_window_returns=(0.01, 0.01, 0.01, 0.01, 0.01),
-        stressed_window_returns=(0.01, 0.01, 0.01, 0.01, 0.01),
+        sequential_window_returns=(0.03, 0.02, 0.04, 0.01, 0.03),
+        stressed_window_returns=(0.02, 0.01, 0.03, 0.005, 0.02),
         asset_contributions={"BTC": 0.4, "ETH": 0.3, "SOL": 0.3},
         largest_trade_fraction=0.10,
         delayed_execution_return=0.02,
-        independent_source_replicated=False,
+        independent_source_replicated=replicated,
+        multiple_testing=MultipleTestingEvidence(
+            attempted_configurations=attempted_configurations,
+            probability_of_backtest_overfitting=pbo,
+            sharpe_trial_std=0.10,
+        ),
     )
+
+
+def test_tournament_rejects_unreplicated_candidate_even_when_profitable():
+    evidence = _profitable_candidate("candidate", replicated=False)
     decision = evaluate_candidate(evidence)
     assert not decision.passed
     assert "independent_source_replication_missing" in decision.failures
+
+
+def test_tournament_rejects_missing_multiple_testing_evidence():
+    candidate = _profitable_candidate("candidate")
+    without_selection_evidence = CandidateEvidence(
+        candidate_id=candidate.candidate_id,
+        returns=candidate.returns,
+        stressed_returns=candidate.stressed_returns,
+        decisions=candidate.decisions,
+        sequential_window_returns=candidate.sequential_window_returns,
+        stressed_window_returns=candidate.stressed_window_returns,
+        asset_contributions=candidate.asset_contributions,
+        largest_trade_fraction=candidate.largest_trade_fraction,
+        delayed_execution_return=candidate.delayed_execution_return,
+        independent_source_replicated=True,
+    )
+    decision = evaluate_candidate(without_selection_evidence)
+    assert not decision.passed
+    assert "multiple_testing_evidence_missing" in decision.failures
+
+
+def test_tournament_enforces_pbo_and_deflated_sharpe():
+    high_pbo = evaluate_candidate(_profitable_candidate("high-pbo", pbo=0.40))
+    assert "probability_of_backtest_overfitting_above_0_20" in high_pbo.failures
+
+    too_many_trials = evaluate_candidate(
+        _profitable_candidate("many-trials", attempted_configurations=1_000_000)
+    )
+    assert "deflated_sharpe_probability_below_0_95" in too_many_trials.failures
+
+
+def test_valid_candidate_passes_and_outranks_rejected_high_return_candidate():
+    valid = _profitable_candidate("valid")
+    rejected = _profitable_candidate("rejected", pbo=0.60)
+    valid_decision = evaluate_candidate(valid)
+    assert valid_decision.passed
+    ranked = rank_candidates((rejected, valid))
+    assert ranked[0][0] == "valid"
 
 
 def test_sealed_prediction_is_deterministic_and_paper_only():
