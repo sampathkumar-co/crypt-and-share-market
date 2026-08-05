@@ -7,8 +7,11 @@ import pytest
 from tradebot.research.intraday_alpha_lab_v70 import CandidateEvidence, CandidateFamily, evidence_fingerprint
 from tradebot.research.intraday_selection_v70 import (
     TrialLedgerEntry,
+    authorize_single_sealed_holdout_release,
     build_pre_holdout_manifest,
+    holdout_release_fingerprint,
     manifest_fingerprint,
+    verify_holdout_release_is_non_authorizing,
     verify_manifest_is_non_authorizing,
 )
 
@@ -98,3 +101,60 @@ def test_manifest_fingerprint_is_deterministic() -> None:
     items = tournament()
     manifest = build_pre_holdout_manifest(PROTOCOL, items, ledger(items))
     assert manifest_fingerprint(manifest) == manifest_fingerprint(manifest)
+
+
+def test_authorizes_exactly_one_paper_only_sealed_holdout_release() -> None:
+    items = tournament()
+    manifest = build_pre_holdout_manifest(PROTOCOL, items, ledger(items))
+    release = authorize_single_sealed_holdout_release(
+        manifest,
+        expected_manifest_fingerprint=manifest_fingerprint(manifest),
+        sealed_holdout_id="v70-holdout-001",
+        sealed_holdout_fingerprint="a" * 64,
+    )
+    assert release.selected_candidate_id == "breakout"
+    assert release.evaluation_count == 1
+    assert release.consumed_holdout_ids == ("v70-holdout-001",)
+    verify_holdout_release_is_non_authorizing(release)
+    assert holdout_release_fingerprint(release) == holdout_release_fingerprint(release)
+
+
+def test_holdout_release_rejects_manifest_drift_and_reuse() -> None:
+    items = tournament()
+    manifest = build_pre_holdout_manifest(PROTOCOL, items, ledger(items))
+    with pytest.raises(ValueError, match="manifest fingerprint mismatch"):
+        authorize_single_sealed_holdout_release(
+            manifest,
+            expected_manifest_fingerprint="0" * 64,
+            sealed_holdout_id="v70-holdout-001",
+            sealed_holdout_fingerprint="a" * 64,
+        )
+    with pytest.raises(ValueError, match="never be reused"):
+        authorize_single_sealed_holdout_release(
+            manifest,
+            expected_manifest_fingerprint=manifest_fingerprint(manifest),
+            sealed_holdout_id="v70-holdout-001",
+            sealed_holdout_fingerprint="a" * 64,
+            consumed_holdout_ids=("v70-holdout-001",),
+        )
+
+
+def test_holdout_release_rejects_missing_survivor_and_bad_hash() -> None:
+    items = tuple(replace(item, dsr_probability=0.2) for item in tournament())
+    manifest = build_pre_holdout_manifest(PROTOCOL, items, ledger(items))
+    with pytest.raises(ValueError, match="no gate-surviving"):
+        authorize_single_sealed_holdout_release(
+            manifest,
+            expected_manifest_fingerprint=manifest_fingerprint(manifest),
+            sealed_holdout_id="v70-holdout-001",
+            sealed_holdout_fingerprint="a" * 64,
+        )
+
+    passing = build_pre_holdout_manifest(PROTOCOL, tournament(), ledger(tournament()))
+    with pytest.raises(ValueError, match="lowercase sha256"):
+        authorize_single_sealed_holdout_release(
+            passing,
+            expected_manifest_fingerprint=manifest_fingerprint(passing),
+            sealed_holdout_id="v70-holdout-001",
+            sealed_holdout_fingerprint="NOT-A-HASH",
+        )
