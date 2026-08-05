@@ -35,6 +35,7 @@ jobs:
       - name: Focused tests
         run: |
           python -m pytest -q \
+            tests/test_dual_source_semantic_dependencies_v632.py \
             tests/test_dual_source_artifact_correction_v631.py \
             tests/test_dual_source_consensus_v63.py \
             tests/test_consensus_shrunk_ensemble_v62.py \
@@ -71,7 +72,7 @@ jobs:
             --material-json evidence/v63/champion-screen.json \
             --json-out evidence/v63/champion-chronology-v603.json
 
-      - name: Reproduce rejected v6.1 and artifact-verified v6.2 dependencies
+      - name: Reproduce rejected v6.1 and v6.2 semantic dependencies
         run: |
           python -m tradebot.research.parameter_neighborhood_ensemble_v611 \
             --v312-json evidence/v63/v312-binance.json \
@@ -87,17 +88,32 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          v61 = json.loads(Path('evidence/v63/ensemble-v61.json').read_text())
-          v62 = json.loads(Path('evidence/v63/consensus-v62.json').read_text())
-          assert v61['report_sha256'] == 'b6f5e75957cf31f26d7ebe2d1f341d67901dd4dfb3ad3d3f6b10a4be3fe34692'
-          assert v61['status'] == 'ENSEMBLE_REJECTED'
-          assert v62['report_sha256'] == '7763dfbb68441e496ee638e23e7bd2650bf433a0d63a332d3b02c94709b60d7e'
-          assert v62['status'] == 'CONSENSUS_ENSEMBLE_REJECTED'
+          from tradebot.research import dual_source_consensus_v632 as semantic
+
+          reports = {
+              'v6.1': json.loads(Path('evidence/v63/ensemble-v61.json').read_text()),
+              'v6.2': json.loads(Path('evidence/v63/consensus-v62.json').read_text()),
+          }
+          for name, report in reports.items():
+              digest = semantic.validate_dependency(
+                  report,
+                  expected_sha='whole-report-sha-is-observed-not-identity',
+                  expected_status=semantic.EXPECTED_STATUS[name],
+                  name=name,
+              )
+              assert digest == semantic.EXPECTED_SEMANTIC[name]
+              print(json.dumps({
+                  'name': name,
+                  'status': report['status'],
+                  'whole_report_sha256': report['report_sha256'],
+                  'semantic_fingerprint': digest,
+                  'artifact_whole_report_sha256': semantic.ARTIFACT_REPORT_SHA[name],
+              }, sort_keys=True))
           PY
 
-      - name: Run artifact-corrected dual-source consensus
+      - name: Run semantic-dependency dual-source consensus
         run: |
-          python -m tradebot.research.dual_source_consensus_v631 \
+          python -m tradebot.research.dual_source_consensus_v632 \
             --v312-json evidence/v63/v312-binance.json \
             --v32-json evidence/v63/v32-coinbase.json \
             --v603-json evidence/v63/champion-chronology-v603.json \
@@ -110,6 +126,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from tradebot.research import dual_source_consensus_v632 as semantic
 
           report = json.loads(Path('evidence/v63/dual-source-v63.json').read_text())
           assert report['paper_only'] is True
@@ -118,8 +135,11 @@ jobs:
           assert report['retrospective_dates_exposed'] is True
           assert report['untouched_historical_dates'] is False
           assert report['execution_replication_is_not_independent_signal_replication'] is True
-          assert report['authoritative_v62_report_sha256'] == '7763dfbb68441e496ee638e23e7bd2650bf433a0d63a332d3b02c94709b60d7e'
-          assert len(report['v62_artifact_fingerprint_correction_sha256']) == 64
+          assert len(report['semantic_dependency_protocol_sha256']) == 64
+          for name, evidence in report['dependency_evidence'].items():
+              assert evidence['semantic_fingerprint'] == semantic.EXPECTED_SEMANTIC[name]
+              assert evidence['artifact_whole_report_sha256'] == semantic.ARTIFACT_REPORT_SHA[name]
+              assert len(evidence['observed_whole_report_sha256']) == 64
           print(json.dumps({
               'status': report['status'],
               'conservative': report['conservative'],
@@ -128,7 +148,7 @@ jobs:
               'source_specific_bootstrap': report['source_specific_bootstrap'],
               'deflated_sharpe': report['deflated_sharpe'],
               'rank_stability': report['rank_stability'],
-              'authoritative_v62_report_sha256': report['authoritative_v62_report_sha256'],
+              'dependency_evidence': report['dependency_evidence'],
               'report_sha256': report['report_sha256'],
           }, indent=2, sort_keys=True))
           PY
