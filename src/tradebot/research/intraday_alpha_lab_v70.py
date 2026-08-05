@@ -83,10 +83,10 @@ def validate_target(target: Mapping[str, float]) -> None:
         raise ValueError(f"unsupported assets: {sorted(unknown)}")
     if any(float(weight) < 0.0 for weight in target.values()):
         raise ValueError("short exposure is forbidden")
-    if any(float(weight) > MAX_ASSET_EXPOSURE + 1e-12 for weight in target.values()):
-        raise ValueError("single-asset exposure cap exceeded")
     if sum(float(weight) for weight in target.values()) > MAX_TOTAL_EXPOSURE + 1e-12:
         raise ValueError("aggregate exposure cap exceeded")
+    if any(float(weight) > MAX_ASSET_EXPOSURE + 1e-12 for weight in target.values()):
+        raise ValueError("single-asset exposure cap exceeded")
 
 
 def lower_bound_trade_is_eligible(lower_bound_edge_bps: float) -> bool:
