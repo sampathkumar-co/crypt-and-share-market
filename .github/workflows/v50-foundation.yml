@@ -1,0 +1,81 @@
+name: v5.0 Adaptive Edge Foundry Foundation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V50_ADAPTIVE_EDGE_FOUNDRY_PROTOCOL.md"
+      - "src/tradebot/v5/**"
+      - "tests/test_v50_foundation.py"
+      - ".github/workflows/v50-foundation.yml"
+  push:
+    branches:
+      - "research/v50-adaptive-edge-foundry"
+    paths:
+      - "research/V50_ADAPTIVE_EDGE_FOUNDRY_PROTOCOL.md"
+      - "src/tradebot/v5/**"
+      - "tests/test_v50_foundation.py"
+      - ".github/workflows/v50-foundation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-foundation:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile v5 foundation
+        run: python -m py_compile src/tradebot/v5/__init__.py src/tradebot/v5/evidence.py src/tradebot/v5/validation.py
+      - name: Run v5 foundation tests
+        run: python -m pytest -q tests/test_v50_foundation.py
+      - name: Run complete repository suite
+        run: python -m pytest -q
+      - name: Enforce paper-only boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("src/tradebot/v5")
+          text = "\n".join(path.read_text() for path in root.rglob("*.py"))
+          lowered = text.lower()
+          forbidden = (
+              "create_order",
+              "place_order",
+              "private_key",
+              "api_secret",
+              "withdraw",
+              "authorizes_trading = true",
+              'authorizes_trading": true',
+          )
+          for token in forbidden:
+              assert token not in lowered, token
+          assert "AUTHORISES_TRADING = False" in Path("src/tradebot/v5/__init__.py").read_text()
+          PY
+      - name: Verify protected evidence paths are untouched
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          base = subprocess.check_output(["git", "merge-base", "HEAD", "origin/main"], text=True).strip()
+          changed = subprocess.check_output(["git", "diff", "--name-only", base, "HEAD"], text=True).splitlines()
+          protected = (
+              "data/forward-alpha-v23/",
+              "data/forward-alpha-v25/",
+              "data/forward-yield-trend-v33/",
+              "research/experiment_ledger.json",
+          )
+          violations = [path for path in changed if path == protected[-1] or path.startswith(protected[:-1])]
+          assert not violations, f"protected evidence modified: {violations}"
+          PY
