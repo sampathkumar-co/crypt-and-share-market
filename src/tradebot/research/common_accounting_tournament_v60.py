@@ -3,19 +3,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping
 
 from tradebot.research.forward_alpha_v25 import canonical_json
 
 
-# Current authoritative reports persisted on historical-results/v312 and v32.
 EXPECTED_V312_SHA256 = "97ed3fc670ac881f9988fe7ac0cbf55afaec12f533a53fa08610a9a49a3ab300"
 EXPECTED_V32_SHA256 = "56811014301e348c3e34e71d4841ceb205d56c061a81e49d8645c3fbf6583e0e"
-# v3.2 was frozen against the original v3.1.2 report before the cash-transport
-# resilience repair. The current v3.1.2 report preserves identical economic
-# outputs while recording the repaired public-source transport metadata.
 EXPECTED_V312_DEPENDENCY_SHA256 = (
     "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
 )
@@ -64,6 +60,7 @@ class ConservativeChampionEvidence:
     source_report_sha256: Mapping[str, str]
     delayed_execution_return: float | None = None
     maximum_positive_trade_share: float | None = None
+    robustness_report_sha256: str | None = None
 
 
 def _validate_report_sha(report: Mapping[str, Any], expected: str, name: str) -> None:
@@ -83,6 +80,23 @@ def _validate_report_sha(report: Mapping[str, Any], expected: str, name: str) ->
         )
 
 
+def _validate_self_hashed_report(
+    report: Mapping[str, Any], name: str
+) -> str:
+    if report.get("paper_only") is not True:
+        raise TournamentV60Error(f"{name} is not paper-only")
+    if report.get("authorizes_trading") is not False:
+        raise TournamentV60Error(f"{name} authorizes trading")
+    if report.get("authorizes_continuous_paper") is not False:
+        raise TournamentV60Error(f"{name} authorizes continuous paper")
+    payload = dict(report)
+    claimed = str(payload.pop("report_sha256", ""))
+    computed = hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+    if claimed != computed:
+        raise TournamentV60Error(f"{name} report hash does not match contents")
+    return claimed
+
+
 def _annualize(compounded_return: float, years: int) -> float:
     if years <= 0 or compounded_return <= -1.0:
         raise TournamentV60Error("invalid annualization inputs")
@@ -100,9 +114,45 @@ def _minimum_windows(
     }
 
 
+def _apply_robustness(
+    evidence: ConservativeChampionEvidence,
+    robustness: Mapping[str, Any] | None,
+) -> ConservativeChampionEvidence:
+    if robustness is None:
+        return evidence
+    digest = _validate_self_hashed_report(robustness, "v6.0.1 robustness")
+    expected_sources = {
+        "binance": EXPECTED_V312_SHA256,
+        "coinbase": EXPECTED_V32_SHA256,
+        "original_binance_dependency": EXPECTED_V312_DEPENDENCY_SHA256,
+    }
+    if robustness.get("source_reports") != expected_sources:
+        raise TournamentV60Error("robustness source-report lineage changed")
+    conservative = robustness.get("conservative")
+    if not isinstance(conservative, Mapping):
+        raise TournamentV60Error("robustness conservative evidence is missing")
+    delayed = float(conservative["delayed_excess_over_cash"])
+    concentration = float(
+        conservative["maximum_positive_decision_interval_share"]
+    )
+    if bool(conservative.get("delay_gate_passed")) != (delayed > 0.0):
+        raise TournamentV60Error("robustness delay gate is inconsistent")
+    if bool(conservative.get("trade_concentration_gate_passed")) != (
+        concentration <= 0.20
+    ):
+        raise TournamentV60Error("robustness concentration gate is inconsistent")
+    return replace(
+        evidence,
+        delayed_execution_return=delayed,
+        maximum_positive_trade_share=concentration,
+        robustness_report_sha256=digest,
+    )
+
+
 def build_conservative_champion(
     v312_report: Mapping[str, Any],
     v32_report: Mapping[str, Any],
+    robustness_report: Mapping[str, Any] | None = None,
 ) -> ConservativeChampionEvidence:
     _validate_report_sha(v312_report, EXPECTED_V312_SHA256, "v3.1.2")
     _validate_report_sha(v32_report, EXPECTED_V32_SHA256, "v3.2")
@@ -141,7 +191,7 @@ def build_conservative_champion(
     years = len(standard_windows)
     annualized_standard = _annualize(standard, years)
     annualized_cash = _annualize(cash, years)
-    return ConservativeChampionEvidence(
+    evidence = ConservativeChampionEvidence(
         strategy_id="v3.1.2-v3.2-yield-trend",
         years=years,
         standard_return=standard,
@@ -170,6 +220,7 @@ def build_conservative_champion(
             "coinbase_current": EXPECTED_V32_SHA256,
         },
     )
+    return _apply_robustness(evidence, robustness_report)
 
 
 def evaluate_material_gates(
@@ -210,8 +261,11 @@ def evaluate_material_gates(
 def build_report(
     v312_report: Mapping[str, Any],
     v32_report: Mapping[str, Any],
+    robustness_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    champion = build_conservative_champion(v312_report, v32_report)
+    champion = build_conservative_champion(
+        v312_report, v32_report, robustness_report
+    )
     gates = evaluate_material_gates(champion)
     missing = [name for name, value in asdict(gates).items() if not value]
     status = "STATISTICAL_GATES_PENDING" if gates.passed else "MATERIAL_GATES_FAILED"
@@ -248,11 +302,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run v6 conservative champion screen")
     parser.add_argument("--v312-json", type=Path, required=True)
     parser.add_argument("--v32-json", type=Path, required=True)
+    parser.add_argument("--robustness-json", type=Path, required=True)
     parser.add_argument("--json-out", type=Path, required=True)
     args = parser.parse_args(argv)
     report = build_report(
         json.loads(args.v312_json.read_text(encoding="utf-8")),
         json.loads(args.v32_json.read_text(encoding="utf-8")),
+        json.loads(args.robustness_json.read_text(encoding="utf-8")),
     )
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(
