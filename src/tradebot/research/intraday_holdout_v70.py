@@ -16,13 +16,14 @@ from tradebot.research.intraday_selection_v70 import (
 )
 
 
-HOLDOUT_RESULT_SCHEMA_VERSION = "7.0-sealed-holdout-result-v1"
+HOLDOUT_RESULT_SCHEMA_VERSION = "7.0-sealed-holdout-result-v2"
 REQUIRED_SOURCES = frozenset(("binance", "coinbase"))
 
 
 @dataclass(frozen=True)
 class HoldoutAction:
     action_id: str
+    sequence_index: int
     source: str
     standard_excess_return: float
     stress_excess_return: float
@@ -73,7 +74,10 @@ def _maximum_drawdown(values: Sequence[float]) -> float:
     peak = 1.0
     maximum = 0.0
     for value in values:
-        wealth *= 1.0 + float(value)
+        number = float(value)
+        if not math.isfinite(number) or number <= -1.0:
+            raise ValueError("holdout returns must be finite and greater than -100%")
+        wealth *= 1.0 + number
         peak = max(peak, wealth)
         maximum = max(maximum, (peak - wealth) / peak)
     return maximum
@@ -103,6 +107,8 @@ def evaluate_single_sealed_holdout(
     action_ids = [item.action_id for item in actions]
     if any(not value.strip() for value in action_ids) or len(action_ids) != len(set(action_ids)):
         raise ValueError("holdout action identifiers must be non-empty and unique")
+    if any(type(item.sequence_index) is not int or item.sequence_index < 0 for item in actions):
+        raise ValueError("holdout sequence indices must be non-negative integers")
     sources = {item.source for item in actions}
     if sources != REQUIRED_SOURCES:
         raise ValueError("holdout requires exactly Binance and Coinbase observations")
@@ -112,34 +118,53 @@ def evaluate_single_sealed_holdout(
     if len(set(counts.values())) != 1:
         raise ValueError("independent sources must contain equal action counts")
 
+    logical_sets: dict[str, set[str]] = {}
+    sequence_maps: dict[str, dict[str, int]] = {}
     for source, items in by_source.items():
-        source_ids = [item.action_id.split(":", 1)[-1] for item in items]
-        if len(source_ids) != len(set(source_ids)):
+        logical_ids = [item.action_id.split(":", 1)[-1] for item in items]
+        if len(logical_ids) != len(set(logical_ids)):
             raise ValueError(f"duplicate logical action in {source} holdout evidence")
-    logical_sets = {
-        source: {item.action_id.split(":", 1)[-1] for item in items}
-        for source, items in by_source.items()
-    }
+        sequence_indices = [item.sequence_index for item in items]
+        if len(sequence_indices) != len(set(sequence_indices)):
+            raise ValueError(f"duplicate sequence index in {source} holdout evidence")
+        logical_sets[source] = set(logical_ids)
+        sequence_maps[source] = {
+            item.action_id.split(":", 1)[-1]: item.sequence_index for item in items
+        }
     if len({frozenset(values) for values in logical_sets.values()}) != 1:
         raise ValueError("independent sources must cover identical logical actions")
+    if sequence_maps["binance"] != sequence_maps["coinbase"]:
+        raise ValueError("independent sources must agree on action chronology")
 
-    ordered = sorted(actions, key=lambda item: (item.action_id.split(":", 1)[-1], item.source))
-    standard = [item.standard_excess_return for item in ordered]
-    stress = [item.stress_excess_return for item in ordered]
-    delayed = [item.delayed_stress_excess_return for item in ordered]
-    standard_compounded = _compound(standard)
-    stress_compounded = _compound(stress)
-    delayed_compounded = _compound(delayed)
-    maximum_drawdown = _maximum_drawdown(stress)
-
+    ordered_by_source = {
+        source: sorted(items, key=lambda item: item.sequence_index)
+        for source, items in by_source.items()
+    }
+    source_standard = {
+        source: _compound([item.standard_excess_return for item in items])
+        for source, items in ordered_by_source.items()
+    }
     source_stress = {
         source: _compound([item.stress_excess_return for item in items])
-        for source, items in by_source.items()
+        for source, items in ordered_by_source.items()
     }
     source_delayed = {
         source: _compound([item.delayed_stress_excess_return for item in items])
-        for source, items in by_source.items()
+        for source, items in ordered_by_source.items()
     }
+    source_drawdown = {
+        source: _maximum_drawdown([item.stress_excess_return for item in items])
+        for source, items in ordered_by_source.items()
+    }
+
+    # Binance and Coinbase are independent replications of one logical paper path,
+    # not two simultaneously traded portfolios. Report the conservative source
+    # result rather than compounding both sources together.
+    standard_compounded = min(source_standard.values())
+    stress_compounded = min(source_stress.values())
+    delayed_compounded = min(source_delayed.values())
+    maximum_drawdown = max(source_drawdown.values())
+
     logical_target_changes: dict[str, bool] = {}
     for item in actions:
         logical_id = item.action_id.split(":", 1)[-1]
