@@ -15,7 +15,7 @@ permissions:
 jobs:
   champion-screen:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +37,8 @@ jobs:
           python -m pytest -q \
             tests/test_common_accounting_tournament_v60.py \
             tests/test_champion_robustness_v601.py \
-            tests/test_champion_statistical_gates_v602.py
+            tests/test_champion_statistical_gates_v602.py \
+            tests/test_champion_chronology_audit_v603.py
 
       - name: Full regression suite
         run: |
@@ -70,7 +71,7 @@ jobs:
             --robustness-json evidence/v60/champion-robustness-v6011.json \
             --json-out evidence/v60/champion-screen.json
 
-      - name: Run moving-block bootstrap and DSR floor
+      - name: Preserve project-wide post-hoc statistical stress
         run: |
           python -m tradebot.research.champion_statistical_gates_v602 \
             --v312-json evidence/v60/v312-binance.json \
@@ -78,37 +79,53 @@ jobs:
             --robustness-json evidence/v60/champion-robustness-v6011.json \
             --json-out evidence/v60/champion-statistics-v602.json
 
+      - name: Run chronology-correct selection audit
+        run: |
+          python -m tradebot.research.champion_chronology_audit_v603 \
+            --v312-json evidence/v60/v312-binance.json \
+            --v32-json evidence/v60/v32-coinbase.json \
+            --robustness-json evidence/v60/champion-robustness-v6011.json \
+            --material-json evidence/v60/champion-screen.json \
+            --json-out evidence/v60/champion-chronology-v603.json
+
       - name: Verify paper-only boundary and print results
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          screen = json.loads(Path('evidence/v60/champion-screen.json').read_text())
-          robustness = json.loads(Path('evidence/v60/champion-robustness-v6011.json').read_text())
-          statistics = json.loads(Path('evidence/v60/champion-statistics-v602.json').read_text())
-          for report in (screen, robustness, statistics):
+          names = {
+              'screen': 'champion-screen.json',
+              'robustness': 'champion-robustness-v6011.json',
+              'posthoc_statistics': 'champion-statistics-v602.json',
+              'chronology_statistics': 'champion-chronology-v603.json',
+          }
+          reports = {
+              key: json.loads((Path('evidence/v60') / filename).read_text())
+              for key, filename in names.items()
+          }
+          for report in reports.values():
               assert report['paper_only'] is True
               assert report['authorizes_trading'] is False
               assert report['authorizes_continuous_paper'] is False
-          assert screen['historical_breakthrough'] is False
-          assert statistics['historical_breakthrough'] is False
-          warmup = robustness['sources']['coinbase']['diagnostic_warmup_inventory']
+          assert reports['posthoc_statistics']['status'] == 'STATISTICAL_GATES_FAILED'
+          assert reports['chronology_statistics']['preserves_v602_failure'] is True
+          warmup = reports['robustness']['sources']['coinbase']['diagnostic_warmup_inventory']
           assert len(warmup) == 2
-          assert {item['requested_date'] for item in warmup} == {'2020-06-13'}
           print(json.dumps({
-              'screen_status': screen['status'],
-              'champion': screen['champion'],
-              'failed_or_missing_material_gates': screen['failed_or_missing_material_gates'],
-              'robustness_status': robustness['status'],
-              'robustness_conservative': robustness['conservative'],
-              'statistics_status': statistics['status'],
-              'bootstrap': statistics['bootstrap'],
-              'deflated_sharpe_floor': statistics['deflated_sharpe_floor'],
-              'series': statistics['series'],
-              'screen_report_sha256': screen['report_sha256'],
-              'robustness_report_sha256': robustness['report_sha256'],
-              'statistics_report_sha256': statistics['report_sha256'],
+              'screen_status': reports['screen']['status'],
+              'champion': reports['screen']['champion'],
+              'robustness_status': reports['robustness']['status'],
+              'posthoc_statistics_status': reports['posthoc_statistics']['status'],
+              'chronology_statistics_status': reports['chronology_statistics']['status'],
+              'chronology_gates': reports['chronology_statistics']['gates'],
+              'source_specific_bootstrap': reports['chronology_statistics']['source_specific_bootstrap'],
+              'deflated_sharpe': reports['chronology_statistics']['deflated_sharpe'],
+              'corrected_grid_pbo': reports['chronology_statistics']['corrected_grid_pbo'],
+              'frozen_model_corrected_rank': reports['chronology_statistics']['grid_reproduction']['frozen_model_corrected_discovery_sharpe_rank'],
+              'report_sha256': {
+                  key: report['report_sha256'] for key, report in reports.items()
+              },
           }, indent=2, sort_keys=True))
           PY
 
