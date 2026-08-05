@@ -1,0 +1,126 @@
+name: v6.2 Consensus Shrunk Ensemble
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v62-consensus-shrunk-ensemble
+  pull_request:
+    branches:
+      - research/v61-parameter-neighborhood-ensemble
+
+permissions:
+  contents: read
+
+jobs:
+  consensus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 210
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Focused tests
+        run: |
+          python -m pytest -q \
+            tests/test_consensus_shrunk_ensemble_v62.py \
+            tests/test_parameter_neighborhood_ensemble_v61.py \
+            tests/test_champion_chronology_audit_v603.py
+
+      - name: Full regression suite
+        run: python -m pytest -q
+
+      - name: Reproduce frozen source reports
+        run: |
+          mkdir -p evidence/v62
+          python -m tradebot.research.historical_yield_trend_integrity_v312 \
+            --json-out evidence/v62/v312-binance.json \
+            --max-workers 16
+          python -m tradebot.research.historical_coinbase_replication_v32 \
+            --json-out evidence/v62/v32-coinbase.json
+
+      - name: Reproduce v6.0 dependencies
+        run: |
+          python -m tradebot.research.champion_robustness_v6011 \
+            --v312-json evidence/v62/v312-binance.json \
+            --v32-json evidence/v62/v32-coinbase.json \
+            --json-out evidence/v62/champion-robustness-v6011.json
+          python -m tradebot.research.common_accounting_tournament_v60 \
+            --v312-json evidence/v62/v312-binance.json \
+            --v32-json evidence/v62/v32-coinbase.json \
+            --robustness-json evidence/v62/champion-robustness-v6011.json \
+            --json-out evidence/v62/champion-screen.json
+          python -m tradebot.research.champion_chronology_audit_v603 \
+            --v312-json evidence/v62/v312-binance.json \
+            --v32-json evidence/v62/v32-coinbase.json \
+            --robustness-json evidence/v62/champion-robustness-v6011.json \
+            --material-json evidence/v62/champion-screen.json \
+            --json-out evidence/v62/champion-chronology-v603.json
+
+      - name: Reproduce rejected v6.1 dependency
+        run: |
+          python -m tradebot.research.parameter_neighborhood_ensemble_v611 \
+            --v312-json evidence/v62/v312-binance.json \
+            --v32-json evidence/v62/v32-coinbase.json \
+            --v603-json evidence/v62/champion-chronology-v603.json \
+            --json-out evidence/v62/ensemble-v61.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('evidence/v62/ensemble-v61.json').read_text())
+          assert report['status'] == 'ENSEMBLE_REJECTED'
+          assert report['report_sha256'] == 'b6f5e75957cf31f26d7ebe2d1f341d67901dd4dfb3ad3d3f6b10a4be3fe34692'
+          PY
+
+      - name: Run parameter-free consensus shrink
+        run: |
+          python -m tradebot.research.consensus_shrunk_ensemble_v62 \
+            --v312-json evidence/v62/v312-binance.json \
+            --v32-json evidence/v62/v32-coinbase.json \
+            --v603-json evidence/v62/champion-chronology-v603.json \
+            --v61-json evidence/v62/ensemble-v61.json \
+            --json-out evidence/v62/consensus-v62.json
+
+      - name: Verify boundary and print result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('evidence/v62/consensus-v62.json').read_text())
+          assert report['paper_only'] is True
+          assert report['authorizes_trading'] is False
+          assert report['authorizes_continuous_paper'] is False
+          assert report['retrospective_dates_exposed'] is True
+          assert report['untouched_historical_dates'] is False
+          assert report['preserves_v61_rejection'] is True
+          print(json.dumps({
+              'status': report['status'],
+              'conservative': report['conservative'],
+              'material_gates': report['material_gates'],
+              'statistical_gates': report['statistical_gates'],
+              'source_specific_bootstrap': report['source_specific_bootstrap'],
+              'deflated_sharpe': report['deflated_sharpe'],
+              'rank_stability': report['rank_stability'],
+              'report_sha256': report['report_sha256'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v62-consensus-${{ github.run_id }}
+          path: evidence/v62
+          if-no-files-found: error
+          retention-days: 90
