@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - "research/V70_INTRADAY_ALPHA_LAB_PROTOCOL.md"
-      - "src/tradebot/research/intraday_alpha_lab_v70.py"
-      - "tests/test_intraday_alpha_lab_v70.py"
+      - "src/tradebot/research/intraday_*_v70.py"
+      - "tests/test_intraday_*_v70.py"
       - ".github/workflows/v70-intraday-alpha-lab.yml"
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
       - name: Compile source
         run: python -m compileall -q src
       - name: Focused v7 tests
-        run: python -m pytest -q tests/test_intraday_alpha_lab_v70.py
+        run: python -m pytest -q tests/test_intraday_alpha_lab_v70.py tests/test_intraday_signal_engine_v70.py
       - name: Full regression suite
         run: python -m pytest -q
       - name: Protect existing evidence
