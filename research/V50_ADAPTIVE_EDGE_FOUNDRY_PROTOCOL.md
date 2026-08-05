@@ -25,6 +25,7 @@ Profit is never assumed. Cash is an explicit competing allocation. No component 
 5. Champion-challenger promotion gates.
 6. Append-only forward prediction sealing.
 7. Fail-closed data, uncertainty, drift, and drawdown governors.
+8. Permanent trial counting, consumed-interval protection, Deflated Sharpe, minimum track-record length, and CSCV Probability of Backtest Overfitting.
 
 ## Initial alpha hypothesis
 
@@ -54,23 +55,26 @@ A challenger may become a historical candidate only if all are true:
 6. No single trade contributes more than 20% of total positive profit.
 7. No single window contributes more than 50% of total positive profit.
 8. Results survive doubled costs and one-decision execution delay.
-9. Bootstrap confidence and multiple-testing controls pass.
-10. The frozen implementation reproduces on an independent source.
+9. Bootstrap confidence passes.
+10. Deflated Sharpe probability is at least 0.95 using the permanent count of all attempted configurations.
+11. CSCV Probability of Backtest Overfitting is no more than 0.20 for the candidate family tournament.
+12. The available observation count is at least the calculated 95% minimum track-record length.
+13. The frozen implementation reproduces on an independent source.
 
 Passing this gate does not authorize trading or continuous paper.
 
 ## Forward promotion gate
 
-Promotion requires at least six months of sealed, append-only forward evidence with no unresolved continuity gaps, positive stress-cost net P&L, acceptable drawdown, adequate decisions, stable calibration, broad contribution, and no safety violations.
+Promotion requires whichever occurs later: 365 contiguous sealed daily observations or 30 independent target-changing actions. The complete interval must have no unresolved continuity gap, positive standard- and stress-cost net P&L, positive performance in both chronological halves, acceptable drawdown, stable calibration, broad contribution, and no safety violation.
 
 ## Multiple-testing control
 
-Every attempted hypothesis is counted. Consumed untouched intervals remain permanently marked consumed. A candidate cannot be selected by repeatedly reopening the same test interval.
+Every attempted hypothesis, feature family, parameter grid, model configuration, and rejected experiment is counted. The registry is deterministic and append-only. Consumed untouched intervals remain permanently marked consumed and cannot be reused by a later candidate. Deflated Sharpe uses the complete trial count, not merely the number of finalists. CSCV/PBO is computed across aligned candidate return series before sealed evaluation. A candidate cannot be selected by repeatedly reopening the same test interval.
 
 ## Fail-closed conditions
 
-Force cash or reject evaluation when data is stale, incomplete, duplicated, conflicting, unavailable at decision time, outside trained support, materially shifted, or when uncertainty, disagreement, expected costs, drawdown, or execution anomalies exceed frozen limits.
+Force cash or reject evaluation when data is stale, incomplete, duplicated, conflicting, unavailable at decision time, outside trained support, materially shifted, or when uncertainty, disagreement, expected costs, drawdown, execution anomalies, multiple-testing confidence, or track-record sufficiency exceed frozen limits.
 
 ## v5 foundation milestone
 
-The first milestone is complete only when the immutable registry, purged splitter, tests, and CI paper-only contract are merged. No profitability claim may be made from that milestone.
+The first milestone is complete only when the immutable registry, purged splitter, multiple-testing controls, tests, and CI paper-only contract are merged. No profitability claim may be made from that milestone.
