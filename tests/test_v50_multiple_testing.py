@@ -42,10 +42,10 @@ def test_expected_maximum_sharpe_increases_with_trials() -> None:
 
 def test_deflated_sharpe_penalizes_more_trials() -> None:
     few_trials = deflated_sharpe_probability(
-        2.0, number_of_trials=2, observations=365, sharpe_std=0.25
+        0.5, number_of_trials=2, observations=365, sharpe_std=0.25
     )
     many_trials = deflated_sharpe_probability(
-        2.0, number_of_trials=1000, observations=365, sharpe_std=0.25
+        0.5, number_of_trials=1000, observations=365, sharpe_std=0.25
     )
     assert 0.0 <= many_trials < few_trials <= 1.0
 
