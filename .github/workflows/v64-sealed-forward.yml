@@ -1,0 +1,97 @@
+name: v6.4 Sealed Forward Foundation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v64-sealed-forward
+  pull_request:
+    branches:
+      - research/v63-dual-source-consensus
+
+permissions:
+  contents: read
+
+jobs:
+  verify-forward-contract:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile sealed forward implementation
+        run: python -m py_compile src/tradebot/research/sealed_forward_v64.py
+      - name: Focused prospective-boundary tests
+        run: python -m pytest -q tests/test_sealed_forward_v64.py
+      - name: Full repository regression suite
+        run: python -m pytest -q
+      - name: Verify frozen candidate and protocol boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tradebot.research import sealed_forward_v64 as forward
+
+          assert forward.CANDIDATE_REPORT_SHA256 == "53642b99bb659fa8eabc86474ebc205742670d731f0f3f2eca6be50275459f1a"
+          assert forward.FIRST_ELIGIBLE_DATE.isoformat() == "2026-08-06"
+          assert forward.MAXIMUM_CRYPTO_EXPOSURE == 0.10
+          assert forward.STANDARD_ROUND_TRIP_COST == 0.0020
+          assert forward.STRESS_ROUND_TRIP_COST == 0.0040
+          assert len(forward.protocol_sha256()) == 64
+
+          text = "\n".join(
+              path.read_text().lower()
+              for path in [
+                  Path("src/tradebot/research/sealed_forward_v64.py"),
+                  Path("research/V64_SEALED_FORWARD_PROTOCOL.md"),
+              ]
+          )
+          forbidden = (
+              "create_order",
+              "place_order",
+              "submit_order",
+              "private_key",
+              "api_secret",
+              "wallet_seed",
+              "withdraw",
+              "authorizes_trading=true",
+          )
+          violations = [token for token in forbidden if token in text]
+          assert not violations, violations
+          PY
+      - name: Protected evidence remains untouched
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          base = subprocess.check_output(
+              ["git", "merge-base", "HEAD", "origin/research/v63-dual-source-consensus"],
+              text=True,
+          ).strip()
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", base, "HEAD"], text=True
+          ).splitlines()
+          protected = (
+              "data/forward-alpha-v23/",
+              "data/forward-alpha-v25/",
+              "data/forward-yield-trend-v33/",
+              "data/forward-v63/",
+              "research/experiment_ledger.json",
+          )
+          violations = [
+              path for path in changed
+              if path == protected[-1] or path.startswith(protected[:-1])
+          ]
+          assert not violations, f"protected evidence modified: {violations}"
+          PY
