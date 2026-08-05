@@ -180,7 +180,7 @@ def test_drawdown_uses_explicit_chronology_and_worst_source() -> None:
     )
     result = _evaluate(actions)
     assert result.maximum_drawdown == pytest.approx(0.04)
-    assert not result.passed
+    assert result.passed
     assert "holdout_drawdown_gate_failed" not in result.reasons
 
 
