@@ -43,6 +43,7 @@ def _actions(value: float = 0.002) -> tuple[HoldoutAction, ...]:
             rows.append(
                 HoldoutAction(
                     action_id=f"{source}:action-{index}",
+                    sequence_index=index,
                     source=source,
                     standard_excess_return=value + 0.001,
                     stress_excess_return=value,
@@ -53,15 +54,19 @@ def _actions(value: float = 0.002) -> tuple[HoldoutAction, ...]:
     return tuple(rows)
 
 
-def test_evaluates_one_frozen_holdout_without_authorizing_trading() -> None:
+def _evaluate(actions: tuple[HoldoutAction, ...]):
     manifest = _manifest()
     release = _release(manifest)
-    result = evaluate_single_sealed_holdout(
+    return evaluate_single_sealed_holdout(
         manifest,
         release,
-        _actions(),
+        actions,
         expected_release_fingerprint=holdout_release_fingerprint(release),
     )
+
+
+def test_evaluates_one_frozen_holdout_without_authorizing_trading() -> None:
+    result = _evaluate(_actions())
     assert result.passed
     assert result.target_changing_actions == 2
     assert set(result.source_action_counts) == {"binance", "coinbase"}
@@ -102,28 +107,19 @@ def test_requires_exact_independent_source_alignment() -> None:
 
 
 def test_negative_replication_fails_closed() -> None:
-    manifest = _manifest()
-    release = _release(manifest)
     actions = tuple(
         replace(item, stress_excess_return=-0.01, delayed_stress_excess_return=-0.01)
         if item.source == "coinbase"
         else item
         for item in _actions()
     )
-    result = evaluate_single_sealed_holdout(
-        manifest,
-        release,
-        actions,
-        expected_release_fingerprint=holdout_release_fingerprint(release),
-    )
+    result = _evaluate(actions)
     assert not result.passed
     assert "holdout_independent_source_stress_failed" in result.reasons
     assert "holdout_independent_source_delay_failed" in result.reasons
 
 
 def test_source_disagreement_on_target_change_is_rejected() -> None:
-    manifest = _manifest()
-    release = _release(manifest)
     actions = tuple(
         replace(item, target_changed=False)
         if item.action_id == "coinbase:action-1"
@@ -131,22 +127,64 @@ def test_source_disagreement_on_target_change_is_rejected() -> None:
         for item in _actions()
     )
     with pytest.raises(ValueError, match="disagree on target-changing"):
-        evaluate_single_sealed_holdout(
-            manifest,
-            release,
-            actions,
-            expected_release_fingerprint=holdout_release_fingerprint(release),
+        _evaluate(actions)
+
+
+def test_source_chronology_disagreement_is_rejected() -> None:
+    actions = tuple(
+        replace(item, sequence_index=2)
+        if item.action_id == "coinbase:action-1"
+        else replace(item, sequence_index=1)
+        if item.action_id == "coinbase:action-2"
+        else item
+        for item in _actions()
+    )
+    with pytest.raises(ValueError, match="agree on action chronology"):
+        _evaluate(actions)
+
+
+def test_independent_sources_are_not_double_compounded() -> None:
+    result = _evaluate(_actions(value=0.01))
+    expected_one_source = (1.01**3) - 1.0
+    double_counted = (1.01**6) - 1.0
+    assert result.stress_compounded_excess == pytest.approx(expected_one_source)
+    assert result.stress_compounded_excess != pytest.approx(double_counted)
+
+
+def test_reported_result_uses_conservative_source_path() -> None:
+    actions = tuple(
+        replace(
+            item,
+            standard_excess_return=0.002,
+            stress_excess_return=0.001,
+            delayed_stress_excess_return=0.0005,
         )
+        if item.source == "coinbase"
+        else item
+        for item in _actions(value=0.01)
+    )
+    result = _evaluate(actions)
+    assert result.standard_compounded_excess == pytest.approx((1.002**3) - 1.0)
+    assert result.stress_compounded_excess == pytest.approx((1.001**3) - 1.0)
+    assert result.delayed_stress_compounded_excess == pytest.approx((1.0005**3) - 1.0)
+
+
+def test_drawdown_uses_explicit_chronology_and_worst_source() -> None:
+    actions = tuple(
+        replace(item, stress_excess_return=-0.04)
+        if item.source == "coinbase" and item.sequence_index == 1
+        else replace(item, stress_excess_return=0.05)
+        if item.source == "coinbase"
+        else item
+        for item in _actions()
+    )
+    result = _evaluate(actions)
+    assert result.maximum_drawdown == pytest.approx(0.04)
+    assert not result.passed
+    assert "holdout_drawdown_gate_failed" not in result.reasons
 
 
 def test_non_authorizing_invariant_fails_closed() -> None:
-    manifest = _manifest()
-    release = _release(manifest)
-    result = evaluate_single_sealed_holdout(
-        manifest,
-        release,
-        _actions(),
-        expected_release_fingerprint=holdout_release_fingerprint(release),
-    )
+    result = _evaluate(_actions())
     with pytest.raises(ValueError, match="paper-only"):
         verify_holdout_result_is_non_authorizing(replace(result, authorizes_trading=True))
