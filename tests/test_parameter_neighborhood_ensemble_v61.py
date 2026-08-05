@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from tradebot.research import historical_proxy_screen_v25 as v25
 from tradebot.research import historical_yield_trend_v31 as v31
-from tradebot.research import parameter_neighborhood_ensemble_v61 as v61
+from tradebot.research import parameter_neighborhood_ensemble_v611 as v61
 
 
 def _feature() -> v31.Features:
@@ -47,14 +47,19 @@ def test_frozen_member_set_is_complete_neighborhood():
     assert {model.maximum_exposure for model in v61.MEMBERS} == {0.10}
 
 
-def test_identical_member_targets_reproduce_single_target(monkeypatch):
+def test_identical_member_targets_preserve_natural_drift_without_daily_rebalance(monkeypatch):
     base = datetime(2025, 1, 1, tzinfo=timezone.utc)
     dates = [base + timedelta(days=index) for index in range(6)]
     bars = {
-        "BTC": {day: _bar(day, 100.0 + 10.0 * index) for index, day in enumerate(dates)},
+        "BTC": {
+            day: _bar(day, 100.0 + 10.0 * index)
+            for index, day in enumerate(dates)
+        },
         "ETH": {day: _bar(day, 100.0) for day in dates},
     }
-    features = {day: {"BTC": _feature(), "ETH": _feature()} for day in dates}
+    features = {
+        day: {"BTC": _feature(), "ETH": _feature()} for day in dates
+    }
     cash = {day: 0.0 for day in dates}
 
     def target(_model, _features, _selected, _sleeve, age):
@@ -71,7 +76,8 @@ def test_identical_member_targets_reproduce_single_target(monkeypatch):
         signal_lag_days=1,
     )
     assert result.net_return > 0.0
-    assert result.action_days >= 1
+    # Initial entry plus terminal liquidation; no hidden daily rebalances.
+    assert result.action_days == 2
     assert result.maximum_drawdown == 0.0
 
 
@@ -80,7 +86,9 @@ def test_conservative_summary_uses_worse_return_and_higher_risk():
         "standard": {
             "net_compounded_return": 0.30,
             "cash_compounded_return": 0.18,
-            "window_returns": {str(year): 0.05 for year in range(2021, 2026)},
+            "window_returns": {
+                str(year): 0.05 for year in range(2021, 2026)
+            },
             "action_days": 40,
             "maximum_drawdown": 0.02,
             "maximum_positive_interval_share": 0.10,
@@ -88,14 +96,23 @@ def test_conservative_summary_uses_worse_return_and_higher_risk():
         },
         "stress": {
             "net_compounded_return": 0.25,
-            "window_returns": {str(year): 0.04 for year in range(2021, 2026)},
+            "window_returns": {
+                str(year): 0.04 for year in range(2021, 2026)
+            },
         },
         "delayed": {"excess_compounded_return": 0.10},
     }
     other = {
         **template,
-        "standard": {**template["standard"], "net_compounded_return": 0.28, "maximum_drawdown": 0.03},
-        "stress": {**template["stress"], "net_compounded_return": 0.24},
+        "standard": {
+            **template["standard"],
+            "net_compounded_return": 0.28,
+            "maximum_drawdown": 0.03,
+        },
+        "stress": {
+            **template["stress"],
+            "net_compounded_return": 0.24,
+        },
         "delayed": {"excess_compounded_return": 0.08},
     }
     result = v61._conservative(template, other)
