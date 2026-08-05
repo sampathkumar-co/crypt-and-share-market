@@ -1,0 +1,84 @@
+name: v5.0 Adaptive Edge Foundry Complete Stack
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "research/V50_ADAPTIVE_EDGE_FOUNDRY_PROTOCOL.md"
+      - "src/tradebot/v5/**"
+      - "tests/test_v50_*.py"
+      - ".github/workflows/v50-*.yml"
+  push:
+    branches:
+      - "research/v50-adaptive-edge-foundry"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v5:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Compile complete v5 package
+        run: python -m compileall -q src/tradebot/v5
+      - name: Focused v5 tests
+        run: python -m pytest -q tests/test_v50_foundation.py tests/test_v50_stack.py
+      - name: Complete repository regression suite
+        run: python -m pytest -q
+      - name: Paper-only and secret boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          files = list(Path("src/tradebot/v5").rglob("*.py"))
+          text = "\n".join(path.read_text() for path in files).lower()
+          forbidden = (
+              "create_order",
+              "place_order",
+              "submit_order",
+              "private_key",
+              "api_secret",
+              "withdraw",
+              "wallet_seed",
+              'authorizes_trading": true',
+              "authorizes_trading = true",
+          )
+          violations = [token for token in forbidden if token in text]
+          assert not violations, violations
+          assert "authorises_trading = false" in Path("src/tradebot/v5/__init__.py").read_text().lower()
+          PY
+      - name: Protected evidence remains untouched
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          base = subprocess.check_output(["git", "merge-base", "HEAD", "origin/main"], text=True).strip()
+          changed = subprocess.check_output(["git", "diff", "--name-only", base, "HEAD"], text=True).splitlines()
+          protected_prefixes = (
+              "data/forward-alpha-v23/",
+              "data/forward-alpha-v25/",
+              "data/forward-yield-trend-v33/",
+          )
+          protected_files = {"research/experiment_ledger.json"}
+          violations = [
+              path for path in changed
+              if path in protected_files or path.startswith(protected_prefixes)
+          ]
+          assert not violations, f"protected evidence modified: {violations}"
+          PY
+      - name: Verify no live-trading dependencies were added
+        run: |
+          git diff --unified=0 origin/main...HEAD -- pyproject.toml | tee /tmp/pyproject.diff
+          ! grep -Eiq '(ccxt|web3|eth-account|binance-connector|coinbase-advanced-py)' /tmp/pyproject.diff
