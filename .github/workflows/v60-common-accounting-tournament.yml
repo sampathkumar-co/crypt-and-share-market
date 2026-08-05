@@ -56,17 +56,17 @@ jobs:
 
       - name: Run preregistered delay and concentration diagnostics
         run: |
-          python -m tradebot.research.champion_robustness_v601 \
+          python -m tradebot.research.champion_robustness_v6011 \
             --v312-json evidence/v60/v312-binance.json \
             --v32-json evidence/v60/v32-coinbase.json \
-            --json-out evidence/v60/champion-robustness-v601.json
+            --json-out evidence/v60/champion-robustness-v6011.json
 
       - name: Run conservative material-profit screen
         run: |
           python -m tradebot.research.common_accounting_tournament_v60 \
             --v312-json evidence/v60/v312-binance.json \
             --v32-json evidence/v60/v32-coinbase.json \
-            --robustness-json evidence/v60/champion-robustness-v601.json \
+            --robustness-json evidence/v60/champion-robustness-v6011.json \
             --json-out evidence/v60/champion-screen.json
 
       - name: Verify paper-only boundary and print results
@@ -76,18 +76,22 @@ jobs:
           from pathlib import Path
 
           screen = json.loads(Path('evidence/v60/champion-screen.json').read_text())
-          robustness = json.loads(Path('evidence/v60/champion-robustness-v601.json').read_text())
+          robustness = json.loads(Path('evidence/v60/champion-robustness-v6011.json').read_text())
           for report in (screen, robustness):
               assert report['paper_only'] is True
               assert report['authorizes_trading'] is False
               assert report['authorizes_continuous_paper'] is False
           assert screen['historical_breakthrough'] is False
+          warmup = robustness['sources']['coinbase']['diagnostic_warmup_inventory']
+          assert len(warmup) == 2
+          assert {item['requested_date'] for item in warmup} == {'2020-06-13'}
           print(json.dumps({
               'screen_status': screen['status'],
               'champion': screen['champion'],
               'failed_or_missing_material_gates': screen['failed_or_missing_material_gates'],
               'robustness_status': robustness['status'],
               'robustness_conservative': robustness['conservative'],
+              'coinbase_warmup': warmup,
               'screen_report_sha256': screen['report_sha256'],
               'robustness_report_sha256': robustness['report_sha256'],
           }, indent=2, sort_keys=True))
