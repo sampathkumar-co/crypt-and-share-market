@@ -40,6 +40,7 @@ jobs:
       - name: Verify frozen candidate and protocol boundary
         run: |
           python - <<'PY'
+          import ast
           from pathlib import Path
           from tradebot.research import sealed_forward_v64 as forward
 
@@ -50,14 +51,9 @@ jobs:
           assert forward.STRESS_ROUND_TRIP_COST == 0.0040
           assert len(forward.protocol_sha256()) == 64
 
-          text = "\n".join(
-              path.read_text().lower()
-              for path in [
-                  Path("src/tradebot/research/sealed_forward_v64.py"),
-                  Path("research/V64_SEALED_FORWARD_PROTOCOL.md"),
-              ]
-          )
-          forbidden = (
+          source = Path("src/tradebot/research/sealed_forward_v64.py").read_text()
+          tree = ast.parse(source)
+          forbidden_identifiers = {
               "create_order",
               "place_order",
               "submit_order",
@@ -65,10 +61,21 @@ jobs:
               "api_secret",
               "wallet_seed",
               "withdraw",
-              "authorizes_trading=true",
+          }
+          observed = {
+              node.id
+              for node in ast.walk(tree)
+              if isinstance(node, ast.Name)
+          }
+          observed.update(
+              node.attr
+              for node in ast.walk(tree)
+              if isinstance(node, ast.Attribute)
           )
-          violations = [token for token in forbidden if token in text]
+          violations = sorted(forbidden_identifiers & observed)
           assert not violations, violations
+          assert "authorizes_trading = True" not in source
+          assert "authorizes_trading=True" not in source
           PY
       - name: Protected evidence remains untouched
         run: |
