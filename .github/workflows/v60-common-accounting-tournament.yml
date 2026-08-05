@@ -34,7 +34,9 @@ jobs:
 
       - name: Focused tests
         run: |
-          python -m pytest -q tests/test_common_accounting_tournament_v60.py
+          python -m pytest -q \
+            tests/test_common_accounting_tournament_v60.py \
+            tests/test_champion_robustness_v601.py
 
       - name: Full regression suite
         run: |
@@ -52,19 +54,20 @@ jobs:
           python -m tradebot.research.historical_coinbase_replication_v32 \
             --json-out evidence/v60/v32-coinbase.json
 
-      - name: Run conservative material-profit screen
-        run: |
-          python -m tradebot.research.common_accounting_tournament_v60 \
-            --v312-json evidence/v60/v312-binance.json \
-            --v32-json evidence/v60/v32-coinbase.json \
-            --json-out evidence/v60/champion-screen.json
-
       - name: Run preregistered delay and concentration diagnostics
         run: |
           python -m tradebot.research.champion_robustness_v601 \
             --v312-json evidence/v60/v312-binance.json \
             --v32-json evidence/v60/v32-coinbase.json \
             --json-out evidence/v60/champion-robustness-v601.json
+
+      - name: Run conservative material-profit screen
+        run: |
+          python -m tradebot.research.common_accounting_tournament_v60 \
+            --v312-json evidence/v60/v312-binance.json \
+            --v32-json evidence/v60/v32-coinbase.json \
+            --robustness-json evidence/v60/champion-robustness-v601.json \
+            --json-out evidence/v60/champion-screen.json
 
       - name: Verify paper-only boundary and print results
         run: |
@@ -81,6 +84,7 @@ jobs:
           assert screen['historical_breakthrough'] is False
           print(json.dumps({
               'screen_status': screen['status'],
+              'champion': screen['champion'],
               'failed_or_missing_material_gates': screen['failed_or_missing_material_gates'],
               'robustness_status': robustness['status'],
               'robustness_conservative': robustness['conservative'],
