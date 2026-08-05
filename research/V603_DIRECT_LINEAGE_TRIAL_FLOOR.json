@@ -1,0 +1,52 @@
+{
+  "schema_version": "6.0.3-direct-lineage-trial-floor",
+  "paper_only": true,
+  "authorizes_trading": false,
+  "candidate_freeze_boundary": "v3.1 protocol before verification outcomes and before v3.2/v3.3",
+  "scope": "known direct daily-rotation lineage that causally preceded the v3.1 candidate",
+  "experiments": [
+    {
+      "version": "v2.8",
+      "pull_request": 72,
+      "family": "regime-adaptive-daily-rotation",
+      "attempted_configurations": 32,
+      "evidence": "PR preregistered exactly 32 finite models"
+    },
+    {
+      "version": "v2.9",
+      "pull_request": 73,
+      "family": "risk-scaled-trend-rotation",
+      "attempted_configurations": 64,
+      "evidence": "PR preregistered exactly 64 models"
+    },
+    {
+      "version": "v3.0",
+      "pull_request": 74,
+      "family": "monthly-trend-recovery-ensemble",
+      "attempted_configurations": 64,
+      "evidence": "PR preregistered exactly 64 models"
+    },
+    {
+      "version": "v3.1",
+      "pull_request": 75,
+      "family": "yield-bearing-cash-trend-overlay",
+      "attempted_configurations": 64,
+      "evidence": "PR and source grid preregistered exactly 64 models"
+    }
+  ],
+  "trial_count_floor": 224,
+  "excluded_as_non-selection_changes": [
+    "v3.1 transport retries",
+    "v3.1.1 exact H15 source fallback",
+    "v3.1.2 scheduled-execution integrity correction without reselection",
+    "v3.2 exact Coinbase replication without model selection",
+    "v3.3 forward observation protocol"
+  ],
+  "excluded_as_chronologically_later": [
+    "v4.x learned-model research",
+    "v5.2 100000-hypothesis funnel",
+    "v5.3-v5.6 replication and execution research",
+    "v6 post-hoc audits"
+  ],
+  "limitation": "This is a causally valid direct-lineage floor, not yet a complete registry of every unrelated pre-v3.1 experiment. Passing it cannot alone authorize promotion."
+}
