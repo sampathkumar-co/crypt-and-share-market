@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -15,6 +15,9 @@ COMMON_SOURCE_ADDENDUM_PATH = Path(
 )
 SIGNAL_LAG_ADDENDUM_PATH = Path(
     "research/V634_COMMON_SOURCE_SIGNAL_LAG_ADDENDUM.md"
+)
+WARMUP_ADDENDUM_PATH = Path(
+    "research/V635_COMMON_SOURCE_200D_WARMUP_ADDENDUM.md"
 )
 EXPECTED_SEMANTIC = {
     "v6.1": "5e0b6042dbdc1b74e0cb718f27a9fad30fb2051d70ac15f2363d40488598bb3f",
@@ -30,6 +33,10 @@ EXPECTED_STATUS = {
 }
 COMMON_SOURCE_DISCOVERY_START = datetime(2020, 7, 1, tzinfo=timezone.utc)
 COMMON_SOURCE_DISCOVERY_END = datetime(2020, 12, 31, tzinfo=timezone.utc)
+COMMON_SOURCE_WARMUP_START = COMMON_SOURCE_DISCOVERY_START - timedelta(
+    days=base.v31.WARMUP_DAYS
+)
+COMMON_SOURCE_WARMUP_END = base.robustness_warmup.v32.DATA_START - timedelta(days=1)
 _COMMON_QUARTERS = tuple(
     period
     for period in base.v31.DISCOVERY_PERIODS
@@ -46,6 +53,7 @@ COMMON_SOURCE_DISCOVERY_PERIODS = (
 )
 _ORIGINAL_BUILD_REPORT = base.build_report
 _OBSERVED_REPORT_SHA: dict[str, str] = {}
+_WARMUP_INVENTORY: list[dict[str, Any]] = []
 
 
 if not PROTOCOL_PATH.is_file():
@@ -59,6 +67,10 @@ if not COMMON_SOURCE_ADDENDUM_PATH.is_file():
 if not SIGNAL_LAG_ADDENDUM_PATH.is_file():
     raise base.DualSourceConsensusV63Error(
         "v6.3.4 common-source signal-lag addendum is missing"
+    )
+if not WARMUP_ADDENDUM_PATH.is_file():
+    raise base.DualSourceConsensusV63Error(
+        "v6.3.5 common-source 200-day warmup addendum is missing"
     )
 if tuple(period.name for period in _COMMON_QUARTERS) != (
     "2020-Q3",
@@ -74,6 +86,99 @@ if tuple(period.name for period in COMMON_SOURCE_DISCOVERY_PERIODS) != (
     raise base.DualSourceConsensusV63Error(
         "lag-safe common-source periods changed"
     )
+if COMMON_SOURCE_WARMUP_START != datetime(2019, 12, 14, tzinfo=timezone.utc):
+    raise base.DualSourceConsensusV63Error("common-source warmup start changed")
+
+
+def _normalized_bar_payload(asset: str, bar: Any) -> dict[str, Any]:
+    return {
+        "asset": asset,
+        "date": bar.hour.date().isoformat(),
+        "open": float(bar.open),
+        "high": float(bar.high),
+        "low": float(bar.low),
+        "close": float(bar.close),
+        "quote_volume": float(bar.quote_volume),
+        "taker_buy_quote_volume": float(bar.taker_buy_quote_volume),
+    }
+
+
+def _load_coinbase_with_common_source_warmup():
+    global _WARMUP_INVENTORY
+    v32 = base.robustness_warmup.v32
+    bars, _ = v32.download_coinbase_bars()
+    inventory: list[dict[str, Any]] = []
+    for asset in v32.ASSETS:
+        product = v32.PRODUCTS[asset]
+        for start, end in v32._request_ranges(
+            COMMON_SOURCE_WARMUP_START,
+            COMMON_SOURCE_WARMUP_END,
+        ):
+            url = v32._candle_url(product, start, end)
+            content, raw_digest = v32._download_json(url)
+            parsed = v32._parse_coinbase_candles(
+                content,
+                asset=asset,
+                requested_start=start,
+                requested_end=end,
+            )
+            expected = set(v32._days(start, end))
+            if set(parsed) != expected:
+                missing = sorted(expected - set(parsed))
+                raise base.DualSourceConsensusV63Error(
+                    f"Coinbase {asset} discovery warmup incomplete; "
+                    f"missing={len(missing)} first={missing[0].date() if missing else 'unknown'}"
+                )
+            for day, bar in parsed.items():
+                if day in bars[asset] and bars[asset][day] != bar:
+                    raise base.DualSourceConsensusV63Error(
+                        f"Coinbase {asset} discovery warmup conflicts at {day.date()}"
+                    )
+                bars[asset][day] = bar
+            normalized = [
+                _normalized_bar_payload(asset, parsed[day])
+                for day in sorted(parsed)
+            ]
+            inventory.append(
+                {
+                    "key": (
+                        f"coinbase-discovery-warmup:{asset}:"
+                        f"{start.date()}:{end.date()}"
+                    ),
+                    "provider": "coinbase-exchange-public-rest",
+                    "product": product,
+                    "requested_start": start.date().isoformat(),
+                    "requested_end": end.date().isoformat(),
+                    "url": url,
+                    "raw_sha256": raw_digest,
+                    "normalized_sha256": hashlib.sha256(
+                        canonical_json(normalized).encode("utf-8")
+                    ).hexdigest(),
+                    "rows": len(normalized),
+                }
+            )
+
+    dates = v32._days(COMMON_SOURCE_WARMUP_START, v32.EXIT_DATE)
+    for asset in v32.ASSETS:
+        missing = [day for day in dates if day not in bars[asset]]
+        if missing:
+            raise base.DualSourceConsensusV63Error(
+                f"Coinbase {asset} extended history missing {len(missing)} days; "
+                f"first={missing[0].date()}"
+            )
+    normalized_cash, _ = (
+        base.robustness_warmup.cash_transport.download_cash_series_with_resilience()
+    )
+    features = base.v31.build_features(bars, dates)
+    rates = base.robustness_warmup.cash_transport.parse_fred_rates(normalized_cash)
+    cash_returns = base.v31.build_daily_cash_returns(rates, dates)
+    required_feature_day = COMMON_SOURCE_DISCOVERY_START
+    if required_feature_day not in features:
+        raise base.DualSourceConsensusV63Error(
+            "Coinbase common-source warmup still cannot construct 2020-07-01 features"
+        )
+    _WARMUP_INVENTORY = sorted(inventory, key=lambda item: item["key"])
+    return bars, features, cash_returns
 
 
 def semantic_projection(report: Mapping[str, Any]) -> dict[str, Any]:
@@ -170,16 +275,26 @@ def validate_dependency(
 def build_report(*args: Any, **kwargs: Any) -> dict[str, Any]:
     original_validator = base._validate_dependency
     original_discovery_periods = base.v31.DISCOVERY_PERIODS
+    original_coinbase_loader = (
+        base.robustness_warmup._load_coinbase_with_real_warmup
+    )
     base._validate_dependency = validate_dependency
     base.v31.DISCOVERY_PERIODS = COMMON_SOURCE_DISCOVERY_PERIODS
+    base.robustness_warmup._load_coinbase_with_real_warmup = (
+        _load_coinbase_with_common_source_warmup
+    )
     _OBSERVED_REPORT_SHA.clear()
+    _WARMUP_INVENTORY.clear()
     try:
         report = _ORIGINAL_BUILD_REPORT(*args, **kwargs)
     finally:
+        base.robustness_warmup._load_coinbase_with_real_warmup = (
+            original_coinbase_loader
+        )
         base.v31.DISCOVERY_PERIODS = original_discovery_periods
         base._validate_dependency = original_validator
     report.pop("report_sha256", None)
-    report["schema_version"] = "6.3.4-dual-source-common-discovery-lag-safe"
+    report["schema_version"] = "6.3.5-dual-source-common-discovery-200d-warmup"
     report["semantic_dependency_protocol_sha256"] = hashlib.sha256(
         PROTOCOL_PATH.read_bytes()
     ).hexdigest()
@@ -189,6 +304,9 @@ def build_report(*args: Any, **kwargs: Any) -> dict[str, Any]:
     report["common_source_signal_lag_addendum_sha256"] = hashlib.sha256(
         SIGNAL_LAG_ADDENDUM_PATH.read_bytes()
     ).hexdigest()
+    report["common_source_200d_warmup_addendum_sha256"] = hashlib.sha256(
+        WARMUP_ADDENDUM_PATH.read_bytes()
+    ).hexdigest()
     report["common_source_discovery_periods"] = [
         {
             "name": period.name,
@@ -197,6 +315,12 @@ def build_report(*args: Any, **kwargs: Any) -> dict[str, Any]:
         }
         for period in COMMON_SOURCE_DISCOVERY_PERIODS
     ]
+    report["coinbase_common_source_warmup"] = {
+        "start": COMMON_SOURCE_WARMUP_START.isoformat(),
+        "end": COMMON_SOURCE_WARMUP_END.isoformat(),
+        "evaluation_rows": 0,
+        "inventory": list(_WARMUP_INVENTORY),
+    }
     report["dependency_evidence"] = {
         name: {
             "semantic_fingerprint": EXPECTED_SEMANTIC[name],
