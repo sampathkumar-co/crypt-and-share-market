@@ -45,6 +45,12 @@ def _pair(monkeypatch):
         actions=44,
     )
     monkeypatch.setattr(v60, "EXPECTED_V312_SHA256", left["report_sha256"])
+    original_dependency = "a" * 64
+    monkeypatch.setattr(
+        v60,
+        "EXPECTED_V312_DEPENDENCY_SHA256",
+        original_dependency,
+    )
     right = _report(
         standard=0.30,
         stress=0.29,
@@ -52,7 +58,7 @@ def _pair(monkeypatch):
         drawdown=0.025,
         concentration=0.48,
         actions=41,
-        dependency=left["report_sha256"],
+        dependency=original_dependency,
     )
     monkeypatch.setattr(v60, "EXPECTED_V32_SHA256", right["report_sha256"])
     return left, right
@@ -67,6 +73,7 @@ def test_conservative_champion_uses_worse_exchange_and_higher_cash(monkeypatch):
     assert evidence.actions == 41
     assert evidence.maximum_drawdown == 0.025
     assert evidence.maximum_positive_window_share == 0.48
+    assert "binance_original_dependency" in evidence.source_report_sha256
 
 
 def test_missing_delay_and_trade_concentration_fail_closed(monkeypatch):
@@ -102,5 +109,5 @@ def test_unlinked_coinbase_replication_is_rejected(monkeypatch):
         canonical_json({k: value for k, value in right.items() if k != "report_sha256"}).encode("utf-8")
     ).hexdigest()
     monkeypatch.setattr(v60, "EXPECTED_V32_SHA256", right["report_sha256"])
-    with pytest.raises(v60.TournamentV60Error, match="not cryptographically linked"):
+    with pytest.raises(v60.TournamentV60Error, match="original frozen"):
         v60.build_conservative_champion(left, right)
