@@ -34,7 +34,7 @@ jobs:
       - name: Compile complete v5 package
         run: python -m compileall -q src/tradebot/v5
       - name: Focused v5 tests
-        run: python -m pytest -q tests/test_v50_foundation.py tests/test_v50_stack.py
+        run: python -m pytest -q tests/test_v50_foundation.py tests/test_v50_engines.py tests/test_v50_stack.py tests/test_v50_multiple_testing.py
       - name: Complete repository regression suite
         run: python -m pytest -q
       - name: Paper-only and secret boundary
