@@ -1,0 +1,161 @@
+name: v6.3 Dual Source Consensus
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v63-dual-source-consensus
+  pull_request:
+    branches:
+      - research/v62-consensus-shrunk-ensemble
+
+permissions:
+  contents: read
+
+jobs:
+  dual-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Focused tests
+        run: |
+          python -m pytest -q \
+            tests/test_dual_source_semantic_dependencies_v632.py \
+            tests/test_dual_source_artifact_correction_v631.py \
+            tests/test_dual_source_consensus_v63.py \
+            tests/test_consensus_shrunk_ensemble_v62.py \
+            tests/test_parameter_neighborhood_ensemble_v61.py \
+            tests/test_champion_chronology_audit_v603.py
+
+      - name: Full regression suite
+        run: python -m pytest -q
+
+      - name: Reproduce frozen source reports
+        run: |
+          mkdir -p evidence/v63
+          python -m tradebot.research.historical_yield_trend_integrity_v312 \
+            --json-out evidence/v63/v312-binance.json \
+            --max-workers 16
+          python -m tradebot.research.historical_coinbase_replication_v32 \
+            --json-out evidence/v63/v32-coinbase.json
+
+      - name: Reproduce v6.0 dependencies
+        run: |
+          python -m tradebot.research.champion_robustness_v6011 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --json-out evidence/v63/champion-robustness-v6011.json
+          python -m tradebot.research.common_accounting_tournament_v60 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --robustness-json evidence/v63/champion-robustness-v6011.json \
+            --json-out evidence/v63/champion-screen.json
+          python -m tradebot.research.champion_chronology_audit_v603 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --robustness-json evidence/v63/champion-robustness-v6011.json \
+            --material-json evidence/v63/champion-screen.json \
+            --json-out evidence/v63/champion-chronology-v603.json
+
+      - name: Reproduce rejected v6.1 and v6.2 semantic dependencies
+        run: |
+          python -m tradebot.research.parameter_neighborhood_ensemble_v611 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --v603-json evidence/v63/champion-chronology-v603.json \
+            --json-out evidence/v63/ensemble-v61.json
+          python -m tradebot.research.consensus_shrunk_ensemble_v62 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --v603-json evidence/v63/champion-chronology-v603.json \
+            --v61-json evidence/v63/ensemble-v61.json \
+            --json-out evidence/v63/consensus-v62.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tradebot.research import dual_source_consensus_v632 as semantic
+
+          reports = {
+              'v6.1': json.loads(Path('evidence/v63/ensemble-v61.json').read_text()),
+              'v6.2': json.loads(Path('evidence/v63/consensus-v62.json').read_text()),
+          }
+          for name, report in reports.items():
+              digest = semantic.validate_dependency(
+                  report,
+                  expected_sha='whole-report-sha-is-observed-not-identity',
+                  expected_status=semantic.EXPECTED_STATUS[name],
+                  name=name,
+              )
+              assert digest == semantic.EXPECTED_SEMANTIC[name]
+              print(json.dumps({
+                  'name': name,
+                  'status': report['status'],
+                  'whole_report_sha256': report['report_sha256'],
+                  'semantic_fingerprint': digest,
+                  'artifact_whole_report_sha256': semantic.ARTIFACT_REPORT_SHA[name],
+              }, sort_keys=True))
+          PY
+
+      - name: Run semantic-dependency dual-source consensus
+        run: |
+          python -m tradebot.research.dual_source_consensus_v632 \
+            --v312-json evidence/v63/v312-binance.json \
+            --v32-json evidence/v63/v32-coinbase.json \
+            --v603-json evidence/v63/champion-chronology-v603.json \
+            --v61-json evidence/v63/ensemble-v61.json \
+            --v62-json evidence/v63/consensus-v62.json \
+            --json-out evidence/v63/dual-source-v63.json
+
+      - name: Verify boundary and print result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tradebot.research import dual_source_consensus_v632 as semantic
+
+          report = json.loads(Path('evidence/v63/dual-source-v63.json').read_text())
+          assert report['paper_only'] is True
+          assert report['authorizes_trading'] is False
+          assert report['authorizes_continuous_paper'] is False
+          assert report['retrospective_dates_exposed'] is True
+          assert report['untouched_historical_dates'] is False
+          assert report['execution_replication_is_not_independent_signal_replication'] is True
+          assert len(report['semantic_dependency_protocol_sha256']) == 64
+          for name, evidence in report['dependency_evidence'].items():
+              assert evidence['semantic_fingerprint'] == semantic.EXPECTED_SEMANTIC[name]
+              assert evidence['artifact_whole_report_sha256'] == semantic.ARTIFACT_REPORT_SHA[name]
+              assert len(evidence['observed_whole_report_sha256']) == 64
+          print(json.dumps({
+              'status': report['status'],
+              'conservative': report['conservative'],
+              'material_gates': report['material_gates'],
+              'statistical_gates': report['statistical_gates'],
+              'source_specific_bootstrap': report['source_specific_bootstrap'],
+              'deflated_sharpe': report['deflated_sharpe'],
+              'rank_stability': report['rank_stability'],
+              'dependency_evidence': report['dependency_evidence'],
+              'report_sha256': report['report_sha256'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v63-dual-source-${{ github.run_id }}
+          path: evidence/v63
+          if-no-files-found: error
+          retention-days: 90

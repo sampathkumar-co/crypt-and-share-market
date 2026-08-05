@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from tradebot.research import consensus_shrunk_ensemble_v62 as v62
 
 
@@ -12,7 +14,8 @@ def _targets(active: int, weight: float) -> dict[str, dict[str, float]]:
 
 def test_full_agreement_reproduces_mean_target():
     target = v62._consensus_target(_targets(16, 0.10))
-    assert target == {"BTC": 0.10}
+    assert target.keys() == {"BTC"}
+    assert target["BTC"] == pytest.approx(0.10, abs=1e-15)
 
 
 def test_partial_agreement_shrinks_without_parameter():
@@ -29,8 +32,6 @@ def test_consensus_never_exceeds_plain_mean():
 
 
 def test_missing_member_fails_closed():
-    import pytest
-
     member_targets = _targets(16, 0.10)
     member_targets.pop(next(iter(member_targets)))
     with pytest.raises(v62.ParameterNeighborhoodV61Error):
