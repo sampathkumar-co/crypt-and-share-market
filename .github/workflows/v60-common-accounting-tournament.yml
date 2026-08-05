@@ -1,0 +1,85 @@
+name: v6 Common Accounting Tournament
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v60-common-accounting-tournament
+  pull_request:
+    branches:
+      - research/v56-cost-aware-paper-execution
+
+permissions:
+  contents: read
+
+jobs:
+  champion-screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Focused tests
+        run: |
+          python -m pytest -q tests/test_common_accounting_tournament_v60.py
+
+      - name: Full regression suite
+        run: |
+          python -m pytest -q
+
+      - name: Reproduce corrected Binance champion
+        run: |
+          mkdir -p evidence/v60
+          python -m tradebot.research.historical_yield_trend_integrity_v312 \
+            --json-out evidence/v60/v312-binance.json \
+            --max-workers 16
+
+      - name: Reproduce independent Coinbase champion
+        run: |
+          python -m tradebot.research.historical_coinbase_replication_v32 \
+            --json-out evidence/v60/v32-coinbase.json
+
+      - name: Run conservative material-profit screen
+        run: |
+          python -m tradebot.research.common_accounting_tournament_v60 \
+            --v312-json evidence/v60/v312-binance.json \
+            --v32-json evidence/v60/v32-coinbase.json \
+            --json-out evidence/v60/champion-screen.json
+
+      - name: Verify paper-only boundary and print result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('evidence/v60/champion-screen.json').read_text())
+          assert report['paper_only'] is True
+          assert report['authorizes_trading'] is False
+          assert report['authorizes_continuous_paper'] is False
+          assert report['historical_breakthrough'] is False
+          print(json.dumps({
+              'status': report['status'],
+              'champion': report['champion'],
+              'failed_or_missing_material_gates': report['failed_or_missing_material_gates'],
+              'report_sha256': report['report_sha256'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v60-common-accounting-${{ github.run_id }}
+          path: evidence/v60
+          if-no-files-found: error
+          retention-days: 90
