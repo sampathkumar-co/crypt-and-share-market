@@ -10,8 +10,15 @@ from typing import Any, Mapping
 from tradebot.research.forward_alpha_v25 import canonical_json
 
 
-EXPECTED_V312_SHA256 = "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
-EXPECTED_V32_SHA256 = "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4"
+# Current authoritative reports persisted on historical-results/v312 and v32.
+EXPECTED_V312_SHA256 = "97ed3fc670ac881f9988fe7ac0cbf55afaec12f533a53fa08610a9a49a3ab300"
+EXPECTED_V32_SHA256 = "56811014301e348c3e34e71d4841ceb205d56c061a81e49d8645c3fbf6583e0e"
+# v3.2 was frozen against the original v3.1.2 report before the cash-transport
+# resilience repair. The current v3.1.2 report preserves identical economic
+# outputs while recording the repaired public-source transport metadata.
+EXPECTED_V312_DEPENDENCY_SHA256 = (
+    "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+)
 SCHEMA_VERSION = "6.0-common-accounting-champion-screen"
 
 
@@ -71,7 +78,8 @@ def _validate_report_sha(report: Mapping[str, Any], expected: str, name: str) ->
         raise TournamentV60Error(f"{name} report hash does not match contents")
     if claimed != expected:
         raise TournamentV60Error(
-            f"{name} report does not reproduce frozen hash: {claimed} != {expected}"
+            f"{name} report does not reproduce authoritative hash: "
+            f"{claimed} != {expected}"
         )
 
 
@@ -98,8 +106,13 @@ def build_conservative_champion(
 ) -> ConservativeChampionEvidence:
     _validate_report_sha(v312_report, EXPECTED_V312_SHA256, "v3.1.2")
     _validate_report_sha(v32_report, EXPECTED_V32_SHA256, "v3.2")
-    if v32_report.get("v312_dependency_report_sha256") != EXPECTED_V312_SHA256:
-        raise TournamentV60Error("v3.2 is not cryptographically linked to v3.1.2")
+    if (
+        v32_report.get("v312_dependency_report_sha256")
+        != EXPECTED_V312_DEPENDENCY_SHA256
+    ):
+        raise TournamentV60Error(
+            "v3.2 is not linked to its original frozen v3.1.2 dependency"
+        )
     if not all(bool(value) for value in v312_report.get("gates", {}).values()):
         raise TournamentV60Error("v3.1.2 frozen integrity gates did not all pass")
     if not all(bool(value) for value in v32_report.get("gates", {}).values()):
@@ -113,7 +126,6 @@ def build_conservative_champion(
         float(v312_report["stress"]["net_compounded_return"]),
         float(v32_report["stress"]["net_compounded_return"]),
     )
-    # Conservative comparison uses the better cash outcome as the hurdle.
     cash = max(
         float(v312_report["standard"]["cash_benchmark_compounded_return"]),
         float(v32_report["standard"]["cash_benchmark_compounded_return"]),
@@ -153,8 +165,9 @@ def build_conservative_champion(
             float(v32_report["standard"]["maximum_positive_year_share"]),
         ),
         source_report_sha256={
-            "binance": EXPECTED_V312_SHA256,
-            "coinbase": EXPECTED_V32_SHA256,
+            "binance_current": EXPECTED_V312_SHA256,
+            "binance_original_dependency": EXPECTED_V312_DEPENDENCY_SHA256,
+            "coinbase_current": EXPECTED_V32_SHA256,
         },
     )
 
@@ -200,11 +213,7 @@ def build_report(
 ) -> dict[str, Any]:
     champion = build_conservative_champion(v312_report, v32_report)
     gates = evaluate_material_gates(champion)
-    missing = [
-        name
-        for name, value in asdict(gates).items()
-        if not value
-    ]
+    missing = [name for name, value in asdict(gates).items() if not value]
     status = "STATISTICAL_GATES_PENDING" if gates.passed else "MATERIAL_GATES_FAILED"
     report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
