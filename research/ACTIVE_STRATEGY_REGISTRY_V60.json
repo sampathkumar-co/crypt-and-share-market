@@ -1,0 +1,79 @@
+{
+  "schema_version": "6.0-active-strategy-registry",
+  "generated_from_evidence_through": "2026-08-05",
+  "paper_only": true,
+  "authorizes_trading": false,
+  "authorizes_continuous_paper": false,
+  "deployment_mode": "research_only",
+  "historical_champion": {
+    "strategy_id": "v3.1.2-v3.2-yield-trend",
+    "status": "HISTORICAL_CHAMPION_PENDING_FORWARD",
+    "assets": ["BTC", "ETH"],
+    "maximum_crypto_exposure": 0.10,
+    "evidence": {
+      "binance_standard_return": 0.3014,
+      "binance_stress_return": 0.2921,
+      "coinbase_standard_return": 0.3008,
+      "coinbase_stress_return": 0.2914,
+      "positive_years": 5,
+      "maximum_drawdown": 0.0195,
+      "independent_source_replicated": true
+    },
+    "next_action": "continue exact v3.3 sealed forward observations without parameter changes"
+  },
+  "active_forward_program": {
+    "strategy_id": "v3.3-forward-observation",
+    "status": "FORWARD_ACCUMULATING",
+    "minimum_contiguous_observations": 180,
+    "minimum_target_changing_actions": 8,
+    "interim_performance_disclosure_allowed": false,
+    "parameter_changes_allowed": false
+  },
+  "controls": [
+    {
+      "strategy_id": "v4.4-learned-yielding-cash",
+      "status": "LEARNED_MODEL_CONTROL",
+      "promotion_eligible": false,
+      "reason": "useful learned-model comparison, but annualized return and consistency gates failed"
+    }
+  ],
+  "challengers": [
+    {
+      "strategy_id": "v5.2-trend-acceleration-recovery",
+      "status": "MECHANISM_CLUE_ONLY",
+      "promotion_eligible": false,
+      "allowed_use": "one frozen overlay arm in the v6 common-accounting tournament",
+      "reason": "strong six-fold discovery but failed untouched quarterly consistency and produced economically tiny forward excess"
+    },
+    {
+      "strategy_id": "cross-exchange-confirmation",
+      "status": "FEATURE_FAMILY_CLUE",
+      "promotion_eligible": false,
+      "allowed_use": "one preregistered challenger after turnover-safe redesign",
+      "reason": "positive aggregate fold evidence but failed worst-fold and drawdown constraints"
+    }
+  ],
+  "libraries": [
+    {
+      "component_id": "v5.6-cost-aware-execution",
+      "status": "RISK_CONTROL_LIBRARY",
+      "is_alpha_strategy": false,
+      "allowed_use": "cost floor, uncertainty penalty, cash fallback, bounded paper sizing and exit controls"
+    }
+  ],
+  "retired_families": [
+    "mean_reversion",
+    "range_sleeves",
+    "capitulation_recovery_entries",
+    "neutral_regime_exposure",
+    "funding_exhaustion_entries",
+    "absolute_macro_probability_thresholds",
+    "fresh_macro_transition_thresholds",
+    "full_soft_regime_routing",
+    "short_horizon_intraday_momentum",
+    "repeated_recovery_and_breakout_retests_on_consumed_intervals",
+    "breadth_reversal_v52"
+  ],
+  "retirement_rule": "Retired families may not be tuned, promoted, or reopened on consumed intervals. Historical code and reports remain immutable evidence.",
+  "next_research_program": "v6.0-profitability-reset"
+}
