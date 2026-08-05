@@ -15,7 +15,7 @@ permissions:
 jobs:
   champion-screen:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,21 +59,33 @@ jobs:
             --v32-json evidence/v60/v32-coinbase.json \
             --json-out evidence/v60/champion-screen.json
 
-      - name: Verify paper-only boundary and print result
+      - name: Run preregistered delay and concentration diagnostics
+        run: |
+          python -m tradebot.research.champion_robustness_v601 \
+            --v312-json evidence/v60/v312-binance.json \
+            --v32-json evidence/v60/v32-coinbase.json \
+            --json-out evidence/v60/champion-robustness-v601.json
+
+      - name: Verify paper-only boundary and print results
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          report = json.loads(Path('evidence/v60/champion-screen.json').read_text())
-          assert report['paper_only'] is True
-          assert report['authorizes_trading'] is False
-          assert report['authorizes_continuous_paper'] is False
-          assert report['historical_breakthrough'] is False
+
+          screen = json.loads(Path('evidence/v60/champion-screen.json').read_text())
+          robustness = json.loads(Path('evidence/v60/champion-robustness-v601.json').read_text())
+          for report in (screen, robustness):
+              assert report['paper_only'] is True
+              assert report['authorizes_trading'] is False
+              assert report['authorizes_continuous_paper'] is False
+          assert screen['historical_breakthrough'] is False
           print(json.dumps({
-              'status': report['status'],
-              'champion': report['champion'],
-              'failed_or_missing_material_gates': report['failed_or_missing_material_gates'],
-              'report_sha256': report['report_sha256'],
+              'screen_status': screen['status'],
+              'failed_or_missing_material_gates': screen['failed_or_missing_material_gates'],
+              'robustness_status': robustness['status'],
+              'robustness_conservative': robustness['conservative'],
+              'screen_report_sha256': screen['report_sha256'],
+              'robustness_report_sha256': robustness['report_sha256'],
           }, indent=2, sort_keys=True))
           PY
 
