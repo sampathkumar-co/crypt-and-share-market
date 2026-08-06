@@ -7,6 +7,14 @@ on:
       - "src/tradebot/research/intraday_*_v70.py"
       - "tests/test_intraday_*_v70.py"
       - ".github/workflows/v70-intraday-alpha-lab.yml"
+  push:
+    branches:
+      - "research/v70-intraday-alpha-lab"
+    paths:
+      - "research/V70_INTRADAY_ALPHA_LAB_PROTOCOL.md"
+      - "src/tradebot/research/intraday_*_v70.py"
+      - "tests/test_intraday_*_v70.py"
+      - ".github/workflows/v70-intraday-alpha-lab.yml"
   workflow_dispatch:
 
 permissions:
