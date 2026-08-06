@@ -106,6 +106,28 @@ def test_requires_exact_independent_source_alignment() -> None:
         )
 
 
+def test_rejects_noncanonical_or_source_mismatched_action_identity() -> None:
+    actions = tuple(
+        replace(item, action_id="coinbase:action-0")
+        if item.action_id == "binance:action-0"
+        else item
+        for item in _actions()
+    )
+    with pytest.raises(ValueError, match="canonical source:logical-id"):
+        _evaluate(actions)
+
+
+def test_rejects_non_boolean_target_change_flags() -> None:
+    actions = tuple(
+        replace(item, target_changed=1)
+        if item.action_id == "binance:action-1"
+        else item
+        for item in _actions()
+    )
+    with pytest.raises(ValueError, match="must be booleans"):
+        _evaluate(actions)
+
+
 def test_negative_replication_fails_closed() -> None:
     actions = tuple(
         replace(item, stress_excess_return=-0.01, delayed_stress_excess_return=-0.01)
