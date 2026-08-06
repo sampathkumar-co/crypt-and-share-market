@@ -83,6 +83,13 @@ def _maximum_drawdown(values: Sequence[float]) -> float:
     return maximum
 
 
+def _logical_action_id(item: HoldoutAction) -> str:
+    prefix, separator, logical_id = item.action_id.partition(":")
+    if separator != ":" or prefix != item.source or not logical_id.strip() or ":" in logical_id:
+        raise ValueError("holdout action identifiers must use canonical source:logical-id form")
+    return logical_id
+
+
 def evaluate_single_sealed_holdout(
     manifest: PreHoldoutSelectionManifest,
     release: SealedHoldoutRelease,
@@ -109,10 +116,13 @@ def evaluate_single_sealed_holdout(
         raise ValueError("holdout action identifiers must be non-empty and unique")
     if any(type(item.sequence_index) is not int or item.sequence_index < 0 for item in actions):
         raise ValueError("holdout sequence indices must be non-negative integers")
+    if any(type(item.target_changed) is not bool for item in actions):
+        raise ValueError("holdout target_changed values must be booleans")
     sources = {item.source for item in actions}
     if sources != REQUIRED_SOURCES:
         raise ValueError("holdout requires exactly Binance and Coinbase observations")
 
+    logical_ids_by_action = {item.action_id: _logical_action_id(item) for item in actions}
     by_source = {source: [item for item in actions if item.source == source] for source in REQUIRED_SOURCES}
     counts = {source: len(items) for source, items in by_source.items()}
     if len(set(counts.values())) != 1:
@@ -121,7 +131,7 @@ def evaluate_single_sealed_holdout(
     logical_sets: dict[str, set[str]] = {}
     sequence_maps: dict[str, dict[str, int]] = {}
     for source, items in by_source.items():
-        logical_ids = [item.action_id.split(":", 1)[-1] for item in items]
+        logical_ids = [logical_ids_by_action[item.action_id] for item in items]
         if len(logical_ids) != len(set(logical_ids)):
             raise ValueError(f"duplicate logical action in {source} holdout evidence")
         sequence_indices = [item.sequence_index for item in items]
@@ -129,7 +139,7 @@ def evaluate_single_sealed_holdout(
             raise ValueError(f"duplicate sequence index in {source} holdout evidence")
         logical_sets[source] = set(logical_ids)
         sequence_maps[source] = {
-            item.action_id.split(":", 1)[-1]: item.sequence_index for item in items
+            logical_ids_by_action[item.action_id]: item.sequence_index for item in items
         }
     if len({frozenset(values) for values in logical_sets.values()}) != 1:
         raise ValueError("independent sources must cover identical logical actions")
@@ -167,7 +177,7 @@ def evaluate_single_sealed_holdout(
 
     logical_target_changes: dict[str, bool] = {}
     for item in actions:
-        logical_id = item.action_id.split(":", 1)[-1]
+        logical_id = logical_ids_by_action[item.action_id]
         previous = logical_target_changes.setdefault(logical_id, item.target_changed)
         if previous is not item.target_changed:
             raise ValueError("independent sources disagree on target-changing actions")
