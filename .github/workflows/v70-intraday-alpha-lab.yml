@@ -1,0 +1,60 @@
+name: v7.0 Intraday Alpha Lab
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "research/V70_INTRADAY_ALPHA_LAB_PROTOCOL.md"
+      - "src/tradebot/research/intraday_*_v70.py"
+      - "tests/test_intraday_*_v70.py"
+      - ".github/workflows/v70-intraday-alpha-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Focused v7 tests
+        run: >-
+          python -m pytest -q
+          tests/test_intraday_alpha_lab_v70.py
+          tests/test_intraday_signal_engine_v70.py
+          tests/test_intraday_execution_v70.py
+          tests/test_intraday_tournament_v70.py
+          tests/test_intraday_diagnostics_v70.py
+          tests/test_intraday_selection_v70.py
+          tests/test_intraday_holdout_v70.py
+      - name: Full regression suite
+        run: python -m pytest -q
+      - name: Protect existing evidence
+        shell: bash
+        run: |
+          git fetch origin main --depth=2
+          changed="$(git diff --name-only origin/main...HEAD)"
+          if grep -Eq '^(forward-data/|data/forward|research/V6[34]|src/tradebot/research/(dual_source_consensus|sealed_forward))' <<<"$changed"; then
+            echo "Protected existing evidence or frozen v6 mechanism changed"
+            echo "$changed"
+            exit 1
+          fi
