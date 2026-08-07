@@ -15,8 +15,9 @@ from tradebot.research.intraday_alpha_lab_v70 import (
 from tradebot.research.intraday_tournament_v70 import rank_survivors
 
 
-SELECTION_SCHEMA_VERSION = "7.0-pre-holdout-selection-v1"
-HOLDOUT_RELEASE_SCHEMA_VERSION = "7.0-sealed-holdout-release-v1"
+SELECTION_SCHEMA_VERSION = "7.0-pre-holdout-selection-v2"
+HOLDOUT_COMMITMENT_SCHEMA_VERSION = "7.0-sealed-holdout-commitment-v1"
+HOLDOUT_RELEASE_SCHEMA_VERSION = "7.0-sealed-holdout-release-v2"
 REQUIRED_FAMILIES = frozenset(CandidateFamily)
 
 
@@ -29,6 +30,18 @@ class TrialLedgerEntry:
 
 
 @dataclass(frozen=True)
+class SealedHoldoutCommitment:
+    schema_version: str
+    protocol_fingerprint: str
+    sealed_holdout_id: str
+    sealed_holdout_fingerprint: str
+    committed_before_fitting: bool = True
+    opened: bool = False
+    paper_only: bool = True
+    authorizes_trading: bool = False
+
+
+@dataclass(frozen=True)
 class PreHoldoutSelectionManifest:
     schema_version: str
     protocol_fingerprint: str
@@ -36,6 +49,9 @@ class PreHoldoutSelectionManifest:
     ranked_candidate_ids: tuple[str, ...]
     rejected: Mapping[str, tuple[str, ...]]
     trial_ledger: tuple[TrialLedgerEntry, ...]
+    holdout_commitment_fingerprint: str | None = None
+    sealed_holdout_id: str | None = None
+    sealed_holdout_fingerprint: str | None = None
     holdout_opened: bool = False
     paper_only: bool = True
     authorizes_trading: bool = False
@@ -45,6 +61,7 @@ class PreHoldoutSelectionManifest:
 class SealedHoldoutRelease:
     schema_version: str
     manifest_fingerprint: str
+    holdout_commitment_fingerprint: str
     selected_candidate_id: str
     sealed_holdout_id: str
     sealed_holdout_fingerprint: str
@@ -63,12 +80,50 @@ def protocol_fingerprint(protocol_text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def holdout_commitment_fingerprint(commitment: SealedHoldoutCommitment) -> str:
+    return hashlib.sha256(_canonical(asdict(commitment)).encode("utf-8")).hexdigest()
+
+
 def manifest_fingerprint(manifest: PreHoldoutSelectionManifest) -> str:
     return hashlib.sha256(_canonical(asdict(manifest)).encode("utf-8")).hexdigest()
 
 
 def holdout_release_fingerprint(release: SealedHoldoutRelease) -> str:
     return hashlib.sha256(_canonical(asdict(release)).encode("utf-8")).hexdigest()
+
+
+def _validate_sha256(value: str, *, field: str) -> None:
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise ValueError(f"{field} must be lowercase sha256")
+
+
+def commit_sealed_holdout_before_fitting(
+    protocol_text: str,
+    *,
+    sealed_holdout_id: str,
+    sealed_holdout_fingerprint: str,
+) -> SealedHoldoutCommitment:
+    if not protocol_text.strip():
+        raise ValueError("frozen protocol text is required")
+    if not sealed_holdout_id.strip():
+        raise ValueError("sealed holdout identifier is required")
+    _validate_sha256(sealed_holdout_fingerprint, field="sealed holdout fingerprint")
+    return SealedHoldoutCommitment(
+        schema_version=HOLDOUT_COMMITMENT_SCHEMA_VERSION,
+        protocol_fingerprint=protocol_fingerprint(protocol_text),
+        sealed_holdout_id=sealed_holdout_id,
+        sealed_holdout_fingerprint=sealed_holdout_fingerprint,
+    )
+
+
+def verify_holdout_commitment_is_pre_fit(commitment: SealedHoldoutCommitment) -> None:
+    if not commitment.committed_before_fitting or commitment.opened:
+        raise ValueError("holdout commitment must be frozen and unopened before fitting")
+    if not commitment.paper_only or commitment.authorizes_trading:
+        raise ValueError("holdout commitment must remain paper-only and non-authorizing")
+    if not commitment.sealed_holdout_id.strip():
+        raise ValueError("sealed holdout identifier is required")
+    _validate_sha256(commitment.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
 
 
 def _validate_trial_ledger(
@@ -100,12 +155,17 @@ def build_pre_holdout_manifest(
     evidence: Sequence[CandidateEvidence],
     trial_ledger: Sequence[TrialLedgerEntry],
     *,
+    holdout_commitment: SealedHoldoutCommitment,
     holdout_opened: bool = False,
 ) -> PreHoldoutSelectionManifest:
     if holdout_opened:
         raise ValueError("pre-holdout selection must be frozen before opening the holdout")
     if not protocol_text.strip():
         raise ValueError("frozen protocol text is required")
+    verify_holdout_commitment_is_pre_fit(holdout_commitment)
+    frozen_protocol_fingerprint = protocol_fingerprint(protocol_text)
+    if holdout_commitment.protocol_fingerprint != frozen_protocol_fingerprint:
+        raise ValueError("holdout commitment does not match the frozen protocol")
     if not evidence:
         raise ValueError("candidate evidence is required")
     ids = [item.candidate_id for item in evidence]
@@ -128,11 +188,14 @@ def build_pre_holdout_manifest(
     }
     return PreHoldoutSelectionManifest(
         schema_version=SELECTION_SCHEMA_VERSION,
-        protocol_fingerprint=protocol_fingerprint(protocol_text),
+        protocol_fingerprint=frozen_protocol_fingerprint,
         selected_candidate_id=ranked[0].candidate_id if ranked else None,
         ranked_candidate_ids=tuple(item.candidate_id for item in ranked),
         rejected=rejected,
         trial_ledger=tuple(trial_ledger),
+        holdout_commitment_fingerprint=holdout_commitment_fingerprint(holdout_commitment),
+        sealed_holdout_id=holdout_commitment.sealed_holdout_id,
+        sealed_holdout_fingerprint=holdout_commitment.sealed_holdout_fingerprint,
     )
 
 
@@ -141,40 +204,49 @@ def verify_manifest_is_non_authorizing(manifest: PreHoldoutSelectionManifest) ->
         raise ValueError("pre-holdout manifest cannot claim an opened holdout")
     if not manifest.paper_only or manifest.authorizes_trading:
         raise ValueError("selection manifest must remain paper-only and non-authorizing")
+    if not manifest.holdout_commitment_fingerprint:
+        raise ValueError("selection manifest requires a pre-fit holdout commitment")
+    if not manifest.sealed_holdout_id or not manifest.sealed_holdout_fingerprint:
+        raise ValueError("selection manifest requires a frozen sealed holdout identity")
+    _validate_sha256(manifest.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
 
 
 def authorize_single_sealed_holdout_release(
     manifest: PreHoldoutSelectionManifest,
     *,
     expected_manifest_fingerprint: str,
-    sealed_holdout_id: str,
-    sealed_holdout_fingerprint: str,
+    holdout_commitment: SealedHoldoutCommitment,
     consumed_holdout_ids: Sequence[str] = (),
 ) -> SealedHoldoutRelease:
     verify_manifest_is_non_authorizing(manifest)
+    verify_holdout_commitment_is_pre_fit(holdout_commitment)
     actual_manifest_fingerprint = manifest_fingerprint(manifest)
     if expected_manifest_fingerprint != actual_manifest_fingerprint:
         raise ValueError("frozen selection manifest fingerprint mismatch")
+    actual_commitment_fingerprint = holdout_commitment_fingerprint(holdout_commitment)
+    if manifest.holdout_commitment_fingerprint != actual_commitment_fingerprint:
+        raise ValueError("sealed holdout commitment fingerprint mismatch")
+    if holdout_commitment.protocol_fingerprint != manifest.protocol_fingerprint:
+        raise ValueError("sealed holdout commitment protocol mismatch")
+    if manifest.sealed_holdout_id != holdout_commitment.sealed_holdout_id:
+        raise ValueError("sealed holdout identity differs from pre-fit commitment")
+    if manifest.sealed_holdout_fingerprint != holdout_commitment.sealed_holdout_fingerprint:
+        raise ValueError("sealed holdout fingerprint differs from pre-fit commitment")
     if manifest.selected_candidate_id is None:
         raise ValueError("no gate-surviving candidate is eligible for holdout release")
-    if not sealed_holdout_id.strip():
-        raise ValueError("sealed holdout identifier is required")
-    if len(sealed_holdout_fingerprint) != 64 or any(
-        character not in "0123456789abcdef" for character in sealed_holdout_fingerprint
-    ):
-        raise ValueError("sealed holdout fingerprint must be lowercase sha256")
     consumed = tuple(consumed_holdout_ids)
     if len(consumed) != len(set(consumed)):
         raise ValueError("consumed holdout registry contains duplicates")
-    if sealed_holdout_id in consumed:
+    if holdout_commitment.sealed_holdout_id in consumed:
         raise ValueError("consumed holdout may never be reused")
     return SealedHoldoutRelease(
         schema_version=HOLDOUT_RELEASE_SCHEMA_VERSION,
         manifest_fingerprint=actual_manifest_fingerprint,
+        holdout_commitment_fingerprint=actual_commitment_fingerprint,
         selected_candidate_id=manifest.selected_candidate_id,
-        sealed_holdout_id=sealed_holdout_id,
-        sealed_holdout_fingerprint=sealed_holdout_fingerprint,
-        consumed_holdout_ids=tuple(sorted((*consumed, sealed_holdout_id))),
+        sealed_holdout_id=holdout_commitment.sealed_holdout_id,
+        sealed_holdout_fingerprint=holdout_commitment.sealed_holdout_fingerprint,
+        consumed_holdout_ids=tuple(sorted((*consumed, holdout_commitment.sealed_holdout_id))),
     )
 
 
@@ -183,5 +255,7 @@ def verify_holdout_release_is_non_authorizing(release: SealedHoldoutRelease) -> 
         raise ValueError("sealed holdout release must permit exactly one evaluation")
     if release.sealed_holdout_id not in release.consumed_holdout_ids:
         raise ValueError("released holdout must be recorded as permanently consumed")
+    if not release.holdout_commitment_fingerprint:
+        raise ValueError("released holdout must remain bound to its pre-fit commitment")
     if not release.paper_only or release.authorizes_trading:
         raise ValueError("holdout release must remain paper-only and non-authorizing")
