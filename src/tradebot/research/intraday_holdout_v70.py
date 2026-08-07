@@ -59,6 +59,11 @@ def holdout_result_fingerprint(result: SealedHoldoutResult) -> str:
     return hashlib.sha256(_canonical(asdict(result)).encode("utf-8")).hexdigest()
 
 
+def _validate_sha256(value: str, *, field: str) -> None:
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise ValueError(f"{field} must be lowercase sha256")
+
+
 def _compound(values: Sequence[float]) -> float:
     wealth = 1.0
     for value in values:
@@ -96,6 +101,7 @@ def evaluate_single_sealed_holdout(
     actions: Sequence[HoldoutAction],
     *,
     expected_release_fingerprint: str,
+    observed_holdout_fingerprint: str,
 ) -> SealedHoldoutResult:
     verify_holdout_release_is_non_authorizing(release)
     actual_manifest_fingerprint = manifest_fingerprint(manifest)
@@ -104,6 +110,9 @@ def evaluate_single_sealed_holdout(
     actual_release_fingerprint = holdout_release_fingerprint(release)
     if expected_release_fingerprint != actual_release_fingerprint:
         raise ValueError("sealed holdout release fingerprint mismatch")
+    _validate_sha256(observed_holdout_fingerprint, field="observed holdout fingerprint")
+    if observed_holdout_fingerprint != release.sealed_holdout_fingerprint:
+        raise ValueError("opened holdout does not match the pre-fit sealed fingerprint")
     if manifest.selected_candidate_id is None:
         raise ValueError("manifest has no selected candidate")
     if release.selected_candidate_id != manifest.selected_candidate_id:
