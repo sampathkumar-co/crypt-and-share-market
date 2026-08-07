@@ -19,13 +19,14 @@ from tradebot.research.intraday_selection_v70 import (
 
 
 PROTOCOL = "frozen v7 protocol\n"
+SEALED_HOLDOUT_FINGERPRINT = "b" * 64
 
 
 def _commitment():
     return commit_sealed_holdout_before_fitting(
         PROTOCOL,
         sealed_holdout_id="sealed-2025q4",
-        sealed_holdout_fingerprint="b" * 64,
+        sealed_holdout_fingerprint=SEALED_HOLDOUT_FINGERPRINT,
     )
 
 
@@ -78,6 +79,7 @@ def _evaluate(actions: tuple[HoldoutAction, ...]):
         release,
         actions,
         expected_release_fingerprint=holdout_release_fingerprint(release),
+        observed_holdout_fingerprint=SEALED_HOLDOUT_FINGERPRINT,
     )
 
 
@@ -99,6 +101,7 @@ def test_rejects_manifest_or_release_tampering() -> None:
             release,
             _actions(),
             expected_release_fingerprint="0" * 64,
+            observed_holdout_fingerprint=SEALED_HOLDOUT_FINGERPRINT,
         )
     with pytest.raises(ValueError, match="does not match"):
         evaluate_single_sealed_holdout(
@@ -106,6 +109,28 @@ def test_rejects_manifest_or_release_tampering() -> None:
             release,
             _actions(),
             expected_release_fingerprint=holdout_release_fingerprint(release),
+            observed_holdout_fingerprint=SEALED_HOLDOUT_FINGERPRINT,
+        )
+
+
+def test_rejects_opened_holdout_that_does_not_match_pre_fit_commitment() -> None:
+    manifest = _manifest()
+    release = _release(manifest)
+    with pytest.raises(ValueError, match="pre-fit sealed fingerprint"):
+        evaluate_single_sealed_holdout(
+            manifest,
+            release,
+            _actions(),
+            expected_release_fingerprint=holdout_release_fingerprint(release),
+            observed_holdout_fingerprint="c" * 64,
+        )
+    with pytest.raises(ValueError, match="lowercase sha256"):
+        evaluate_single_sealed_holdout(
+            manifest,
+            release,
+            _actions(),
+            expected_release_fingerprint=holdout_release_fingerprint(release),
+            observed_holdout_fingerprint="not-a-sha",
         )
 
 
@@ -119,6 +144,7 @@ def test_requires_exact_independent_source_alignment() -> None:
             release,
             actions,
             expected_release_fingerprint=holdout_release_fingerprint(release),
+            observed_holdout_fingerprint=SEALED_HOLDOUT_FINGERPRINT,
         )
 
 
