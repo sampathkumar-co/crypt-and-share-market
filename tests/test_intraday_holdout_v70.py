@@ -11,19 +11,36 @@ from tradebot.research.intraday_holdout_v70 import (
 from tradebot.research.intraday_selection_v70 import (
     PreHoldoutSelectionManifest,
     authorize_single_sealed_holdout_release,
+    commit_sealed_holdout_before_fitting,
+    holdout_commitment_fingerprint,
     holdout_release_fingerprint,
     manifest_fingerprint,
 )
 
 
+PROTOCOL = "frozen v7 protocol\n"
+
+
+def _commitment():
+    return commit_sealed_holdout_before_fitting(
+        PROTOCOL,
+        sealed_holdout_id="sealed-2025q4",
+        sealed_holdout_fingerprint="b" * 64,
+    )
+
+
 def _manifest() -> PreHoldoutSelectionManifest:
+    frozen = _commitment()
     return PreHoldoutSelectionManifest(
-        schema_version="7.0-pre-holdout-selection-v1",
-        protocol_fingerprint="a" * 64,
+        schema_version="7.0-pre-holdout-selection-v2",
+        protocol_fingerprint=frozen.protocol_fingerprint,
         selected_candidate_id="trend-001",
         ranked_candidate_ids=("trend-001",),
         rejected={},
         trial_ledger=(),
+        holdout_commitment_fingerprint=holdout_commitment_fingerprint(frozen),
+        sealed_holdout_id=frozen.sealed_holdout_id,
+        sealed_holdout_fingerprint=frozen.sealed_holdout_fingerprint,
     )
 
 
@@ -31,8 +48,7 @@ def _release(manifest: PreHoldoutSelectionManifest):
     return authorize_single_sealed_holdout_release(
         manifest,
         expected_manifest_fingerprint=manifest_fingerprint(manifest),
-        sealed_holdout_id="sealed-2025q4",
-        sealed_holdout_fingerprint="b" * 64,
+        holdout_commitment=_commitment(),
     )
 
 
