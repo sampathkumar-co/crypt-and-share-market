@@ -117,6 +117,9 @@ def commit_sealed_holdout_before_fitting(
 
 
 def verify_holdout_commitment_is_pre_fit(commitment: SealedHoldoutCommitment) -> None:
+    if commitment.schema_version != HOLDOUT_COMMITMENT_SCHEMA_VERSION:
+        raise ValueError("holdout commitment schema version mismatch")
+    _validate_sha256(commitment.protocol_fingerprint, field="protocol fingerprint")
     if not commitment.committed_before_fitting or commitment.opened:
         raise ValueError("holdout commitment must be frozen and unopened before fitting")
     if not commitment.paper_only or commitment.authorizes_trading:
@@ -200,12 +203,19 @@ def build_pre_holdout_manifest(
 
 
 def verify_manifest_is_non_authorizing(manifest: PreHoldoutSelectionManifest) -> None:
+    if manifest.schema_version != SELECTION_SCHEMA_VERSION:
+        raise ValueError("selection manifest schema version mismatch")
+    _validate_sha256(manifest.protocol_fingerprint, field="protocol fingerprint")
     if manifest.holdout_opened:
         raise ValueError("pre-holdout manifest cannot claim an opened holdout")
     if not manifest.paper_only or manifest.authorizes_trading:
         raise ValueError("selection manifest must remain paper-only and non-authorizing")
     if not manifest.holdout_commitment_fingerprint:
         raise ValueError("selection manifest requires a pre-fit holdout commitment")
+    _validate_sha256(
+        manifest.holdout_commitment_fingerprint,
+        field="holdout commitment fingerprint",
+    )
     if not manifest.sealed_holdout_id or not manifest.sealed_holdout_fingerprint:
         raise ValueError("selection manifest requires a frozen sealed holdout identity")
     _validate_sha256(manifest.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
@@ -251,6 +261,14 @@ def authorize_single_sealed_holdout_release(
 
 
 def verify_holdout_release_is_non_authorizing(release: SealedHoldoutRelease) -> None:
+    if release.schema_version != HOLDOUT_RELEASE_SCHEMA_VERSION:
+        raise ValueError("holdout release schema version mismatch")
+    _validate_sha256(release.manifest_fingerprint, field="manifest fingerprint")
+    _validate_sha256(
+        release.holdout_commitment_fingerprint,
+        field="holdout commitment fingerprint",
+    )
+    _validate_sha256(release.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
     if release.evaluation_count != 1:
         raise ValueError("sealed holdout release must permit exactly one evaluation")
     if release.sealed_holdout_id not in release.consumed_holdout_ids:
