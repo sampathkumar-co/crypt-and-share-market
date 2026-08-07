@@ -112,7 +112,7 @@ def evaluate_single_sealed_holdout(
         raise ValueError("sealed holdout observations are required")
 
     action_ids = [item.action_id for item in actions]
-    if any(not value.strip() for value in action_ids) or len(action_ids) != len(set(action_ids)):
+    if any(not value.strip() for value in action_ids):
         raise ValueError("holdout action identifiers must be non-empty and unique")
     if any(type(item.sequence_index) is not int or item.sequence_index < 0 for item in actions):
         raise ValueError("holdout sequence indices must be non-negative integers")
@@ -123,6 +123,8 @@ def evaluate_single_sealed_holdout(
         raise ValueError("holdout requires exactly Binance and Coinbase observations")
 
     logical_ids_by_action = {item.action_id: _logical_action_id(item) for item in actions}
+    if len(action_ids) != len(set(action_ids)):
+        raise ValueError("holdout action identifiers must be non-empty and unique")
     by_source = {source: [item for item in actions if item.source == source] for source in REQUIRED_SOURCES}
     counts = {source: len(items) for source, items in by_source.items()}
     if len(set(counts.values())) != 1:
