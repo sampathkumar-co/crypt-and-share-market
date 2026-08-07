@@ -241,3 +241,41 @@ def test_holdout_release_rejects_missing_survivor_and_bad_hash() -> None:
             sealed_holdout_id="v70-holdout-001",
             sealed_holdout_fingerprint="NOT-A-HASH",
         )
+
+
+def test_rejects_schema_drift_across_sealed_evidence_chain() -> None:
+    frozen = commitment()
+    with pytest.raises(ValueError, match="commitment schema version mismatch"):
+        verify_holdout_commitment_is_pre_fit(replace(frozen, schema_version="legacy"))
+
+    manifest = manifest_for(tournament())
+    with pytest.raises(ValueError, match="selection manifest schema version mismatch"):
+        verify_manifest_is_non_authorizing(replace(manifest, schema_version="legacy"))
+
+    release = authorize_single_sealed_holdout_release(
+        manifest,
+        expected_manifest_fingerprint=manifest_fingerprint(manifest),
+        holdout_commitment=frozen,
+    )
+    with pytest.raises(ValueError, match="holdout release schema version mismatch"):
+        verify_holdout_release_is_non_authorizing(replace(release, schema_version="legacy"))
+
+
+def test_rejects_malformed_chain_fingerprints() -> None:
+    frozen = commitment()
+    with pytest.raises(ValueError, match="protocol fingerprint must be lowercase sha256"):
+        verify_holdout_commitment_is_pre_fit(replace(frozen, protocol_fingerprint="bad"))
+
+    manifest = manifest_for(tournament())
+    with pytest.raises(ValueError, match="holdout commitment fingerprint must be lowercase sha256"):
+        verify_manifest_is_non_authorizing(
+            replace(manifest, holdout_commitment_fingerprint="bad")
+        )
+
+    release = authorize_single_sealed_holdout_release(
+        manifest,
+        expected_manifest_fingerprint=manifest_fingerprint(manifest),
+        holdout_commitment=frozen,
+    )
+    with pytest.raises(ValueError, match="manifest fingerprint must be lowercase sha256"):
+        verify_holdout_release_is_non_authorizing(replace(release, manifest_fingerprint="bad"))
