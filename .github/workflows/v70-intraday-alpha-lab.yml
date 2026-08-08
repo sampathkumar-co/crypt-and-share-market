@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -52,7 +52,7 @@ jobs:
       - name: Protect existing evidence
         shell: bash
         run: |
-          git fetch origin main --depth=2
+          git fetch origin main
           changed="$(git diff --name-only origin/main...HEAD)"
           if grep -Eq '^(forward-data/|data/forward|research/V6[34]|src/tradebot/research/(dual_source_consensus|sealed_forward))' <<<"$changed"; then
             echo "Protected existing evidence or frozen v6 mechanism changed"
