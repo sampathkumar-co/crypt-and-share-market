@@ -30,12 +30,11 @@ def test_redundant_cadence_suppression_is_target_hour_aware() -> None:
     assert "no evidence or strategy bytes were modified" in text
 
 
-def test_v20_collector_has_two_independent_hourly_attempts() -> None:
+def test_v20_collector_has_five_independent_hourly_attempts() -> None:
     text = COLLECTOR.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in text
     assert "pull_request:" in text
     assert "schedule:" in text
-    assert 'cron: "7 * * * *"' in text
-    assert 'cron: "27 * * * *"' in text
-    assert 'cron: "17 * * * *"' not in text
+    for minute in (7, 17, 27, 37, 47):
+        assert f'cron: "{minute} * * * *"' in text
