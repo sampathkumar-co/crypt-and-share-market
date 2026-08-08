@@ -220,6 +220,47 @@ def verify_manifest_is_non_authorizing(manifest: PreHoldoutSelectionManifest) ->
         raise ValueError("selection manifest requires a frozen sealed holdout identity")
     _validate_sha256(manifest.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
 
+    ledger = tuple(manifest.trial_ledger)
+    if not ledger:
+        raise ValueError("selection manifest requires a permanent trial ledger")
+    ledger_numbers = [entry.permanent_trial_number for entry in ledger]
+    if ledger_numbers != list(range(1, len(ledger_numbers) + 1)):
+        raise ValueError("selection manifest trial numbers must remain contiguous and permanent")
+    ledger_ids = [entry.candidate_id for entry in ledger]
+    if any(not candidate_id.strip() for candidate_id in ledger_ids):
+        raise ValueError("selection manifest trial candidate identifiers must be non-empty")
+    if len(ledger_ids) != len(set(ledger_ids)):
+        raise ValueError("selection manifest trial candidate identifiers must be unique")
+    for entry in ledger:
+        if not isinstance(entry.family, CandidateFamily):
+            raise ValueError("selection manifest trial family is invalid")
+        _validate_sha256(entry.evidence_fingerprint, field="trial evidence fingerprint")
+
+    ranked = tuple(manifest.ranked_candidate_ids)
+    if any(not candidate_id.strip() for candidate_id in ranked):
+        raise ValueError("selection manifest ranked candidate identifiers must be non-empty")
+    if len(ranked) != len(set(ranked)):
+        raise ValueError("selection manifest ranked candidate identifiers must be unique")
+    if not set(ranked).issubset(ledger_ids):
+        raise ValueError("selection manifest ranked candidates must exist in the permanent trial ledger")
+
+    rejected = dict(manifest.rejected)
+    if any(not candidate_id.strip() for candidate_id in rejected):
+        raise ValueError("selection manifest rejected candidate identifiers must be non-empty")
+    if not set(rejected).issubset(ledger_ids):
+        raise ValueError("selection manifest rejected candidates must exist in the permanent trial ledger")
+    if set(ranked) & set(rejected):
+        raise ValueError("selection manifest cannot both rank and reject the same candidate")
+    if set(ranked) | set(rejected) != set(ledger_ids):
+        raise ValueError("selection manifest must account for every permanent trial exactly once")
+    for reasons in rejected.values():
+        if not reasons or any(not str(reason).strip() for reason in reasons):
+            raise ValueError("selection manifest rejected candidates require recorded reasons")
+
+    expected_selected = ranked[0] if ranked else None
+    if manifest.selected_candidate_id != expected_selected:
+        raise ValueError("selection manifest selected candidate must equal the first ranked survivor")
+
 
 def authorize_single_sealed_holdout_release(
     manifest: PreHoldoutSelectionManifest,
