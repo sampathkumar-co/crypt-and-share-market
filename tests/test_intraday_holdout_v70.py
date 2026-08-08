@@ -2,6 +2,7 @@ from dataclasses import replace
 
 import pytest
 
+from tradebot.research.intraday_alpha_lab_v70 import CandidateFamily
 from tradebot.research.intraday_holdout_v70 import (
     HoldoutAction,
     evaluate_single_sealed_holdout,
@@ -10,6 +11,7 @@ from tradebot.research.intraday_holdout_v70 import (
 )
 from tradebot.research.intraday_selection_v70 import (
     PreHoldoutSelectionManifest,
+    TrialLedgerEntry,
     authorize_single_sealed_holdout_release,
     commit_sealed_holdout_before_fitting,
     holdout_commitment_fingerprint,
@@ -38,7 +40,14 @@ def _manifest() -> PreHoldoutSelectionManifest:
         selected_candidate_id="trend-001",
         ranked_candidate_ids=("trend-001",),
         rejected={},
-        trial_ledger=(),
+        trial_ledger=(
+            TrialLedgerEntry(
+                candidate_id="trend-001",
+                family=CandidateFamily.HOURLY_TREND,
+                permanent_trial_number=1,
+                evidence_fingerprint="c" * 64,
+            ),
+        ),
         holdout_commitment_fingerprint=holdout_commitment_fingerprint(frozen),
         sealed_holdout_id=frozen.sealed_holdout_id,
         sealed_holdout_fingerprint=frozen.sealed_holdout_fingerprint,
