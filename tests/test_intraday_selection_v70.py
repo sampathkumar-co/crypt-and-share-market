@@ -279,3 +279,26 @@ def test_rejects_malformed_chain_fingerprints() -> None:
     )
     with pytest.raises(ValueError, match="manifest fingerprint must be lowercase sha256"):
         verify_holdout_release_is_non_authorizing(replace(release, manifest_fingerprint="bad"))
+
+
+def test_release_verifier_rejects_registry_and_identity_tampering() -> None:
+    frozen = commitment()
+    manifest = manifest_for(tournament())
+    release = authorize_single_sealed_holdout_release(
+        manifest,
+        expected_manifest_fingerprint=manifest_fingerprint(manifest),
+        holdout_commitment=frozen,
+    )
+
+    with pytest.raises(ValueError, match="duplicates"):
+        verify_holdout_release_is_non_authorizing(
+            replace(release, consumed_holdout_ids=(release.sealed_holdout_id, release.sealed_holdout_id))
+        )
+    with pytest.raises(ValueError, match="non-empty identifiers"):
+        verify_holdout_release_is_non_authorizing(
+            replace(release, consumed_holdout_ids=("", release.sealed_holdout_id))
+        )
+    with pytest.raises(ValueError, match="frozen candidate and holdout identifiers"):
+        verify_holdout_release_is_non_authorizing(replace(release, selected_candidate_id=""))
+    with pytest.raises(ValueError, match="frozen candidate and holdout identifiers"):
+        verify_holdout_release_is_non_authorizing(replace(release, sealed_holdout_id=""))
