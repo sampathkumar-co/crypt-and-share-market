@@ -229,5 +229,44 @@ def evaluate_single_sealed_holdout(
 
 
 def verify_holdout_result_is_non_authorizing(result: SealedHoldoutResult) -> None:
+    if result.schema_version != HOLDOUT_RESULT_SCHEMA_VERSION:
+        raise ValueError("holdout result schema version mismatch")
+    _validate_sha256(result.release_fingerprint, field="release fingerprint")
+    _validate_sha256(result.manifest_fingerprint, field="manifest fingerprint")
+    _validate_sha256(result.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
+    if not result.selected_candidate_id.strip() or not result.sealed_holdout_id.strip():
+        raise ValueError("holdout result requires frozen candidate and holdout identifiers")
+    if set(result.source_action_counts) != REQUIRED_SOURCES:
+        raise ValueError("holdout result requires exactly Binance and Coinbase source counts")
+    counts = tuple(result.source_action_counts[source] for source in sorted(REQUIRED_SOURCES))
+    if any(type(count) is not int or count <= 0 for count in counts) or len(set(counts)) != 1:
+        raise ValueError("holdout result source counts must be positive and aligned")
+    if type(result.target_changing_actions) is not int or result.target_changing_actions < 0:
+        raise ValueError("holdout result target-changing action count must be non-negative")
+    if result.target_changing_actions > counts[0]:
+        raise ValueError("holdout result target-changing actions exceed logical action count")
+    numeric_values = (
+        result.standard_compounded_excess,
+        result.stress_compounded_excess,
+        result.delayed_stress_compounded_excess,
+        result.maximum_drawdown,
+    )
+    if not all(math.isfinite(float(value)) for value in numeric_values):
+        raise ValueError("holdout result metrics must be finite")
+    if result.maximum_drawdown < 0.0 or result.maximum_drawdown > 1.0:
+        raise ValueError("holdout result drawdown must be between zero and one")
+    if result.passed != (len(result.reasons) == 0):
+        raise ValueError("holdout result pass state contradicts recorded reasons")
+    if result.passed:
+        if result.standard_compounded_excess <= 0.0:
+            raise ValueError("passing holdout result requires positive standard excess")
+        if result.stress_compounded_excess <= 0.0:
+            raise ValueError("passing holdout result requires positive stress excess")
+        if result.delayed_stress_compounded_excess <= 0.0:
+            raise ValueError("passing holdout result requires positive delayed stress excess")
+        if result.maximum_drawdown > MAX_DRAWDOWN:
+            raise ValueError("passing holdout result exceeds frozen drawdown gate")
+        if result.target_changing_actions == 0:
+            raise ValueError("passing holdout result requires genuine target-changing actions")
     if not result.paper_only or result.authorizes_trading:
         raise ValueError("sealed holdout result must remain paper-only and non-authorizing")
