@@ -269,10 +269,17 @@ def verify_holdout_release_is_non_authorizing(release: SealedHoldoutRelease) -> 
         field="holdout commitment fingerprint",
     )
     _validate_sha256(release.sealed_holdout_fingerprint, field="sealed holdout fingerprint")
+    if not release.selected_candidate_id.strip() or not release.sealed_holdout_id.strip():
+        raise ValueError("holdout release requires frozen candidate and holdout identifiers")
     if release.evaluation_count != 1:
         raise ValueError("sealed holdout release must permit exactly one evaluation")
-    if release.sealed_holdout_id not in release.consumed_holdout_ids:
-        raise ValueError("released holdout must be recorded as permanently consumed")
+    consumed = tuple(release.consumed_holdout_ids)
+    if not consumed or any(not holdout_id.strip() for holdout_id in consumed):
+        raise ValueError("consumed holdout registry requires non-empty identifiers")
+    if len(consumed) != len(set(consumed)):
+        raise ValueError("consumed holdout registry contains duplicates")
+    if consumed.count(release.sealed_holdout_id) != 1:
+        raise ValueError("released holdout must be recorded exactly once as permanently consumed")
     if not release.holdout_commitment_fingerprint:
         raise ValueError("released holdout must remain bound to its pre-fit commitment")
     if not release.paper_only or release.authorizes_trading:
