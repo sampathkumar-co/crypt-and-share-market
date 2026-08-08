@@ -252,3 +252,55 @@ def test_non_authorizing_invariant_fails_closed() -> None:
     result = _evaluate(_actions())
     with pytest.raises(ValueError, match="paper-only"):
         verify_holdout_result_is_non_authorizing(replace(result, authorizes_trading=True))
+
+
+def test_result_verifier_rejects_schema_and_fingerprint_drift() -> None:
+    result = _evaluate(_actions())
+    with pytest.raises(ValueError, match="schema version mismatch"):
+        verify_holdout_result_is_non_authorizing(replace(result, schema_version="legacy"))
+    with pytest.raises(ValueError, match="release fingerprint must be lowercase sha256"):
+        verify_holdout_result_is_non_authorizing(replace(result, release_fingerprint="bad"))
+    with pytest.raises(ValueError, match="manifest fingerprint must be lowercase sha256"):
+        verify_holdout_result_is_non_authorizing(replace(result, manifest_fingerprint="bad"))
+    with pytest.raises(ValueError, match="sealed holdout fingerprint must be lowercase sha256"):
+        verify_holdout_result_is_non_authorizing(replace(result, sealed_holdout_fingerprint="bad"))
+
+
+def test_result_verifier_rejects_contradictory_or_impossible_pass_state() -> None:
+    result = _evaluate(_actions())
+    with pytest.raises(ValueError, match="contradicts recorded reasons"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, passed=True, reasons=("fabricated_failure",))
+        )
+    with pytest.raises(ValueError, match="positive stress excess"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, stress_compounded_excess=-0.01)
+        )
+    with pytest.raises(ValueError, match="frozen drawdown gate"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, maximum_drawdown=0.06)
+        )
+    with pytest.raises(ValueError, match="genuine target-changing actions"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, target_changing_actions=0)
+        )
+
+
+def test_result_verifier_rejects_source_count_and_metric_tampering() -> None:
+    result = _evaluate(_actions())
+    with pytest.raises(ValueError, match="exactly Binance and Coinbase"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, source_action_counts={"binance": 3})
+        )
+    with pytest.raises(ValueError, match="positive and aligned"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, source_action_counts={"binance": 3, "coinbase": 2})
+        )
+    with pytest.raises(ValueError, match="exceed logical action count"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, target_changing_actions=4)
+        )
+    with pytest.raises(ValueError, match="metrics must be finite"):
+        verify_holdout_result_is_non_authorizing(
+            replace(result, stress_compounded_excess=float("nan"))
+        )
