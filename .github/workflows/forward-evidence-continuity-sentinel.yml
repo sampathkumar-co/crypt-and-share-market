@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install contract-test dependency
+        run: python -m pip install pytest
       - name: Validate continuity orchestration contract
         run: python -m pytest tests/test_forward_evidence_cadence_contract.py -q
 
