@@ -212,11 +212,22 @@ jobs:
               local run_status="${run_state%%$'\t'*}"
               local run_conclusion="${run_state#*$'\t'}"
               if [[ "$run_status" == "completed" ]]; then
-                if [[ "$run_conclusion" != "success" ]]; then
+                if [[ "$run_conclusion" == "cancelled" ]]; then
+                  replacement_run_id=$(gh run list --workflow "$workflow" --limit 20 \
+                    --json databaseId,status,createdAt \
+                    --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$snapshot_persisted_at\" and .databaseId != $run_id)] | sort_by(.createdAt) | last | .databaseId // empty")
+                  if [[ -n "$replacement_run_id" ]]; then
+                    echo "$label bound run $run_id was cancelled by workflow concurrency; rebinding to active run $replacement_run_id instead of failing early."
+                    run_id="$replacement_run_id"
+                    continue
+                  fi
+                  echo "$label bound run $run_id was cancelled; no replacement is active yet, continuing bounded persistence wait."
+                elif [[ "$run_conclusion" != "success" ]]; then
                   echo "$label bound run $run_id completed with $run_conclusion before persistence; failing closed." >&2
                   return 1
+                else
+                  echo "$label bound run $run_id completed successfully but its decision is not yet visible; continuing bounded persistence wait."
                 fi
-                echo "$label bound run $run_id completed successfully but its decision is not yet visible; continuing bounded persistence wait."
               fi
             done
 
