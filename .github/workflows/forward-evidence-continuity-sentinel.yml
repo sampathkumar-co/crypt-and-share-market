@@ -1,0 +1,84 @@
+name: Forward Evidence Continuity Sentinel
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "3 * * * *"
+  pull_request:
+    paths:
+      - ".github/workflows/forward-evidence-continuity-sentinel.yml"
+      - "tests/test_forward_evidence_cadence_contract.py"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate-contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate continuity orchestration contract
+        run: python -m pytest tests/test_forward_evidence_cadence_contract.py -q
+
+  guard-next-hour:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    steps:
+      - name: Keep the next prospective hour covered by the existing fail-closed watchdog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+
+          dispatch_watchdog_if_needed() {
+            local target_hour_start
+            target_hour_start=$(date -u +'%Y-%m-%dT%H:00:00Z')
+            local active
+            active=$(gh run list \
+              --repo "$repo" \
+              --workflow forward-evidence-watchdog.yml \
+              --limit 30 \
+              --json status,createdAt \
+              --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$target_hour_start\")] | length")
+
+            if [[ "$active" != "0" ]]; then
+              echo "A watchdog created for $target_hour_start is already active; no duplicate dispatch is needed."
+              return 0
+            fi
+
+            gh workflow run forward-evidence-watchdog.yml \
+              --repo "$repo" \
+              --ref main
+            echo "Dispatched the existing fail-closed watchdog for $target_hour_start; this sentinel does not create, rewrite, or backfill evidence."
+          }
+
+          # Cover the hour in which this sentinel actually starts, including a delayed cron delivery.
+          dispatch_watchdog_if_needed
+
+          # Stay alive across the next UTC-hour boundary. This is deliberately independent of
+          # the next hour's cron delivery, so a scheduler-wide missed hour still receives
+          # recovery probes from a job that was already running beforehand.
+          now_epoch=$(date -u +%s)
+          next_hour_epoch=$(( (now_epoch / 3600 + 1) * 3600 ))
+          first_probe_epoch=$(( next_hour_epoch + 8 * 60 ))
+          wait_seconds=$(( first_probe_epoch - now_epoch ))
+          if (( wait_seconds > 0 )); then
+            sleep "$wait_seconds"
+          fi
+
+          dispatch_watchdog_if_needed
+          sleep 1200
+          dispatch_watchdog_if_needed
+          sleep 900
+          dispatch_watchdog_if_needed
+
+          echo "Cross-hour continuity sentinel completed without modifying strategy, gate, holdout, cost, exposure, or evidence bytes."
