@@ -72,19 +72,22 @@ jobs:
           active_v20=$(gh run list --workflow forward-market-state-v20.yml --limit 10 --json status,createdAt \
             --jq "[.[] | select((.status == \"queued\" or .status == \"in_progress\") and .createdAt >= \"$current_hour_started_at\")] | length")
 
-          dispatched_v20=false
+          wait_for_v20=false
           if [[ "$snapshot_present" != "true" && "$active_v20" == "0" && "$current_minute" -lt "$recovery_deadline_minute" ]]; then
             echo "Missing snapshot for $current_target with sufficient pre-rollover margin; dispatching frozen v2.0 collector."
             gh workflow run forward-market-state-v20.yml --ref main
-            dispatched_v20=true
+            wait_for_v20=true
           elif [[ "$snapshot_present" != "true" && "$active_v20" == "0" ]]; then
             echo "Missing snapshot for $current_target, but minute=$current_minute is inside the rollover safety window; failing closed without dispatch." >&2
+          elif [[ "$snapshot_present" != "true" ]]; then
+            echo "A current-hour v2.0 collector is already active; waiting for its append-only snapshot instead of failing early."
+            wait_for_v20=true
           else
             echo "Snapshot phase safe: target=$current_target present=$snapshot_present active_v20=$active_v20 phase=$phase minute=$current_minute"
           fi
 
-          if [[ "$snapshot_present" != "true" && "$dispatched_v20" == "true" ]]; then
-            echo "Waiting for the dispatched canonical snapshot before checking decisions."
+          if [[ "$snapshot_present" != "true" && "$wait_for_v20" == "true" ]]; then
+            echo "Waiting for the canonical v2.0 snapshot before checking decisions."
             for attempt in $(seq 1 40); do
               sleep 15
               git fetch --quiet origin forward-data/v2
