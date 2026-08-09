@@ -15,3 +15,13 @@ def test_watchdog_waits_for_an_already_active_current_hour_collector() -> None:
     assert 'if [[ "$snapshot_present" != "true" && "$wait_for_v20" == "true" ]]; then' in text
     assert "for attempt in $(seq 1 40)" in text
     assert "failing closed without dispatching decisions" in text
+
+
+def test_watchdog_rebinds_when_a_decision_run_is_cancelled_by_concurrency() -> None:
+    text = WATCHDOG.read_text(encoding="utf-8")
+
+    assert 'if [[ "$run_conclusion" == "cancelled" ]]; then' in text
+    assert 'replacement_run_id=$(gh run list --workflow "$workflow"' in text
+    assert 'run_id="$replacement_run_id"' in text
+    assert "rebinding to active run" in text
+    assert "no replacement is active yet, continuing bounded persistence wait" in text
