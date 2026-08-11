@@ -170,4 +170,5 @@ jobs:
           fi
           snapshot_id=$(basename "$(find evidence/compact/normalized -name '*.json' -print -quit)" .json)
           git -C /tmp/forward-data-v2 commit -m "Append forward market-state snapshot $snapshot_id"
+          git -C /tmp/forward-data-v2 pull --rebase origin forward-data/v2
           git -C /tmp/forward-data-v2 push origin HEAD:forward-data/v2
