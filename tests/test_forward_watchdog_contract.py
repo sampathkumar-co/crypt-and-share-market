@@ -25,3 +25,14 @@ def test_watchdog_rebinds_when_a_decision_run_is_cancelled_by_concurrency() -> N
     assert 'run_id="$replacement_run_id"' in text
     assert "rebinding to active run" in text
     assert "no replacement is active yet, continuing bounded persistence wait" in text
+
+
+def test_watchdog_retries_transient_forward_data_fetches_but_still_fails_closed() -> None:
+    text = WATCHDOG.read_text(encoding="utf-8")
+
+    assert "fetch_forward_data() {" in text
+    assert "for attempt in 1 2 3; do" in text
+    assert "if git fetch --quiet origin forward-data/v2; then" in text
+    assert "Transient forward-data/v2 fetch failure" in text
+    assert "Unable to refresh forward-data/v2 after bounded retries; failing closed." in text
+    assert text.count("fetch_forward_data") >= 4
