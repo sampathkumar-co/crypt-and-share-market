@@ -36,7 +36,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin forward-data/v2
+
+          fetch_forward_data() {
+            for attempt in 1 2 3; do
+              if git fetch --quiet origin forward-data/v2; then
+                return 0
+              fi
+              if [[ "$attempt" -lt 3 ]]; then
+                echo "Transient forward-data/v2 fetch failure (attempt $attempt/3); retrying without modifying evidence." >&2
+                sleep $((attempt * 5))
+              fi
+            done
+            echo "Unable to refresh forward-data/v2 after bounded retries; failing closed." >&2
+            return 1
+          }
+
+          fetch_forward_data
           rm -rf /tmp/forward-data-watchdog
           git worktree add --detach /tmp/forward-data-watchdog origin/forward-data/v2
 
@@ -90,7 +105,7 @@ jobs:
             echo "Waiting for the canonical v2.0 snapshot before checking decisions."
             for attempt in $(seq 1 40); do
               sleep 15
-              git fetch --quiet origin forward-data/v2
+              fetch_forward_data
               git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
               snapshot_present=$(TARGET="$current_target" python - <<'PY'
           import json
@@ -162,7 +177,7 @@ jobs:
             local decision_path="$2"
             local label="$3"
 
-            git fetch --quiet origin forward-data/v2
+            fetch_forward_data
             git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
             if [[ -f "$decision_path" ]]; then
               echo "$label decision already exists for $target."
@@ -199,7 +214,7 @@ jobs:
 
             for attempt in $(seq 1 60); do
               sleep 15
-              git fetch --quiet origin forward-data/v2
+              fetch_forward_data
               git -C /tmp/forward-data-watchdog reset --hard --quiet origin/forward-data/v2
               if [[ -f "$decision_path" ]]; then
                 echo "$label decision persisted for $target by bound run $run_id."
