@@ -23,6 +23,7 @@ concurrency:
 jobs:
   test-router:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,8 +32,8 @@ jobs:
           cache: pip
       - name: Install and run frozen synthetic gate
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m pip install --retries 3 --timeout 30 --upgrade pip
+          python -m pip install --retries 3 --timeout 30 -e ".[dev]"
           python -m pytest tests/test_market_state_router.py -q
 
   assemble-and-decide:
