@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import asdict, dataclass, field
@@ -25,6 +26,7 @@ FEATURE_NAMES = [
     "upper_wick_ratio",
     "lower_wick_ratio",
 ]
+MODEL_VERSION = "crypto-signal-v2"
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,11 @@ class CryptoSignalModel:
     positive_rate: float
     samples: int
     label_config: dict[str, float | int] = field(default_factory=dict)
+    random_state: int = 0
+    training_metadata: dict[str, object] = field(default_factory=dict)
+    training_metrics: dict[str, float | int] = field(default_factory=dict)
     model_type: str = "fallback_logistic_gradient"
+    model_version: str = MODEL_VERSION
 
     def predict_probability(self, features: dict[str, float]) -> float:
         z = self.bias
@@ -66,7 +72,10 @@ class CryptoSignalModel:
     def save(self, path: str | Path) -> Path:
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
+        output.write_text(
+            json.dumps(asdict(self), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         return output
 
     @classmethod
@@ -125,7 +134,11 @@ def generate_label(candles: list[Candle], index: int, config: LabelConfig | None
     return 0
 
 
-def build_samples_from_candles(symbol: str, candles: list[Candle], config: LabelConfig | None = None) -> list[MLSample]:
+def build_samples_from_candles(
+    symbol: str,
+    candles: list[Candle],
+    config: LabelConfig | None = None,
+) -> list[MLSample]:
     config = config or LabelConfig()
     samples: list[MLSample] = []
     last_index = len(candles) - config.max_holding_bars - 1
@@ -136,23 +149,38 @@ def build_samples_from_candles(symbol: str, candles: list[Candle], config: Label
     return samples
 
 
-def load_samples_from_folder(folder: str | Path, config: LabelConfig | None = None) -> list[MLSample]:
+def load_samples_from_folder(
+    folder: str | Path,
+    config: LabelConfig | None = None,
+) -> list[MLSample]:
     samples: list[MLSample] = []
     for path in sorted(Path(folder).glob("*.csv")):
         samples.extend(build_samples_from_candles(path.stem, load_candles(path), config))
     return sorted(samples, key=lambda sample: sample.timestamp)
 
 
-def chronological_split(samples: list[MLSample], train_ratio: float = 0.7) -> tuple[list[MLSample], list[MLSample]]:
+def chronological_split(
+    samples: list[MLSample],
+    train_ratio: float = 0.7,
+) -> tuple[list[MLSample], list[MLSample]]:
     ordered = sorted(samples, key=lambda sample: sample.timestamp)
     cut = int(len(ordered) * train_ratio)
     cut = min(max(cut, 1), max(len(ordered) - 1, 1)) if len(ordered) > 1 else len(ordered)
     return ordered[:cut], ordered[cut:]
 
 
-def train_model(samples: list[MLSample], config: LabelConfig | None = None, epochs: int = 250, learning_rate: float = 0.08) -> CryptoSignalModel:
+def train_model(
+    samples: list[MLSample],
+    config: LabelConfig | None = None,
+    epochs: int = 250,
+    learning_rate: float = 0.08,
+    random_state: int = 0,
+) -> CryptoSignalModel:
     if not samples:
         raise ValueError("No ML samples available for training")
+    if not isinstance(random_state, int):
+        raise TypeError("random_state must be an integer")
+    label_config = config or LabelConfig()
     means, stds = _feature_stats(samples)
     weights = {name: 0.0 for name in FEATURE_NAMES}
     positive_rate = sum(sample.label for sample in samples) / len(samples)
@@ -161,42 +189,104 @@ def train_model(samples: list[MLSample], config: LabelConfig | None = None, epoc
         gradients = {name: 0.0 for name in FEATURE_NAMES}
         bias_gradient = 0.0
         for sample in samples:
-            z = bias + sum(weights[name] * _norm(sample.features.get(name, 0.0), means[name], stds[name]) for name in FEATURE_NAMES)
+            z = bias + sum(
+                weights[name]
+                * _norm(sample.features.get(name, 0.0), means[name], stds[name])
+                for name in FEATURE_NAMES
+            )
             pred = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, z))))
             err = pred - sample.label
             bias_gradient += err
             for name in FEATURE_NAMES:
-                gradients[name] += err * _norm(sample.features.get(name, 0.0), means[name], stds[name])
+                gradients[name] += err * _norm(
+                    sample.features.get(name, 0.0), means[name], stds[name]
+                )
         scale = 1.0 / len(samples)
         bias -= learning_rate * bias_gradient * scale
         for name in FEATURE_NAMES:
             weights[name] -= learning_rate * gradients[name] * scale
-    return CryptoSignalModel(FEATURE_NAMES, weights, bias, means, stds, positive_rate, len(samples), asdict(config or LabelConfig()))
+
+    feature_set_sha256 = hashlib.sha256("\n".join(FEATURE_NAMES).encode("utf-8")).hexdigest()
+    model = CryptoSignalModel(
+        feature_names=list(FEATURE_NAMES),
+        weights=weights,
+        bias=bias,
+        means=means,
+        stds=stds,
+        positive_rate=positive_rate,
+        samples=len(samples),
+        label_config=asdict(label_config),
+        random_state=random_state,
+        training_metadata={
+            "random_state": random_state,
+            "epochs": epochs,
+            "learning_rate": learning_rate,
+            "feature_set": list(FEATURE_NAMES),
+            "feature_set_sha256": feature_set_sha256,
+            "deterministic_optimizer": True,
+        },
+    )
+    predictions = [
+        1 if model.predict_probability(sample.features) >= 0.5 else 0
+        for sample in samples
+    ]
+    correct = sum(
+        prediction == sample.label
+        for prediction, sample in zip(predictions, samples, strict=True)
+    )
+    model.training_metrics = {
+        "samples": len(samples),
+        "accuracy": correct / len(samples),
+        "positive_rate": positive_rate,
+    }
+    return model
 
 
-def train_from_folder(folder: str | Path, model_out: str | Path, config: LabelConfig | None = None) -> CryptoSignalModel:
+def train_from_folder(
+    folder: str | Path,
+    model_out: str | Path,
+    config: LabelConfig | None = None,
+    random_state: int = 0,
+) -> CryptoSignalModel:
     samples = load_samples_from_folder(folder, config)
     train, _test = chronological_split(samples)
-    model = train_model(train, config)
+    model = train_model(train, config, random_state=random_state)
     model.save(model_out)
     return model
 
 
 def evaluate_model(samples: list[MLSample], model: CryptoSignalModel) -> dict:
     if not samples:
-        return {"samples": 0, "accuracy": 0.0, "precision": 0.0, "recall": 0.0, "false_positive_rate": 0.0, "warning": "Sample size is too low for evaluation."}
+        return {
+            "samples": 0,
+            "accuracy": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "false_positive_rate": 0.0,
+            "warning": "Sample size is too low for evaluation.",
+        }
     tp = fp = tn = fn = 0
     per_symbol: dict[str, dict[str, int]] = {}
     for sample in samples:
         pred = 1 if model.predict_probability(sample.features) >= 0.5 else 0
-        if pred == 1 and sample.label == 1: tp += 1
-        elif pred == 1 and sample.label == 0: fp += 1
-        elif pred == 0 and sample.label == 0: tn += 1
-        else: fn += 1
+        if pred == 1 and sample.label == 1:
+            tp += 1
+        elif pred == 1 and sample.label == 0:
+            fp += 1
+        elif pred == 0 and sample.label == 0:
+            tn += 1
+        else:
+            fn += 1
         row = per_symbol.setdefault(sample.symbol, {"samples": 0, "correct": 0})
         row["samples"] += 1
         row["correct"] += int(pred == sample.label)
-    per_symbol_accuracy = {symbol: {"samples": row["samples"], "accuracy": row["correct"] / row["samples"]} for symbol, row in per_symbol.items()}
+    per_symbol_accuracy = {
+        symbol: {
+            "samples": row["samples"],
+            "accuracy": row["correct"] / row["samples"],
+        }
+        for symbol, row in per_symbol.items()
+    }
     return {
         "samples": len(samples),
         "accuracy": (tp + tn) / len(samples),
@@ -213,7 +303,11 @@ def evaluate_folder(folder: str | Path, model_path: str | Path) -> dict:
     train, test = chronological_split(samples)
     model = CryptoSignalModel.load(model_path)
     metrics = evaluate_model(test, model)
-    metrics["train_test_split"] = {"train_samples": len(train), "test_samples": len(test), "split": "chronological_70_30"}
+    metrics["train_test_split"] = {
+        "train_samples": len(train),
+        "test_samples": len(test),
+        "split": "chronological_70_30",
+    }
     return metrics
 
 
@@ -222,10 +316,15 @@ def _ret(closes: list[float], bars: int) -> float:
 
 
 def _feature_stats(samples: list[MLSample]) -> tuple[dict[str, float], dict[str, float]]:
-    means = {name: avg([sample.features.get(name, 0.0) for sample in samples]) for name in FEATURE_NAMES}
+    means = {
+        name: avg([sample.features.get(name, 0.0) for sample in samples])
+        for name in FEATURE_NAMES
+    }
     stds: dict[str, float] = {}
     for name in FEATURE_NAMES:
-        variance = avg([(sample.features.get(name, 0.0) - means[name]) ** 2 for sample in samples])
+        variance = avg(
+            [(sample.features.get(name, 0.0) - means[name]) ** 2 for sample in samples]
+        )
         stds[name] = math.sqrt(variance) or 1.0
     return means, stds
 
