@@ -25,11 +25,15 @@ jobs:
           python-version: "3.12"
       - name: Generate hashed lockfile
         run: |
-          python -m pip install --upgrade pip pip-tools
-          python -m piptools compile --extra dev --generate-hashes --output-file requirements.lock pyproject.toml
+          python -m pip install pip==26.2.1 pip-tools==7.6.1
+          python -m piptools compile --extra dev --generate-hashes --allow-unsafe --output-file requirements.lock pyproject.toml
+      - name: Record lock source fingerprint
+        run: python -c "import hashlib,pathlib; p=pathlib.Path('pyproject.toml'); l=pathlib.Path('requirements.lock'); pathlib.Path('requirements.lock.source').write_text(f'pyproject_sha256={hashlib.sha256(p.read_bytes()).hexdigest()}\nrequirements_lock_sha256={hashlib.sha256(l.read_bytes()).hexdigest()}\n')"
       - name: Upload lockfile
         uses: actions/upload-artifact@v4
         with:
           name: requirements-lock
-          path: requirements.lock
+          path: |
+            requirements.lock
+            requirements.lock.source
           if-no-files-found: error
