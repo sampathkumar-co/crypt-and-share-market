@@ -6,6 +6,10 @@ on:
     paths:
       - pyproject.toml
       - .github/workflows/generate-lock.yml
+  pull_request:
+    paths:
+      - pyproject.toml
+      - .github/workflows/generate-lock.yml
   workflow_dispatch:
 
 permissions:
