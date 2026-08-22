@@ -2,13 +2,32 @@ name: CI
 
 on:
   push:
-    branches: [main, "complete/**"]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install locked development environment
+        run: |
+          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --no-build-isolation --no-deps -e .
+          python -m pip check
+      - name: Verify lockfile sync
+        run: python -m pytest tests/test_lockfile_sync.py
+      - name: Lint
+        run: ruff check src/tradebot tests/test_lockfile_sync.py tests/test_offline_http_clients.py tests/test_crypto_ml_reproducibility.py tests/test_structured_logging.py tests/test_forward_paper_modularity.py
+      - name: Format check
+        run: black --check src/tradebot tests/test_lockfile_sync.py tests/test_offline_http_clients.py tests/test_crypto_ml_reproducibility.py tests/test_structured_logging.py tests/test_forward_paper_modularity.py
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -16,19 +35,17 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install package and test dependencies
+      - name: Install locked test environment
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --no-build-isolation --no-deps -e .
           python -m pip check
       - name: Compile source
         run: python -m compileall -q src
-      - name: Run tests
+      - name: Run offline test suite
         run: python -m pytest
