@@ -1,0 +1,50 @@
+{
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "completed_candle_date_utc": "2026-08-23",
+  "forward_observation_branch": "forward-observation/v33",
+  "forward_observation_head_before_append": "02332536eca2ee12f42966ad8504fc60a7ca8ac4",
+  "observation_file": "2026-08-23.json",
+  "observation_file_sha256": "2cb2f569aa856dba6af14da3303ea54dce1277764619ff3ab2b3e5b00c9741c7",
+  "observation_report_sha256": "c6431cc831b6b730f9a7fefe64d170cb61ff8043108a81f40946216043ab11a1",
+  "paper_only": true,
+  "schema_version": "3.3-daily-forward-source-manifest",
+  "source_inventory": [
+    {
+      "key": "cash:DGS3MO",
+      "latest_known_annual_rate": 0.0387,
+      "latest_known_date": "2026-08-20",
+      "normalized_sha256": "9a6def845833fe3f4ceec9a0f07ccf0d778ee6dafe7983f36c47cd17e90d9719",
+      "observation_count": 11242,
+      "provider": "federal_reserve_h15",
+      "raw_sha256": "99332c41813ad5c702d0dd61e42c56650270a78aa7b24fd895b2405288123787",
+      "series_id": "H15/H15/RIFLGFCM03_N.B",
+      "url": "https://www.federalreserve.gov/datadownload/Output.aspx?filetype=csv&from=&label=include&lastobs=&layout=seriescolumn&rel=H15&series=bf17364827e38702b42a58cf8eaa3f78&to=&type=package"
+    },
+    {
+      "first_date": "2025-12-07",
+      "key": "coinbase:BTC",
+      "last_date": "2026-08-23",
+      "normalized_sha256": "c1a72cfe84ced3d4bcd8549451f040e8fc0670e3b237cecf846f827a882798c9",
+      "product": "BTC-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "raw_sha256": "a8bb4f028dea61c456628172d923f49d24c5442a9383be35cf851c4d8c97875d",
+      "rows": 260,
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2025-12-07T00%3A00%3A00Z&end=2026-08-24T00%3A00%3A00Z"
+    },
+    {
+      "first_date": "2025-12-07",
+      "key": "coinbase:ETH",
+      "last_date": "2026-08-23",
+      "normalized_sha256": "7c0a4a4540f5f13af49b3e3e81db7fa9bc65f49d1203d1d9b949de605a626eca",
+      "product": "ETH-USD",
+      "provider": "coinbase-exchange-public-rest",
+      "raw_sha256": "f94a2c6630be59be09074d4777e04e37ec2031855b51ebb04f322f0ed79c1345",
+      "rows": 260,
+      "url": "https://api.exchange.coinbase.com/products/ETH-USD/candles?granularity=86400&start=2025-12-07T00%3A00%3A00Z&end=2026-08-24T00%3A00%3A00Z"
+    }
+  ],
+  "source_inventory_sha256": "95ea8dc8c1c7e30f521dc88204d7ace2bb1a5ee28442a25504a427661aa7301e",
+  "workflow_run_attempt": "1",
+  "workflow_run_id": "32681525699"
+}
