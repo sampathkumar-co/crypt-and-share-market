@@ -2,6 +2,11 @@ name: Forward Alpha v2.5 Watchdog
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Forward Alpha Decisions v2.5
+    types:
+      - completed
   schedule:
     - cron: "49,59 * * * *"
 
@@ -22,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Dispatch only a missing latest-hour v2.5 decision
+      - name: Dispatch only a missing current-hour v2.5 decision
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -54,17 +59,26 @@ jobs:
           if not hours:
               raise SystemExit("No canonical snapshot is available for v2.5 recovery")
           latest = max(hours)
+          current = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
           print(latest.strftime("%Y-%m-%dT%H:00:00Z"))
           print(latest.strftime("%Y%m%dT%H0000Z"))
+          print(current.strftime("%Y-%m-%dT%H:00:00Z"))
           PY
           )
-          test "${#latest_info[@]}" -eq 2
+          test "${#latest_info[@]}" -eq 3
           target="${latest_info[0]}"
           safe="${latest_info[1]}"
-          decision="/tmp/forward-data-v25-watchdog/data/forward-alpha-v25/decisions/$safe.json"
+          current="${latest_info[2]}"
 
+          if [[ "$target" != "$current" ]]; then
+            echo "Latest canonical snapshot is $target, not current UTC hour $current; refusing retroactive dispatch."
+            echo "Any missed prior hour remains a gap under the frozen forward-only rules."
+            exit 0
+          fi
+
+          decision="/tmp/forward-data-v25-watchdog/data/forward-alpha-v25/decisions/$safe.json"
           if [[ -f "$decision" ]]; then
-            echo "v2.5 decision already exists for $target; no dispatch needed."
+            echo "v2.5 decision already exists for current hour $target; no dispatch needed."
             exit 0
           fi
 
@@ -79,5 +93,5 @@ jobs:
           fi
 
           gh workflow run forward-alpha-decisions-v25.yml --ref main
-          echo "Dispatched frozen v2.5 router for latest canonical snapshot $target."
+          echo "Dispatched frozen v2.5 router for current canonical snapshot $target."
           echo "No market snapshot, decision byte, strategy threshold or evaluation gate was modified."
