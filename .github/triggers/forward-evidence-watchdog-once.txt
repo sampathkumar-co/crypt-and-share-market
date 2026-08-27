@@ -1,2 +1,2 @@
-Trigger the full fail-closed watchdog after making active-run suppression specific to the latest persisted canonical snapshot. Recover only missing decisions for the newest canonical hour; do not backfill, reconstruct, or modify evidence.
-Created: 2026-07-31T10:15:00Z
+Trigger the full fail-closed watchdog for the current UTC hour only. Recover a missing current-hour canonical snapshot through the frozen Forward Market State v2.0 collector, then recover only matching current-hour decisions. Never backfill, reconstruct, or modify prior-hour evidence; prior missed hours remain gaps.
+Triggered: 2026-08-27T05:00:00Z
