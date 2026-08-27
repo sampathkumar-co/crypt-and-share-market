@@ -1,0 +1,110 @@
+{
+  "action": "HOLD_NO_TRADE",
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_evidence": {
+    "latest_known_annual_rate": 0.0386,
+    "latest_known_date": "2026-08-25",
+    "normalized_sha256": "0d3477734ae611847a9b5c2d57c65b2e799ceea74ee1c96d5312c3719f67e6a0",
+    "observation_count": 11245,
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "changes_track_a": false,
+  "completed_candle_date_utc": "2026-08-26",
+  "continuity": {
+    "gap_reset": false,
+    "has_prior_observation": true,
+    "prior_calendar_day_present": true
+  },
+  "data_cutoff_utc": "2026-08-26T23:59:59.999999Z",
+  "decision_reason": "natural_drift_until_scheduled_rebalance",
+  "earliest_eligible_effective_open_utc": "2026-08-28T00:00:00Z",
+  "features": {
+    "BTC": {
+      "close": 79026.18,
+      "drawdown_20": 0.0,
+      "return_1": 0.006359357569644786,
+      "return_120": 0.0354856043771592,
+      "return_20": 0.22964835927446758,
+      "return_200": 0.1412589606084158,
+      "return_5": 0.008945230380792868,
+      "return_60": 0.318534928932821,
+      "sma_100": 66136.8129,
+      "sma_200": 69175.71795,
+      "sma_50": 66065.4594,
+      "trend_score": 8.614296869573176,
+      "volatility_20": 0.025246608340221712
+    },
+    "ETH": {
+      "close": 2506.93,
+      "drawdown_20": -0.003525717465617473,
+      "return_1": 0.026357699944729696,
+      "return_120": 0.09506877678232106,
+      "return_20": 0.31775843399459625,
+      "return_200": 0.2016901786527463,
+      "return_5": -0.003525717465617473,
+      "return_60": 0.5951450750827183,
+      "sma_100": 1878.3634,
+      "sma_200": 2014.3622500000001,
+      "sma_50": 1962.1612,
+      "trend_score": 8.229971672847325,
+      "volatility_20": 0.043309565214488935
+    }
+  },
+  "fingerprints": {
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "cf1dc9c096fa9eb29467cd4c324798c519a7d68eeca13112a34c0cd7215c1a68",
+    "protocol_sha256": "b75cde366a938cb6c14b30029b06996c3979022d84ecf69c93d8ac5439adf266",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "source_implementation_sha256": "c37209fa243ce0e8e069eee128fe62aa13f85f49def340ef7cd4bb679658bfc8"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "historical_promotion_evidence": {
+    "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+    "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+  },
+  "history_days": 260,
+  "minimum_cash_target": null,
+  "mode": "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY",
+  "operational_latency_days": 1,
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "recommended_target_weights": null,
+  "report_sha256": "bee414f412289174c2d275a6496ce78ae32c9a20f21c7553013c1703e779dfc0",
+  "schema_version": "3.3-daily-forward-observation",
+  "source_fingerprints": {
+    "coinbase_btc_normalized_sha256": "7553fa69092c4049753c3d7f37ff7a775f4ce83659fd239aa1f97d16f04c7912",
+    "coinbase_eth_normalized_sha256": "97c93f2292f951f69d457ded9ebdb52a873912597f23ffc362595020590fdfcb",
+    "h15_normalized_sha256": "0d3477734ae611847a9b5c2d57c65b2e799ceea74ee1c96d5312c3719f67e6a0",
+    "prior_observation_file_sha256": "5f643d1a8a142100860be86391550eceba9e446b7e93dadf6f57e02b92fb34fa"
+  },
+  "state_after": {
+    "age": 2,
+    "selected_assets": [
+      "BTC"
+    ],
+    "sleeve": "trend"
+  },
+  "state_before": {
+    "age": 1,
+    "selected_assets": [
+      "BTC"
+    ],
+    "sleeve": "trend"
+  },
+  "target_changing_action": false,
+  "trade_required": false
+}
