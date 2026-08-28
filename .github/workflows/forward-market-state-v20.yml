@@ -24,7 +24,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  current-hour-guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_collect: ${{ steps.guard.outputs.should_collect }}
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Permit only the first genuine snapshot for the current UTC hour
+        id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "should_collect=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          target=$(date -u +%Y-%m-%dT%H:00:00Z)
+          git fetch --quiet origin forward-data/v2
+          rm -rf /tmp/forward-data-v2-guard
+          git worktree add --detach /tmp/forward-data-v2-guard origin/forward-data/v2 >/dev/null
+
+          snapshot_present=$(TARGET="$target" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          target = os.environ["TARGET"]
+          root = Path("/tmp/forward-data-v2-guard/data/forward-market-state/normalized")
+          found = False
+          for path in root.glob("*.json"):
+              try:
+                  if json.loads(path.read_text(encoding="utf-8")).get("hour_bucket_utc") == target:
+                      found = True
+                      break
+              except (OSError, json.JSONDecodeError):
+                  continue
+          print("true" if found else "false")
+          PY
+          )
+
+          if [[ "$snapshot_present" == "true" ]]; then
+            echo "Canonical evidence already exists for $target; preserving it byte-for-byte and skipping duplicate collection."
+            echo "should_collect=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No canonical evidence exists yet for $target; allowing one genuine forward collection."
+            echo "should_collect=true" >> "$GITHUB_OUTPUT"
+          fi
+
   collect-and-verify:
+    needs: current-hour-guard
+    if: needs.current-hour-guard.outputs.should_collect == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -119,6 +173,7 @@ jobs:
             evidence/forward-market-state/manifests/
           retention-days: 90
           if-no-files-found: error
+
   persist-normalized-history:
     if: github.event_name != 'pull_request'
     needs: collect-and-verify
