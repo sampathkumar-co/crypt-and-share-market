@@ -31,7 +31,39 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Classify the source run before requiring an artifact
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_name="forward-market-state-v20-normalized-$SOURCE_RUN_ID"
+          artifact_count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts" \
+            --jq "[.artifacts[] | select(.name == \"$artifact_name\" and .expired == false)] | length")
+          if [[ "$artifact_count" == "1" ]]; then
+            echo "has_snapshot=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$artifact_count" != "0" ]]; then
+            echo "Failing closed: expected at most one unexpired normalized artifact, found $artifact_count." >&2
+            exit 1
+          fi
+
+          mapfile -t conclusions < <(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/jobs?filter=latest&per_page=100" \
+            --jq '.jobs[] | select(.name == "collect-and-verify" or .name == "persist-normalized-history") | "\(.name)=\(.conclusion)"' | sort)
+          if [[ "${#conclusions[@]}" -eq 2 && \
+                "${conclusions[0]}" == "collect-and-verify=skipped" && \
+                "${conclusions[1]}" == "persist-normalized-history=skipped" ]]; then
+            echo "Source run was an intentional duplicate/no-op; no snapshot artifact is expected."
+            echo "has_snapshot=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf 'Unexpected missing normalized artifact for source run %s; job conclusions: %s\n' \
+            "$SOURCE_RUN_ID" "${conclusions[*]:-none}" >&2
+          exit 1
+
       - name: Download the exact persisted snapshot artifact
+        if: steps.source.outputs.has_snapshot == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -42,6 +74,7 @@ jobs:
             --dir /tmp/source-evidence
 
       - name: Verify provenance and dispatch only missing decisions
+        if: steps.source.outputs.has_snapshot == 'true'
         id: dispatch
         shell: bash
         run: |
