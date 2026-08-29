@@ -16,6 +16,18 @@ def test_handoff_is_bound_to_successful_persisted_v20_runs() -> None:
     assert "The workflow artifact was not persisted to forward-data/v2" in text
 
 
+def test_handoff_accepts_only_a_proven_duplicate_noop_without_an_artifact() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "Classify the source run before requiring an artifact" in text
+    assert 'select(.name == "collect-and-verify" or .name == "persist-normalized-history")' in text
+    assert '"${conclusions[0]}" == "collect-and-verify=skipped"' in text
+    assert '"${conclusions[1]}" == "persist-normalized-history=skipped"' in text
+    assert "Source run was an intentional duplicate/no-op; no snapshot artifact is expected." in text
+    assert "Unexpected missing normalized artifact for source run" in text
+    assert "if: steps.source.outputs.has_snapshot == 'true'" in text
+
+
 def test_handoff_fails_closed_and_verifies_both_decisions() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
