@@ -1,2 +1,2 @@
-2026-08-29T12:58:00Z
-Reason: Track A scheduled collector/watchdog/cadence produced no 12:00 UTC Actions run before the frozen minute-45 recovery cutoff. Preserve 12:00 as a genuine gap and keep the existing fail-closed continuity sentinel alive across the 13:00 UTC boundary so only future evidence can be collected.
+2026-08-29T14:12:00Z
+Reason: Track A has a canonical 13:00 UTC v2.5 point, but GitHub created no collector/watchdog/cadence Actions run during the first twelve minutes of the 14:00 UTC hour. Activate only the existing fail-closed continuity sentinel so it can dispatch the existing watchdog prospectively for 14:00; do not create, rewrite, reconstruct, backfill, or alter evidence, readiness gates, strategy logic, holdouts, costs, or trading permissions.
