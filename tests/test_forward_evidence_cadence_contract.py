@@ -53,6 +53,18 @@ def test_cross_hour_sentinel_survives_one_missed_scheduler_hour() -> None:
     assert text.count("dispatch_watchdog_if_needed") >= 5
 
 
+def test_cross_hour_sentinel_rearms_from_successful_sealed_hour_without_cron() -> None:
+    text = SENTINEL.read_text(encoding="utf-8")
+
+    assert "workflow_run:" in text
+    assert 'workflows: ["Forward Alpha Decisions v2.5"]' in text
+    assert "types: [completed]" in text
+    assert "github.event.workflow_run.conclusion == 'success'" in text
+    assert "github.event.workflow_run.head_branch == 'main'" in text
+    assert "github.event.workflow_run.event != 'pull_request'" in text
+    assert "next hour no longer depends exclusively on cron delivery" in text
+
+
 def test_cross_hour_sentinel_is_orchestration_only_and_fail_closed() -> None:
     text = SENTINEL.read_text(encoding="utf-8")
 
