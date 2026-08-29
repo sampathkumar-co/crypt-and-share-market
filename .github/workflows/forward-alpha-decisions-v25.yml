@@ -212,6 +212,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Check out repository history
         uses: actions/checkout@v4
@@ -296,3 +297,14 @@ jobs:
           git -C /tmp/forward-data-v2-write commit -m "Append v2.5 forward alpha decision $decision_file"
           git -C /tmp/forward-data-v2-write pull --rebase origin forward-data/v2
           git -C /tmp/forward-data-v2-write push origin HEAD:forward-data/v2
+
+      - name: Rearm cross-hour continuity after a successful v2.5 seal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run forward-evidence-continuity-sentinel.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+          echo "Dispatched the existing fail-closed continuity sentinel after the sealed v2.5 decision; no evidence, strategy, gate, holdout, cost, or exposure bytes were modified."
