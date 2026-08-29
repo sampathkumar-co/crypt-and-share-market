@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "3 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/forward-evidence-continuity-sentinel-once.txt"
   pull_request:
     paths:
       - ".github/workflows/forward-evidence-continuity-sentinel.yml"
