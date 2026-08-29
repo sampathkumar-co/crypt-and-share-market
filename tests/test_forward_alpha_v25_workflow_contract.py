@@ -40,6 +40,16 @@ def test_v25_decision_workflow_is_append_only_and_bounded() -> None:
     assert '"authorizes_shadow_paper": False' in text
 
 
+def test_v25_success_directly_rearms_fail_closed_continuity() -> None:
+    text = DECISIONS.read_text(encoding="utf-8")
+
+    assert "actions: write" in text
+    assert "Rearm cross-hour continuity after a successful v2.5 seal" in text
+    assert "gh workflow run forward-evidence-continuity-sentinel.yml" in text
+    assert '--ref main' in text
+    assert "no evidence, strategy, gate, holdout, cost, or exposure bytes were modified" in text
+
+
 def test_watchdog_recovers_only_missing_v25_decisions() -> None:
     text = WATCHDOG.read_text(encoding="utf-8")
 
