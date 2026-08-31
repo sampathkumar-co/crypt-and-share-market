@@ -187,17 +187,22 @@ jobs:
           SAFE_HOUR: ${{ steps.dispatch.outputs.safe_hour }}
         run: |
           set -euo pipefail
+          v21_path="/tmp/handoff-v21-decision.json"
+          v23_path="/tmp/handoff-v23-decision.json"
           for attempt in $(seq 1 60); do
             git fetch --quiet origin forward-data/v2
-            v21=$(git show "origin/forward-data/v2:data/market-state-router/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
-            v23=$(git show "origin/forward-data/v2:data/forward-alpha-v23/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
-            if [[ -n "$v21" && -n "$v23" ]]; then
-              V21="$v21" V23="$v23" python - <<'PY'
+            rm -f "$v21_path" "$v23_path"
+            git show "origin/forward-data/v2:data/market-state-router/decisions/$SAFE_HOUR.json" > "$v21_path" 2>/dev/null || true
+            git show "origin/forward-data/v2:data/forward-alpha-v23/decisions/$SAFE_HOUR.json" > "$v23_path" 2>/dev/null || true
+            if [[ -s "$v21_path" && -s "$v23_path" ]]; then
+              V21_PATH="$v21_path" V23_PATH="$v23_path" python - <<'PY'
           import json
           import os
+          from pathlib import Path
+
           target = os.environ["TARGET_HOUR"]
-          for label, raw in (("v2.1", os.environ["V21"]), ("v2.3", os.environ["V23"])):
-              report = json.loads(raw)
+          for label, env_name in (("v2.1", "V21_PATH"), ("v2.3", "V23_PATH")):
+              report = json.loads(Path(os.environ[env_name]).read_text(encoding="utf-8"))
               assert report["data_cutoff_utc"] == target, (label, report["data_cutoff_utc"], target)
               assert report["paper_only"] is True
               assert report["authorizes_trading"] is False
