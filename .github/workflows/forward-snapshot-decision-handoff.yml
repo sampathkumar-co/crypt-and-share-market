@@ -189,15 +189,19 @@ jobs:
           set -euo pipefail
           for attempt in $(seq 1 60); do
             git fetch --quiet origin forward-data/v2
-            v21=$(git show "origin/forward-data/v2:data/market-state-router/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
-            v23=$(git show "origin/forward-data/v2:data/forward-alpha-v23/decisions/$SAFE_HOUR.json" 2>/dev/null || true)
-            if [[ -n "$v21" && -n "$v23" ]]; then
-              V21="$v21" V23="$v23" python - <<'PY'
+            if git show "origin/forward-data/v2:data/market-state-router/decisions/$SAFE_HOUR.json" > /tmp/v21-decision.json 2>/dev/null && \
+               git show "origin/forward-data/v2:data/forward-alpha-v23/decisions/$SAFE_HOUR.json" > /tmp/v23-decision.json 2>/dev/null; then
+              TARGET_HOUR="$TARGET_HOUR" python - <<'PY'
           import json
           import os
+          from pathlib import Path
+
           target = os.environ["TARGET_HOUR"]
-          for label, raw in (("v2.1", os.environ["V21"]), ("v2.3", os.environ["V23"])):
-              report = json.loads(raw)
+          for label, path in (
+              ("v2.1", Path("/tmp/v21-decision.json")),
+              ("v2.3", Path("/tmp/v23-decision.json")),
+          ):
+              report = json.loads(path.read_text(encoding="utf-8"))
               assert report["data_cutoff_utc"] == target, (label, report["data_cutoff_utc"], target)
               assert report["paper_only"] is True
               assert report["authorizes_trading"] is False
