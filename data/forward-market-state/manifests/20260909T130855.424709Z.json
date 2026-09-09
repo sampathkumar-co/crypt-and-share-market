@@ -1,0 +1,403 @@
+{
+  "normalized_file_sha256": "96ffb360147e6c57cf410900f65afb41aaf5fdafdf7ceb612ee87b4c40dda467",
+  "normalized_path": "normalized/20260909T130855.424709Z.json",
+  "record_sha256": "11fcc3aed49aebfc49713ca27634cd243aef695943fed1834f8fb193288d0e94",
+  "schema_version": "2.0",
+  "snapshot_id": "20260909T130855.424709Z",
+  "source_errors": {},
+  "sources": [
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-AVAX-book-3e10f639abaf8af5f474c334e6b4632cbd328c08c409a2e519e6465d0de09221.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/AVAX-USD/book?level=2"
+      },
+      "sha256": "3e10f639abaf8af5f474c334e6b4632cbd328c08c409a2e519e6465d0de09221",
+      "source": "coinbase-AVAX-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-AVAX-ticker-719e9cfa62fd3d6ace6803213cfff921b9bde966ca281151ec13cb4df2796c50.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/AVAX-USD/ticker"
+      },
+      "sha256": "719e9cfa62fd3d6ace6803213cfff921b9bde966ca281151ec13cb4df2796c50",
+      "source": "coinbase-AVAX-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-AVAX-trades-3ce28098ee1e1c00168e3d497e6208663f83edeca726c7f182cb83ffbb4d048c.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/AVAX-USD/trades?limit=1000"
+      },
+      "sha256": "3ce28098ee1e1c00168e3d497e6208663f83edeca726c7f182cb83ffbb4d048c",
+      "source": "coinbase-AVAX-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-BTC-book-aebc53a46ddd1a4b5073a79ea6c51a51e5be7303a9013e8e7bb65578f7216dd5.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/book?level=2"
+      },
+      "sha256": "aebc53a46ddd1a4b5073a79ea6c51a51e5be7303a9013e8e7bb65578f7216dd5",
+      "source": "coinbase-BTC-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-BTC-ticker-66a3984757b38a2ecfec1762b94cf0a27f7ae114b4ae5f1bf116d1be544a759c.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
+      },
+      "sha256": "66a3984757b38a2ecfec1762b94cf0a27f7ae114b4ae5f1bf116d1be544a759c",
+      "source": "coinbase-BTC-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-BTC-trades-288f6daaac2aa7b90e80efa71b984e3ff1969d2d49d79b509a4052ed193a76ef.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/trades?limit=1000"
+      },
+      "sha256": "288f6daaac2aa7b90e80efa71b984e3ff1969d2d49d79b509a4052ed193a76ef",
+      "source": "coinbase-BTC-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-DOGE-book-b78aa221a69e258e3f4428b7e71bfae9d6a4c05787eb58719a5b75dbbd640fe2.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/DOGE-USD/book?level=2"
+      },
+      "sha256": "b78aa221a69e258e3f4428b7e71bfae9d6a4c05787eb58719a5b75dbbd640fe2",
+      "source": "coinbase-DOGE-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-DOGE-ticker-ac0f96b877d6779cba9aab47a6e3757d2e1de6a49411a7809d4ac5982f3a9120.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/DOGE-USD/ticker"
+      },
+      "sha256": "ac0f96b877d6779cba9aab47a6e3757d2e1de6a49411a7809d4ac5982f3a9120",
+      "source": "coinbase-DOGE-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-DOGE-trades-268fdf1b1b87305cb232f34f35d50ff7d54ecaa5b946f05a5091c07d01562660.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/DOGE-USD/trades?limit=1000"
+      },
+      "sha256": "268fdf1b1b87305cb232f34f35d50ff7d54ecaa5b946f05a5091c07d01562660",
+      "source": "coinbase-DOGE-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-ETH-book-029d19fe83bcd120b0c0a9f6965b7f35693a433a7309678ec55d77a32e1a4a3b.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/ETH-USD/book?level=2"
+      },
+      "sha256": "029d19fe83bcd120b0c0a9f6965b7f35693a433a7309678ec55d77a32e1a4a3b",
+      "source": "coinbase-ETH-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-ETH-ticker-2030e706a199505336f469a1e834502b80c842d96950343a1d9f917a26152fb1.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/ETH-USD/ticker"
+      },
+      "sha256": "2030e706a199505336f469a1e834502b80c842d96950343a1d9f917a26152fb1",
+      "source": "coinbase-ETH-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-ETH-trades-2d9a3c168e908b8a2c01f7b1f693c817e13599593b9976a603d739ba2dcbf542.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/ETH-USD/trades?limit=1000"
+      },
+      "sha256": "2d9a3c168e908b8a2c01f7b1f693c817e13599593b9976a603d739ba2dcbf542",
+      "source": "coinbase-ETH-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-LINK-book-f1e07b3f0019670e97983ee91435b41c722ac38b53242a8c8f3742f2373f675e.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/LINK-USD/book?level=2"
+      },
+      "sha256": "f1e07b3f0019670e97983ee91435b41c722ac38b53242a8c8f3742f2373f675e",
+      "source": "coinbase-LINK-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-LINK-ticker-15675c4380796485c961d6079a6e47efe02f9a36f9207d5ffe13fe54fa50a490.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/LINK-USD/ticker"
+      },
+      "sha256": "15675c4380796485c961d6079a6e47efe02f9a36f9207d5ffe13fe54fa50a490",
+      "source": "coinbase-LINK-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-LINK-trades-131694bed00e4d490aab185c7a83c10a6c1e7a38811872dba97032af6f5f2c70.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/LINK-USD/trades?limit=1000"
+      },
+      "sha256": "131694bed00e4d490aab185c7a83c10a6c1e7a38811872dba97032af6f5f2c70",
+      "source": "coinbase-LINK-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-SOL-book-67082be748d285c7ca806f0f798c8e7ea2584c6281ee1642e4638749e7e1eb1c.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/SOL-USD/book?level=2"
+      },
+      "sha256": "67082be748d285c7ca806f0f798c8e7ea2584c6281ee1642e4638749e7e1eb1c",
+      "source": "coinbase-SOL-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-SOL-ticker-21e2236712d79ec0d32dec6880c02a85353b9bc898cb73ed04783eee651a811e.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/SOL-USD/ticker"
+      },
+      "sha256": "21e2236712d79ec0d32dec6880c02a85353b9bc898cb73ed04783eee651a811e",
+      "source": "coinbase-SOL-ticker"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinbase-SOL-trades-7ae7b017cc0682c3763b703536a7e2126d55a445ff50db5756b901b88e477e70.raw",
+      "request": {
+        "method": "GET",
+        "payload": null,
+        "url": "https://api.exchange.coinbase.com/products/SOL-USD/trades?limit=1000"
+      },
+      "sha256": "7ae7b017cc0682c3763b703536a7e2126d55a445ff50db5756b901b88e477e70",
+      "source": "coinbase-SOL-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinmetrics-usdc-6851af28f5e3f2f205090631063b969708c9d1135535a6d8cc085e2ed2932af2.raw",
+      "request": {
+        "method": "GET",
+        "url": "https://raw.githubusercontent.com/coinmetrics/data/master/csv/usdc.csv"
+      },
+      "sha256": "6851af28f5e3f2f205090631063b969708c9d1135535a6d8cc085e2ed2932af2",
+      "source": "coinmetrics-usdc"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/coinmetrics-usdt-bc6cec81ee5958009964d9fbb0f81f75f590869a7aabe2add5abcd10ced32b39.raw",
+      "request": {
+        "method": "GET",
+        "url": "https://raw.githubusercontent.com/coinmetrics/data/master/csv/usdt.csv"
+      },
+      "sha256": "bc6cec81ee5958009964d9fbb0f81f75f590869a7aabe2add5abcd10ced32b39",
+      "source": "coinmetrics-usdt"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/fred-DGS10-d72c984bd9332ec6af500de5b6358b3e646b08088c4e58f1b4aa2b5ec7226952.raw",
+      "request": {
+        "method": "GET",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
+      },
+      "sha256": "d72c984bd9332ec6af500de5b6358b3e646b08088c4e58f1b4aa2b5ec7226952",
+      "source": "fred-DGS10"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/fred-DTWEXBGS-4a96aac1fb74ccf1ddfcd907d9cc14e7e5cc41a038fae542f8be689843e76bf2.raw",
+      "request": {
+        "method": "GET",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS"
+      },
+      "sha256": "4a96aac1fb74ccf1ddfcd907d9cc14e7e5cc41a038fae542f8be689843e76bf2",
+      "source": "fred-DTWEXBGS"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/fred-VIXCLS-021775613116b230b31c5f7bbb7ef37a0ad4eee5d302b9731a99cc6a0fbb4862.raw",
+      "request": {
+        "method": "GET",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS"
+      },
+      "sha256": "021775613116b230b31c5f7bbb7ef37a0ad4eee5d302b9731a99cc6a0fbb4862",
+      "source": "fred-VIXCLS"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-AVAX-book-c6b220e5cf16822d7aa26d74c91522301ef7dfc5544a63c1ab8e4bab69732d57.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "AVAX",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "c6b220e5cf16822d7aa26d74c91522301ef7dfc5544a63c1ab8e4bab69732d57",
+      "source": "hyperliquid-AVAX-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-AVAX-trades-e26f6fc62a3dd07c10ba93e0229c44f980f8784dd41b04c513de1bedb286ff97.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "AVAX",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "e26f6fc62a3dd07c10ba93e0229c44f980f8784dd41b04c513de1bedb286ff97",
+      "source": "hyperliquid-AVAX-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-BTC-book-5e1173c6b0045afd2799d661e2b49aaf165c8c2d387f20c58a5082c6800059ac.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "BTC",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "5e1173c6b0045afd2799d661e2b49aaf165c8c2d387f20c58a5082c6800059ac",
+      "source": "hyperliquid-BTC-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-BTC-trades-7950801be8b11e3ec51bd3295eb0cb56340cd0b7df5d8b3800ed36a165e6ee3a.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "BTC",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "7950801be8b11e3ec51bd3295eb0cb56340cd0b7df5d8b3800ed36a165e6ee3a",
+      "source": "hyperliquid-BTC-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-DOGE-book-0bc7449e40eaa388c5d74e75ec7a01df870dc14e3b3fa0e39d75d86cd6484874.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "DOGE",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "0bc7449e40eaa388c5d74e75ec7a01df870dc14e3b3fa0e39d75d86cd6484874",
+      "source": "hyperliquid-DOGE-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-DOGE-trades-9dca70350c093f83c3e7e7a738c843ea132fc1abcc87033752805de5a95fefa2.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "DOGE",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "9dca70350c093f83c3e7e7a738c843ea132fc1abcc87033752805de5a95fefa2",
+      "source": "hyperliquid-DOGE-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-ETH-book-0c1020d4c6f8fa666ae77a46b23d0263d35ceaa8a576241c5d0034696c4be853.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "ETH",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "0c1020d4c6f8fa666ae77a46b23d0263d35ceaa8a576241c5d0034696c4be853",
+      "source": "hyperliquid-ETH-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-ETH-trades-3fdf825973647891a3f0f77718186931017361bbf76470a35066f7cb3a27e000.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "ETH",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "3fdf825973647891a3f0f77718186931017361bbf76470a35066f7cb3a27e000",
+      "source": "hyperliquid-ETH-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-LINK-book-5d2f7122edb8d90d0ff8b5a706648fe14202b62ad4e8f27126f5fedf24401a5c.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "LINK",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "5d2f7122edb8d90d0ff8b5a706648fe14202b62ad4e8f27126f5fedf24401a5c",
+      "source": "hyperliquid-LINK-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-LINK-trades-42e7d57e73a0ad6cb84047992016b57404df12b787bb7221a639eaf4b0e3c56b.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "LINK",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "42e7d57e73a0ad6cb84047992016b57404df12b787bb7221a639eaf4b0e3c56b",
+      "source": "hyperliquid-LINK-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-SOL-book-5631446d8adc0dc0a34edf97f96b3a04584e148572a3980820cac2ac6a2f29af.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "SOL",
+          "type": "l2Book"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "5631446d8adc0dc0a34edf97f96b3a04584e148572a3980820cac2ac6a2f29af",
+      "source": "hyperliquid-SOL-book"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-SOL-trades-349262572ad6330d0ba5116b02dc6a86dcb684dee695f54265105611e1b38ec1.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "coin": "SOL",
+          "type": "recentTrades"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "349262572ad6330d0ba5116b02dc6a86dcb684dee695f54265105611e1b38ec1",
+      "source": "hyperliquid-SOL-trades"
+    },
+    {
+      "raw_path": "raw/20260909T130855.424709Z/hyperliquid-meta-contexts-62a2951a19c090f29cf6849236a5775d93f12c24df0c0843dde8c110d1dba149.raw",
+      "request": {
+        "method": "POST",
+        "payload": {
+          "type": "metaAndAssetCtxs"
+        },
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "sha256": "62a2951a19c090f29cf6849236a5775d93f12c24df0c0843dde8c110d1dba149",
+      "source": "hyperliquid-meta-contexts"
+    }
+  ]
+}
