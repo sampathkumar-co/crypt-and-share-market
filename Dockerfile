@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
@@ -10,7 +10,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN python -m pip wheel --no-deps --wheel-dir /wheels .
 
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ARG VCS_REF="unknown"
 ARG BUILD_DATE="unknown"
