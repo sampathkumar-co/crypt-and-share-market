@@ -1,0 +1,110 @@
+{
+  "action": "HOLD_NO_TRADE",
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_evidence": {
+    "latest_known_annual_rate": 0.0416,
+    "latest_known_date": "2026-09-22",
+    "normalized_sha256": "fe935c8577af4a9ecfeb1acb2e8ded2c7769c761dca56245c44c35471a500721",
+    "observation_count": 11264,
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "changes_track_a": false,
+  "completed_candle_date_utc": "2026-09-23",
+  "continuity": {
+    "gap_reset": false,
+    "has_prior_observation": true,
+    "prior_calendar_day_present": true
+  },
+  "data_cutoff_utc": "2026-09-23T23:59:59.999999Z",
+  "decision_reason": "natural_drift_until_scheduled_rebalance",
+  "earliest_eligible_effective_open_utc": "2026-09-25T00:00:00Z",
+  "features": {
+    "BTC": {
+      "close": 84378.31,
+      "drawdown_20": -0.025597685037948015,
+      "return_1": -0.021111150426256775,
+      "return_120": 0.11278715376367754,
+      "return_20": 0.03832349359168785,
+      "return_200": 0.2545166029781316,
+      "return_5": 0.0433170728570893,
+      "return_60": 0.3123494745597717,
+      "sma_100": 68892.0232,
+      "sma_200": 70759.4724,
+      "sma_50": 74529.3562,
+      "trend_score": 5.716279361863137,
+      "volatility_20": 0.023690937993690264
+    },
+    "ETH": {
+      "close": 2683.88,
+      "drawdown_20": -0.033038139776190856,
+      "return_1": -0.02524170292513206,
+      "return_120": 0.29600942594452606,
+      "return_20": 0.07035378289670469,
+      "return_200": 0.36264539680444363,
+      "return_5": 0.02777884151431831,
+      "return_60": 0.4328928752569339,
+      "sma_100": 2055.1206,
+      "sma_200": 2087.1672,
+      "sma_50": 2325.4178,
+      "trend_score": 8.888174185308117,
+      "volatility_20": 0.025229775490337558
+    }
+  },
+  "fingerprints": {
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "cf1dc9c096fa9eb29467cd4c324798c519a7d68eeca13112a34c0cd7215c1a68",
+    "protocol_sha256": "b75cde366a938cb6c14b30029b06996c3979022d84ecf69c93d8ac5439adf266",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "source_implementation_sha256": "c37209fa243ce0e8e069eee128fe62aa13f85f49def340ef7cd4bb679658bfc8"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "historical_promotion_evidence": {
+    "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+    "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+  },
+  "history_days": 260,
+  "minimum_cash_target": null,
+  "mode": "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY",
+  "operational_latency_days": 1,
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "recommended_target_weights": null,
+  "report_sha256": "7ae970b2b779148f20ed198a3f13d094119abf892d68b7b26a59dfb57d2f34d8",
+  "schema_version": "3.3-daily-forward-observation",
+  "source_fingerprints": {
+    "coinbase_btc_normalized_sha256": "ec6e6b0099e691f5a8a648a172197b8dac0af735622f471a084c1d1e37e2a419",
+    "coinbase_eth_normalized_sha256": "ed843e97921d476f928e219b52197eb9a9d20c22da371a5966e7eb420af36be3",
+    "h15_normalized_sha256": "fe935c8577af4a9ecfeb1acb2e8ded2c7769c761dca56245c44c35471a500721",
+    "prior_observation_file_sha256": "c73774e8a8329fc8e20f5d680b5d78e3d498fd4e5021fa3dbc94548df8ed1c55"
+  },
+  "state_after": {
+    "age": 5,
+    "selected_assets": [
+      "ETH"
+    ],
+    "sleeve": "trend"
+  },
+  "state_before": {
+    "age": 4,
+    "selected_assets": [
+      "ETH"
+    ],
+    "sleeve": "trend"
+  },
+  "target_changing_action": false,
+  "trade_required": false
+}
