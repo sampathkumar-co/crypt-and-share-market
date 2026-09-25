@@ -1,0 +1,110 @@
+{
+  "action": "HOLD_NO_TRADE",
+  "authorizes_shadow_paper": false,
+  "authorizes_trading": false,
+  "cannot_replace_forward_evidence": true,
+  "cash_evidence": {
+    "latest_known_annual_rate": 0.0419,
+    "latest_known_date": "2026-09-23",
+    "normalized_sha256": "965fee181bcc48babf39850024731e31d938ab117dcbca802262a44c632daaa5",
+    "observation_count": 11265,
+    "series_id": "H15/H15/RIFLGFCM03_N.B"
+  },
+  "changes_track_a": false,
+  "completed_candle_date_utc": "2026-09-24",
+  "continuity": {
+    "gap_reset": false,
+    "has_prior_observation": true,
+    "prior_calendar_day_present": true
+  },
+  "data_cutoff_utc": "2026-09-24T23:59:59.999999Z",
+  "decision_reason": "natural_drift_until_scheduled_rebalance",
+  "earliest_eligible_effective_open_utc": "2026-09-26T00:00:00Z",
+  "features": {
+    "BTC": {
+      "close": 84385.46,
+      "drawdown_20": -0.025515116703123675,
+      "return_1": 8.473741652337274e-05,
+      "return_120": 0.13549548831893232,
+      "return_20": 0.059119333613805836,
+      "return_200": 0.27913814889550737,
+      "return_5": 0.03879599049214799,
+      "return_60": 0.29146125094064135,
+      "sma_100": 69079.7114,
+      "sma_200": 70851.5469,
+      "sma_50": 74925.00480000001,
+      "trend_score": 6.218547496252414,
+      "volatility_20": 0.02317215392175125
+    },
+    "ETH": {
+      "close": 2687.28,
+      "drawdown_20": -0.03181317058056321,
+      "return_1": 0.001266822659731437,
+      "return_120": 0.32925743455808165,
+      "return_20": 0.09390214117072393,
+      "return_200": 0.38739138740171297,
+      "return_5": 0.021119428506288784,
+      "return_60": 0.3760247423102723,
+      "sma_100": 2064.081,
+      "sma_200": 2090.9189499999998,
+      "sma_50": 2341.0176,
+      "trend_score": 9.15824901718916,
+      "volatility_20": 0.02463461953989366
+    }
+  },
+  "fingerprints": {
+    "frozen_model_sha256": "4eae94c73b52ca93dc44a780e833be834e9f9b11f98380a25b410068457a85bb",
+    "implementation_sha256": "cf1dc9c096fa9eb29467cd4c324798c519a7d68eeca13112a34c0cd7215c1a68",
+    "protocol_sha256": "b75cde366a938cb6c14b30029b06996c3979022d84ecf69c93d8ac5439adf266",
+    "scheduled_execution_sha256": "f19eb507942e022bae0c42a271b8ba709cf808677b48358fbf1429692e56a71a",
+    "source_implementation_sha256": "c37209fa243ce0e8e069eee128fe62aa13f85f49def340ef7cd4bb679658bfc8"
+  },
+  "frozen_model": {
+    "drawdown_brake": 0.2,
+    "maximum_exposure": 0.1,
+    "model_id": "sma100-rebalance10-top1-exposure10-vol2-brake20",
+    "rebalance_days": 10,
+    "sma_length": 100,
+    "top_n": 1,
+    "volatility_target": 0.02
+  },
+  "historical_promotion_evidence": {
+    "coinbase_replication_report_sha256": "c8a2bf7204681cdd5ce642886a42ea361f016008d908cfa16d299798cb9fefc4",
+    "corrected_binance_report_sha256": "90dea7bcc12274146f730ba5a5cd9f93179ff944211ff07de849aca68e468c22"
+  },
+  "history_days": 260,
+  "minimum_cash_target": null,
+  "mode": "DAILY_FORWARD_YIELD_TREND_OBSERVATION_ONLY",
+  "operational_latency_days": 1,
+  "paper_only": true,
+  "price_provider": "coinbase-exchange-public-rest",
+  "products": {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+  },
+  "recommended_target_weights": null,
+  "report_sha256": "329c6890921de8019e77221d1d64017ce2a2928c18c73e702470f05a323c9767",
+  "schema_version": "3.3-daily-forward-observation",
+  "source_fingerprints": {
+    "coinbase_btc_normalized_sha256": "9ee98069ffbb5b984510c432fbcb26ad7db4de230a6fde5b7e3c0e2872b5f378",
+    "coinbase_eth_normalized_sha256": "a810e394b64f10a395f19a3073a9dc42cfcf1ee4be34f4f7dcc3f650ab0b0222",
+    "h15_normalized_sha256": "965fee181bcc48babf39850024731e31d938ab117dcbca802262a44c632daaa5",
+    "prior_observation_file_sha256": "baa1d7b9edfaea1c9e506887207f649ade2c108f98a992b37830ca61d4de300e"
+  },
+  "state_after": {
+    "age": 6,
+    "selected_assets": [
+      "ETH"
+    ],
+    "sleeve": "trend"
+  },
+  "state_before": {
+    "age": 5,
+    "selected_assets": [
+      "ETH"
+    ],
+    "sleeve": "trend"
+  },
+  "target_changing_action": false,
+  "trade_required": false
+}
